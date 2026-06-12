@@ -50,13 +50,13 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for Declaration<'s> {
             match &name {
                 InterpolableIdent::Literal(ident)
                     if ident.name.starts_with("--")
-                        || ident.name.eq_ignore_ascii_case("filter")
-                            && matches!(
-                                &peek!(parser).token,
-                                // for IE-compatibility:
-                                // filter: progid:DXImageTransform.Microsoft...
-                                Token::Ident(ident) if ident.name().eq_ignore_ascii_case("progid")
-                            ) =>
+                        || matches!(
+                            &peek!(parser).token,
+                            // for IE-compatibility, regardless of the property
+                            // name (`filter`, `-ms-filter`, vendor variants...):
+                            // filter: progid:DXImageTransform.Microsoft...
+                            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("progid")
+                        ) =>
                 'value: {
                     if parser.options.try_parsing_value_in_custom_property
                         && let Ok(values) = parser.try_parse(Parser::parse_declaration_value)

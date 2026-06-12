@@ -5,3 +5,7 @@ img {
 a {
   --custom: '#{$interpolated}' rest;
 }
+a {
+  prop13: progid:DXImageTransform.Microsoft.gradient(enabled='false', startColorstr='#{ie-hex-str($green)}');
+  -ms-filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=2);
+}
