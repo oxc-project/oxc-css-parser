@@ -44,7 +44,13 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for AtRule<'s> {
             || at_rule_name.eq_ignore_ascii_case("-ms-keyframes")
             || at_rule_name.eq_ignore_ascii_case("-o-keyframes")
         {
-            let prelude = AtRulePrelude::Keyframes(input.parse()?);
+            // A nameless `@keyframes {}` is invalid CSS, but Sass parses it
+            // (the name may be produced elsewhere, e.g. a keyframes mixin
+            // emitting vendor-prefixed blocks around `@content`).
+            let prelude = match &peek!(input).token {
+                Token::LBrace(..) => None,
+                _ => Some(AtRulePrelude::Keyframes(input.parse()?)),
+            };
             let block = input
                 .with_state(ParserState {
                     in_keyframes_at_rule: true,
@@ -52,7 +58,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for AtRule<'s> {
                 })
                 .parse::<SimpleBlock>()?;
             let end = block.span.end;
-            (Some(prelude), Some(block), end)
+            (prelude, Some(block), end)
         } else if at_rule_name.eq_ignore_ascii_case("import") {
             let (end, prelude) = match input.syntax {
                 Syntax::Css => {

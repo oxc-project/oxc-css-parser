@@ -704,9 +704,139 @@ Stylesheet(
         end: 458,
       ),
     ),
+    AtRule(
+      type: "AtRule",
+      name: Ident(
+        type: "Ident",
+        name: "mixin",
+        raw: "mixin",
+        span: Span(
+          start: 461,
+          end: 466,
+        ),
+      ),
+      prelude: Some(SassMixin(
+        type: "SassMixin",
+        name: Ident(
+          type: "Ident",
+          name: "keyframes",
+          raw: "keyframes",
+          span: Span(
+            start: 467,
+            end: 476,
+          ),
+        ),
+        parameters: None,
+        span: Span(
+          start: 467,
+          end: 476,
+        ),
+      )),
+      block: Some(SimpleBlock(
+        type: "SimpleBlock",
+        statements: [
+          AtRule(
+            type: "AtRule",
+            name: Ident(
+              type: "Ident",
+              name: "-moz-keyframes",
+              raw: "-moz-keyframes",
+              span: Span(
+                start: 479,
+                end: 493,
+              ),
+            ),
+            prelude: None,
+            block: Some(SimpleBlock(
+              type: "SimpleBlock",
+              statements: [
+                AtRule(
+                  type: "AtRule",
+                  name: Ident(
+                    type: "Ident",
+                    name: "content",
+                    raw: "content",
+                    span: Span(
+                      start: 495,
+                      end: 502,
+                    ),
+                  ),
+                  prelude: None,
+                  block: None,
+                  span: Span(
+                    start: 494,
+                    end: 503,
+                  ),
+                ),
+              ],
+              span: Span(
+                start: 493,
+                end: 504,
+              ),
+            )),
+            span: Span(
+              start: 478,
+              end: 504,
+            ),
+          ),
+          AtRule(
+            type: "AtRule",
+            name: Ident(
+              type: "Ident",
+              name: "-webkit-keyframes",
+              raw: "-webkit-keyframes",
+              span: Span(
+                start: 505,
+                end: 522,
+              ),
+            ),
+            prelude: None,
+            block: Some(SimpleBlock(
+              type: "SimpleBlock",
+              statements: [
+                AtRule(
+                  type: "AtRule",
+                  name: Ident(
+                    type: "Ident",
+                    name: "content",
+                    raw: "content",
+                    span: Span(
+                      start: 524,
+                      end: 531,
+                    ),
+                  ),
+                  prelude: None,
+                  block: None,
+                  span: Span(
+                    start: 523,
+                    end: 532,
+                  ),
+                ),
+              ],
+              span: Span(
+                start: 522,
+                end: 533,
+              ),
+            )),
+            span: Span(
+              start: 504,
+              end: 533,
+            ),
+          ),
+        ],
+        span: Span(
+          start: 477,
+          end: 534,
+        ),
+      )),
+      span: Span(
+        start: 460,
+        end: 534,
+      ),
+    ),
   ],
   span: Span(
     start: 0,
-    end: 459,
+    end: 535,
   ),
 )

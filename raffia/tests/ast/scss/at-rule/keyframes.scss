@@ -33,3 +33,5 @@
     }
   }
 }
+
+@mixin keyframes {@-moz-keyframes{@content;}@-webkit-keyframes{@content;}}
