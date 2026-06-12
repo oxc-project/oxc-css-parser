@@ -1,0 +1,7 @@
+img {
+  filter: progid:DXImageTransform.Microsoft.gradient(enabled='false', startColorstr='#{ie-hex-str($green)}', endColorstr='#{ie-hex-str($translucent-red)}');
+}
+
+a {
+  --custom: '#{$interpolated}' rest;
+}

@@ -99,6 +99,15 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for Declaration<'s> {
                                     break;
                                 }
                             }
+                            // An interpolated string (e.g. `'#{$expr}'` inside
+                            // `filter: progid:...`) must be parsed structurally:
+                            // the tokenizer needs `scan_string_template` to resume
+                            // the string after each `#{...}`, so consuming its
+                            // tokens as a plain stream would mis-lex the rest.
+                            Token::StrTemplate(..) => {
+                                values.push(ComponentValue::InterpolableStr(parser.parse()?));
+                                continue;
+                            }
                             _ => {}
                         }
                         values.push(ComponentValue::TokenWithSpan(bump!(parser)));

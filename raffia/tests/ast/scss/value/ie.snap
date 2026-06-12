@@ -1,0 +1,571 @@
+---
+source: raffia/tests/ast.rs
+---
+Stylesheet(
+  type: "Stylesheet",
+  statements: [
+    QualifiedRule(
+      type: "QualifiedRule",
+      selector: SelectorList(
+        type: "SelectorList",
+        selectors: [
+          ComplexSelector(
+            type: "ComplexSelector",
+            children: [
+              CompoundSelector(
+                type: "CompoundSelector",
+                children: [
+                  TagNameSelector(
+                    type: "TagNameSelector",
+                    name: WqName(
+                      type: "WqName",
+                      name: Ident(
+                        type: "Ident",
+                        name: "img",
+                        raw: "img",
+                        span: Span(
+                          start: 0,
+                          end: 3,
+                        ),
+                      ),
+                      prefix: None,
+                      span: Span(
+                        start: 0,
+                        end: 3,
+                      ),
+                    ),
+                    span: Span(
+                      start: 0,
+                      end: 3,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 0,
+                  end: 3,
+                ),
+              ),
+            ],
+            span: Span(
+              start: 0,
+              end: 3,
+            ),
+          ),
+        ],
+        commaSpans: [],
+        span: Span(
+          start: 0,
+          end: 3,
+        ),
+      ),
+      block: SimpleBlock(
+        type: "SimpleBlock",
+        statements: [
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "filter",
+              raw: "filter",
+              span: Span(
+                start: 8,
+                end: 14,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 14,
+              end: 15,
+            ),
+            value: [
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Ident(Ident(
+                  kind: "Ident",
+                  escaped: false,
+                  raw: "progid",
+                )),
+                span: Span(
+                  start: 16,
+                  end: 22,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Colon(Colon(
+                  kind: "Colon",
+                )),
+                span: Span(
+                  start: 22,
+                  end: 23,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Ident(Ident(
+                  kind: "Ident",
+                  escaped: false,
+                  raw: "DXImageTransform",
+                )),
+                span: Span(
+                  start: 23,
+                  end: 39,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Dot(Dot(
+                  kind: "Dot",
+                )),
+                span: Span(
+                  start: 39,
+                  end: 40,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Ident(Ident(
+                  kind: "Ident",
+                  escaped: false,
+                  raw: "Microsoft",
+                )),
+                span: Span(
+                  start: 40,
+                  end: 49,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Dot(Dot(
+                  kind: "Dot",
+                )),
+                span: Span(
+                  start: 49,
+                  end: 50,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Ident(Ident(
+                  kind: "Ident",
+                  escaped: false,
+                  raw: "gradient",
+                )),
+                span: Span(
+                  start: 50,
+                  end: 58,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: LParen(LParen(
+                  kind: "LParen",
+                )),
+                span: Span(
+                  start: 58,
+                  end: 59,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Ident(Ident(
+                  kind: "Ident",
+                  escaped: false,
+                  raw: "enabled",
+                )),
+                span: Span(
+                  start: 59,
+                  end: 66,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Equal(Equal(
+                  kind: "Equal",
+                )),
+                span: Span(
+                  start: 66,
+                  end: 67,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Str(Str(
+                  kind: "Str",
+                  raw: "\'false\'",
+                  escaped: false,
+                )),
+                span: Span(
+                  start: 67,
+                  end: 74,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Comma(Comma(
+                  kind: "Comma",
+                )),
+                span: Span(
+                  start: 74,
+                  end: 75,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Ident(Ident(
+                  kind: "Ident",
+                  escaped: false,
+                  raw: "startColorstr",
+                )),
+                span: Span(
+                  start: 76,
+                  end: 89,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Equal(Equal(
+                  kind: "Equal",
+                )),
+                span: Span(
+                  start: 89,
+                  end: 90,
+                ),
+              ),
+              SassInterpolatedStr(
+                type: "SassInterpolatedStr",
+                elements: [
+                  InterpolableStrStaticPart(
+                    type: "InterpolableStrStaticPart",
+                    value: "",
+                    raw: "\'",
+                    span: Span(
+                      start: 90,
+                      end: 91,
+                    ),
+                  ),
+                  Function(
+                    type: "Function",
+                    name: Ident(
+                      type: "Ident",
+                      name: "ie-hex-str",
+                      raw: "ie-hex-str",
+                      span: Span(
+                        start: 93,
+                        end: 103,
+                      ),
+                    ),
+                    args: [
+                      SassVariable(
+                        type: "SassVariable",
+                        name: Ident(
+                          type: "Ident",
+                          name: "green",
+                          raw: "green",
+                          span: Span(
+                            start: 105,
+                            end: 110,
+                          ),
+                        ),
+                        span: Span(
+                          start: 104,
+                          end: 110,
+                        ),
+                      ),
+                    ],
+                    span: Span(
+                      start: 93,
+                      end: 111,
+                    ),
+                  ),
+                  InterpolableStrStaticPart(
+                    type: "InterpolableStrStaticPart",
+                    value: "",
+                    raw: "\'",
+                    span: Span(
+                      start: 112,
+                      end: 113,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 90,
+                  end: 113,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Comma(Comma(
+                  kind: "Comma",
+                )),
+                span: Span(
+                  start: 113,
+                  end: 114,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Ident(Ident(
+                  kind: "Ident",
+                  escaped: false,
+                  raw: "endColorstr",
+                )),
+                span: Span(
+                  start: 115,
+                  end: 126,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Equal(Equal(
+                  kind: "Equal",
+                )),
+                span: Span(
+                  start: 126,
+                  end: 127,
+                ),
+              ),
+              SassInterpolatedStr(
+                type: "SassInterpolatedStr",
+                elements: [
+                  InterpolableStrStaticPart(
+                    type: "InterpolableStrStaticPart",
+                    value: "",
+                    raw: "\'",
+                    span: Span(
+                      start: 127,
+                      end: 128,
+                    ),
+                  ),
+                  Function(
+                    type: "Function",
+                    name: Ident(
+                      type: "Ident",
+                      name: "ie-hex-str",
+                      raw: "ie-hex-str",
+                      span: Span(
+                        start: 130,
+                        end: 140,
+                      ),
+                    ),
+                    args: [
+                      SassVariable(
+                        type: "SassVariable",
+                        name: Ident(
+                          type: "Ident",
+                          name: "translucent-red",
+                          raw: "translucent-red",
+                          span: Span(
+                            start: 142,
+                            end: 157,
+                          ),
+                        ),
+                        span: Span(
+                          start: 141,
+                          end: 157,
+                        ),
+                      ),
+                    ],
+                    span: Span(
+                      start: 130,
+                      end: 158,
+                    ),
+                  ),
+                  InterpolableStrStaticPart(
+                    type: "InterpolableStrStaticPart",
+                    value: "",
+                    raw: "\'",
+                    span: Span(
+                      start: 159,
+                      end: 160,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 127,
+                  end: 160,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: RParen(RParen(
+                  kind: "RParen",
+                )),
+                span: Span(
+                  start: 160,
+                  end: 161,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 8,
+              end: 161,
+            ),
+          ),
+        ],
+        span: Span(
+          start: 4,
+          end: 164,
+        ),
+      ),
+      span: Span(
+        start: 0,
+        end: 164,
+      ),
+    ),
+    QualifiedRule(
+      type: "QualifiedRule",
+      selector: SelectorList(
+        type: "SelectorList",
+        selectors: [
+          ComplexSelector(
+            type: "ComplexSelector",
+            children: [
+              CompoundSelector(
+                type: "CompoundSelector",
+                children: [
+                  TagNameSelector(
+                    type: "TagNameSelector",
+                    name: WqName(
+                      type: "WqName",
+                      name: Ident(
+                        type: "Ident",
+                        name: "a",
+                        raw: "a",
+                        span: Span(
+                          start: 166,
+                          end: 167,
+                        ),
+                      ),
+                      prefix: None,
+                      span: Span(
+                        start: 166,
+                        end: 167,
+                      ),
+                    ),
+                    span: Span(
+                      start: 166,
+                      end: 167,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 166,
+                  end: 167,
+                ),
+              ),
+            ],
+            span: Span(
+              start: 166,
+              end: 167,
+            ),
+          ),
+        ],
+        commaSpans: [],
+        span: Span(
+          start: 166,
+          end: 167,
+        ),
+      ),
+      block: SimpleBlock(
+        type: "SimpleBlock",
+        statements: [
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "--custom",
+              raw: "--custom",
+              span: Span(
+                start: 172,
+                end: 180,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 180,
+              end: 181,
+            ),
+            value: [
+              SassInterpolatedStr(
+                type: "SassInterpolatedStr",
+                elements: [
+                  InterpolableStrStaticPart(
+                    type: "InterpolableStrStaticPart",
+                    value: "",
+                    raw: "\'",
+                    span: Span(
+                      start: 182,
+                      end: 183,
+                    ),
+                  ),
+                  SassVariable(
+                    type: "SassVariable",
+                    name: Ident(
+                      type: "Ident",
+                      name: "interpolated",
+                      raw: "interpolated",
+                      span: Span(
+                        start: 186,
+                        end: 198,
+                      ),
+                    ),
+                    span: Span(
+                      start: 185,
+                      end: 198,
+                    ),
+                  ),
+                  InterpolableStrStaticPart(
+                    type: "InterpolableStrStaticPart",
+                    value: "",
+                    raw: "\'",
+                    span: Span(
+                      start: 199,
+                      end: 200,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 182,
+                  end: 200,
+                ),
+              ),
+              TokenWithSpan(
+                type: "TokenWithSpan",
+                token: Ident(Ident(
+                  kind: "Ident",
+                  escaped: false,
+                  raw: "rest",
+                )),
+                span: Span(
+                  start: 201,
+                  end: 205,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 172,
+              end: 205,
+            ),
+          ),
+        ],
+        span: Span(
+          start: 168,
+          end: 208,
+        ),
+      ),
+      span: Span(
+        start: 166,
+        end: 208,
+      ),
+    ),
+  ],
+  span: Span(
+    start: 0,
+    end: 209,
+  ),
+)
