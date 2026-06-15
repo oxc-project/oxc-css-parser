@@ -168,9 +168,22 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaInParens<'s> {
 
 impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaInParensKind<'s> {
     fn parse(input: &mut Parser<'cmt, 's>) -> PResult<Self> {
-        if let Ok(media_condition) =
-            input.try_parse(|parser| parser.parse_media_condition(/* allow_or */ true))
-        {
+        if let Ok(media_condition) = input.try_parse(|parser| {
+            let media_condition = parser.parse_media_condition(/* allow_or */ true)?;
+            // `(#{$x}-width: 1px)`: the interpolation parses as a
+            // `SassInterpolation` media condition, but a trailing `:` means it is
+            // really a media feature name. Require the closing `)` here so such
+            // cases fall through to the media-feature branch below.
+            if matches!(&peek!(parser).token, Token::RParen(..)) {
+                Ok(media_condition)
+            } else {
+                let span = peek!(parser).span.clone();
+                Err(Error {
+                    kind: ErrorKind::ExpectMediaFeatureName,
+                    span,
+                })
+            }
+        }) {
             Ok(MediaInParensKind::MediaCondition(media_condition))
         } else {
             input

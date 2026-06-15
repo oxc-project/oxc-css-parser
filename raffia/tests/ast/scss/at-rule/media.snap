@@ -990,9 +990,317 @@ Stylesheet(
         end: 292,
       ),
     ),
+    AtRule(
+      type: "AtRule",
+      name: Ident(
+        type: "Ident",
+        name: "media",
+        raw: "media",
+        span: Span(
+          start: 295,
+          end: 300,
+        ),
+      ),
+      prelude: Some(MediaQueryList(
+        type: "MediaQueryList",
+        queries: [
+          MediaCondition(
+            type: "MediaCondition",
+            conditions: [
+              MediaInParens(
+                type: "MediaInParens",
+                kind: MediaFeaturePlain(
+                  type: "MediaFeaturePlain",
+                  name: SassInterpolatedIdent(
+                    type: "SassInterpolatedIdent",
+                    elements: [
+                      SassVariable(
+                        type: "SassVariable",
+                        name: Ident(
+                          type: "Ident",
+                          name: "condition",
+                          raw: "condition",
+                          span: Span(
+                            start: 305,
+                            end: 314,
+                          ),
+                        ),
+                        span: Span(
+                          start: 304,
+                          end: 314,
+                        ),
+                      ),
+                      InterpolableIdentStaticPart(
+                        type: "InterpolableIdentStaticPart",
+                        value: "-width",
+                        raw: "-width",
+                        span: Span(
+                          start: 315,
+                          end: 321,
+                        ),
+                      ),
+                    ],
+                    span: Span(
+                      start: 302,
+                      end: 321,
+                    ),
+                  ),
+                  colonSpan: Span(
+                    start: 321,
+                    end: 322,
+                  ),
+                  value: SassParenthesizedExpression(
+                    type: "SassParenthesizedExpression",
+                    expr: SassVariable(
+                      type: "SassVariable",
+                      name: Ident(
+                        type: "Ident",
+                        name: "breakpoint-width",
+                        raw: "breakpoint-width",
+                        span: Span(
+                          start: 325,
+                          end: 341,
+                        ),
+                      ),
+                      span: Span(
+                        start: 324,
+                        end: 341,
+                      ),
+                    ),
+                    span: Span(
+                      start: 323,
+                      end: 342,
+                    ),
+                  ),
+                  span: Span(
+                    start: 302,
+                    end: 342,
+                  ),
+                ),
+                span: Span(
+                  start: 301,
+                  end: 343,
+                ),
+              ),
+            ],
+            span: Span(
+              start: 301,
+              end: 343,
+            ),
+          ),
+        ],
+        commaSpans: [],
+        span: Span(
+          start: 301,
+          end: 343,
+        ),
+      )),
+      block: Some(SimpleBlock(
+        type: "SimpleBlock",
+        statements: [],
+        span: Span(
+          start: 344,
+          end: 346,
+        ),
+      )),
+      span: Span(
+        start: 294,
+        end: 346,
+      ),
+    ),
+    AtRule(
+      type: "AtRule",
+      name: Ident(
+        type: "Ident",
+        name: "media",
+        raw: "media",
+        span: Span(
+          start: 348,
+          end: 353,
+        ),
+      ),
+      prelude: Some(MediaQueryList(
+        type: "MediaQueryList",
+        queries: [
+          MediaCondition(
+            type: "MediaCondition",
+            conditions: [
+              MediaInParens(
+                type: "MediaInParens",
+                kind: MediaFeaturePlain(
+                  type: "MediaFeaturePlain",
+                  name: SassInterpolatedIdent(
+                    type: "SassInterpolatedIdent",
+                    elements: [
+                      SassVariable(
+                        type: "SassVariable",
+                        name: Ident(
+                          type: "Ident",
+                          name: "prefix",
+                          raw: "prefix",
+                          span: Span(
+                            start: 358,
+                            end: 364,
+                          ),
+                        ),
+                        span: Span(
+                          start: 357,
+                          end: 364,
+                        ),
+                      ),
+                      InterpolableIdentStaticPart(
+                        type: "InterpolableIdentStaticPart",
+                        value: "-feature",
+                        raw: "-feature",
+                        span: Span(
+                          start: 365,
+                          end: 373,
+                        ),
+                      ),
+                    ],
+                    span: Span(
+                      start: 355,
+                      end: 373,
+                    ),
+                  ),
+                  colonSpan: Span(
+                    start: 373,
+                    end: 374,
+                  ),
+                  value: Dimension(
+                    type: "Dimension",
+                    value: Number(
+                      type: "Number",
+                      value: 10.0,
+                      raw: "10",
+                      span: Span(
+                        start: 375,
+                        end: 377,
+                      ),
+                    ),
+                    unit: Ident(
+                      type: "Ident",
+                      name: "px",
+                      raw: "px",
+                      span: Span(
+                        start: 377,
+                        end: 379,
+                      ),
+                    ),
+                    kind: Length,
+                    span: Span(
+                      start: 375,
+                      end: 379,
+                    ),
+                  ),
+                  span: Span(
+                    start: 355,
+                    end: 379,
+                  ),
+                ),
+                span: Span(
+                  start: 354,
+                  end: 380,
+                ),
+              ),
+              MediaAnd(
+                type: "MediaAnd",
+                keyword: Ident(
+                  type: "Ident",
+                  name: "and",
+                  raw: "and",
+                  span: Span(
+                    start: 381,
+                    end: 384,
+                  ),
+                ),
+                mediaInParens: MediaInParens(
+                  type: "MediaInParens",
+                  kind: MediaFeaturePlain(
+                    type: "MediaFeaturePlain",
+                    name: Ident(
+                      type: "Ident",
+                      name: "max-width",
+                      raw: "max-width",
+                      span: Span(
+                        start: 386,
+                        end: 395,
+                      ),
+                    ),
+                    colonSpan: Span(
+                      start: 395,
+                      end: 396,
+                    ),
+                    value: Dimension(
+                      type: "Dimension",
+                      value: Number(
+                        type: "Number",
+                        value: 600.0,
+                        raw: "600",
+                        span: Span(
+                          start: 397,
+                          end: 400,
+                        ),
+                      ),
+                      unit: Ident(
+                        type: "Ident",
+                        name: "px",
+                        raw: "px",
+                        span: Span(
+                          start: 400,
+                          end: 402,
+                        ),
+                      ),
+                      kind: Length,
+                      span: Span(
+                        start: 397,
+                        end: 402,
+                      ),
+                    ),
+                    span: Span(
+                      start: 386,
+                      end: 402,
+                    ),
+                  ),
+                  span: Span(
+                    start: 385,
+                    end: 403,
+                  ),
+                ),
+                span: Span(
+                  start: 381,
+                  end: 403,
+                ),
+              ),
+            ],
+            span: Span(
+              start: 354,
+              end: 403,
+            ),
+          ),
+        ],
+        commaSpans: [],
+        span: Span(
+          start: 354,
+          end: 403,
+        ),
+      )),
+      block: Some(SimpleBlock(
+        type: "SimpleBlock",
+        statements: [],
+        span: Span(
+          start: 404,
+          end: 406,
+        ),
+      )),
+      span: Span(
+        start: 347,
+        end: 406,
+      ),
+    ),
   ],
   span: Span(
     start: 0,
-    end: 293,
+    end: 407,
   ),
 )

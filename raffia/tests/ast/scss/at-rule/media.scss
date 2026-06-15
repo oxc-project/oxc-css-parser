@@ -9,3 +9,6 @@
 @media screen and #{$sm-only, $lg-and-up} {}
 @media (width >= 768px) and #{$extra} {}
 @media not #{$query} {}
+
+@media (#{$condition}-width: ($breakpoint-width)) {}
+@media (#{$prefix}-feature: 10px) and (max-width: 600px) {}
