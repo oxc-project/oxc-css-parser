@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use oxc_css::{Parser, Syntax, ast::Stylesheet};
+use oxc_css_parser::{Parser, Syntax, ast::Stylesheet};
 use std::{fs, hint::black_box, time::Duration};
 
 fn bench_parser(c: &mut Criterion) {

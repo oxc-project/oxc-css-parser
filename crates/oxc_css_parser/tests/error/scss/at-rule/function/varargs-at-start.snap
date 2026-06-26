@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: expect token `)`, but found `$var`
+  ┌─ varargs-at-start.scss:1:25
+  │
+1 │ @function test($rest...,$param) {}
+  │                         ^^^^^^
+
+

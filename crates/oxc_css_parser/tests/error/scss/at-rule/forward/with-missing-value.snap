@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: expect token `:`, but found `)`
+  ┌─ with-missing-value.scss:1:26
+  │
+1 │ @forward "other" with ($a);
+  │                          ^
+
+

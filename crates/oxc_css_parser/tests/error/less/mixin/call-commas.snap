@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: component value is expected
+  ┌─ call-commas.less:1:13
+  │
+1 │ .mixin(@arg,,);
+  │             ^
+
+

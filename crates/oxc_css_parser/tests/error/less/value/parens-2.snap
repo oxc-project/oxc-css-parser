@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: expect token `;`, but found `{`
+  ┌─ parens-2.less:1:4
+  │
+1 │ .a {
+  │    ^
+
+

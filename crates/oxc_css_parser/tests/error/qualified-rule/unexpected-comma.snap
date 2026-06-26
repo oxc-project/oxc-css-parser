@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: CSS rule is expected
+  ┌─ unexpected-comma.css:4:4
+  │
+4 │   },
+  │    ^
+
+

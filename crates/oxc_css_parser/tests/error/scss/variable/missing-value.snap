@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: component value is expected
+  ┌─ missing-value.scss:1:4
+  │
+1 │ $a:;
+  │    ^
+
+

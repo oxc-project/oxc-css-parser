@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: expect token `)`, but found `;`
+  ┌─ incomplete-expression.scss:1:12
+  │
+1 │ @warn("foo";
+  │            ^
+
+

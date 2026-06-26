@@ -1,5 +1,5 @@
 [package]
-name = "oxc-css-benchmark"
+name = "oxc-css-parser-benchmark"
 version = "0.0.1"
 edition = "2024"
 authors = ["Pig Fang <g-plane@hotmail.com>"]
@@ -7,7 +7,7 @@ license = "MIT"
 publish = false
 
 [dependencies]
-oxc-css = { path = "../crates/oxc_css" }
+oxc-css-parser = { path = "../crates/oxc_css_parser" }
 
 [dev-dependencies]
 criterion = "0.8"

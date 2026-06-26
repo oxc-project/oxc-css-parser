@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: component value is expected
+  ┌─ expression.scss:1:7
+  │
+1 │ a {a: .}
+  │       ^
+
+

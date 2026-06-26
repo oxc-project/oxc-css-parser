@@ -1,0 +1,1436 @@
+---
+source: crates/oxc_css_parser/tests/ast.rs
+---
+Stylesheet(
+  type: "Stylesheet",
+  statements: [
+    QualifiedRule(
+      type: "QualifiedRule",
+      selector: SelectorList(
+        type: "SelectorList",
+        selectors: [
+          ComplexSelector(
+            type: "ComplexSelector",
+            children: [
+              CompoundSelector(
+                type: "CompoundSelector",
+                children: [
+                  TagNameSelector(
+                    type: "TagNameSelector",
+                    name: WqName(
+                      type: "WqName",
+                      name: Ident(
+                        type: "Ident",
+                        name: "div",
+                        raw: "div",
+                        span: Span(
+                          start: 0,
+                          end: 3,
+                        ),
+                      ),
+                      prefix: None,
+                      span: Span(
+                        start: 0,
+                        end: 3,
+                      ),
+                    ),
+                    span: Span(
+                      start: 0,
+                      end: 3,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 0,
+                  end: 3,
+                ),
+              ),
+            ],
+            span: Span(
+              start: 0,
+              end: 3,
+            ),
+          ),
+        ],
+        commaSpans: [],
+        span: Span(
+          start: 0,
+          end: 3,
+        ),
+      ),
+      block: SimpleBlock(
+        type: "SimpleBlock",
+        statements: [
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "foo",
+              raw: "foo",
+              span: Span(
+                start: 8,
+                end: 11,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 11,
+              end: 12,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 13,
+                    end: 16,
+                  ),
+                ),
+                value: Some(UrlRaw(
+                  type: "UrlRaw",
+                  value: "bloo/blah.css",
+                  raw: "bloo/blah.css",
+                  span: Span(
+                    start: 17,
+                    end: 30,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 13,
+                  end: 31,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 8,
+              end: 31,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "bar",
+              raw: "bar",
+              span: Span(
+                start: 35,
+                end: 38,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 38,
+              end: 39,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 40,
+                    end: 43,
+                  ),
+                ),
+                value: Some(UrlRaw(
+                  type: "UrlRaw",
+                  value: "http://foo/bar/hux.css",
+                  raw: "http://foo/bar/hux.css",
+                  span: Span(
+                    start: 44,
+                    end: 66,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 40,
+                  end: 67,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 35,
+              end: 67,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "foo",
+              raw: "foo",
+              span: Span(
+                start: 71,
+                end: 74,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 74,
+              end: 75,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 76,
+                    end: 79,
+                  ),
+                ),
+                value: Some(SassInterpolatedUrl(
+                  type: "SassInterpolatedUrl",
+                  elements: [
+                    InterpolableUrlStaticPart(
+                      type: "InterpolableUrlStaticPart",
+                      value: "fudge",
+                      raw: "fudge",
+                      span: Span(
+                        start: 80,
+                        end: 85,
+                      ),
+                    ),
+                    SassVariable(
+                      type: "SassVariable",
+                      name: Ident(
+                        type: "Ident",
+                        name: "x",
+                        raw: "x",
+                        span: Span(
+                          start: 88,
+                          end: 89,
+                        ),
+                      ),
+                      span: Span(
+                        start: 87,
+                        end: 89,
+                      ),
+                    ),
+                    InterpolableUrlStaticPart(
+                      type: "InterpolableUrlStaticPart",
+                      value: ".css",
+                      raw: ".css",
+                      span: Span(
+                        start: 90,
+                        end: 94,
+                      ),
+                    ),
+                  ],
+                  span: Span(
+                    start: 80,
+                    end: 94,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 76,
+                  end: 95,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 71,
+              end: 95,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "bar",
+              raw: "bar",
+              span: Span(
+                start: 99,
+                end: 102,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 102,
+              end: 103,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 104,
+                    end: 107,
+                  ),
+                ),
+                value: Some(SassInterpolatedStr(
+                  type: "SassInterpolatedStr",
+                  elements: [
+                    InterpolableStrStaticPart(
+                      type: "InterpolableStrStaticPart",
+                      value: "http://fudge",
+                      raw: "\"http://fudge",
+                      span: Span(
+                        start: 108,
+                        end: 121,
+                      ),
+                    ),
+                    SassVariable(
+                      type: "SassVariable",
+                      name: Ident(
+                        type: "Ident",
+                        name: "x",
+                        raw: "x",
+                        span: Span(
+                          start: 124,
+                          end: 125,
+                        ),
+                      ),
+                      span: Span(
+                        start: 123,
+                        end: 125,
+                      ),
+                    ),
+                    InterpolableStrStaticPart(
+                      type: "InterpolableStrStaticPart",
+                      value: "/styles.css",
+                      raw: "/styles.css\"",
+                      span: Span(
+                        start: 126,
+                        end: 138,
+                      ),
+                    ),
+                  ],
+                  span: Span(
+                    start: 108,
+                    end: 138,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 104,
+                  end: 139,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 99,
+              end: 139,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "hux",
+              raw: "hux",
+              span: Span(
+                start: 143,
+                end: 146,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 146,
+              end: 147,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 148,
+                    end: 151,
+                  ),
+                ),
+                value: Some(SassInterpolatedUrl(
+                  type: "SassInterpolatedUrl",
+                  elements: [
+                    InterpolableUrlStaticPart(
+                      type: "InterpolableUrlStaticPart",
+                      value: "http://box_",
+                      raw: "http://box_",
+                      span: Span(
+                        start: 152,
+                        end: 163,
+                      ),
+                    ),
+                    SassVariable(
+                      type: "SassVariable",
+                      name: Ident(
+                        type: "Ident",
+                        name: "y",
+                        raw: "y",
+                        span: Span(
+                          start: 166,
+                          end: 167,
+                        ),
+                      ),
+                      span: Span(
+                        start: 165,
+                        end: 167,
+                      ),
+                    ),
+                    InterpolableUrlStaticPart(
+                      type: "InterpolableUrlStaticPart",
+                      value: "////fudge",
+                      raw: "////fudge",
+                      span: Span(
+                        start: 168,
+                        end: 177,
+                      ),
+                    ),
+                    SassVariable(
+                      type: "SassVariable",
+                      name: Ident(
+                        type: "Ident",
+                        name: "x",
+                        raw: "x",
+                        span: Span(
+                          start: 180,
+                          end: 181,
+                        ),
+                      ),
+                      span: Span(
+                        start: 179,
+                        end: 181,
+                      ),
+                    ),
+                    InterpolableUrlStaticPart(
+                      type: "InterpolableUrlStaticPart",
+                      value: ".css",
+                      raw: ".css",
+                      span: Span(
+                        start: 182,
+                        end: 186,
+                      ),
+                    ),
+                  ],
+                  span: Span(
+                    start: 152,
+                    end: 186,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 148,
+                  end: 187,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 143,
+              end: 187,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "gloo",
+              raw: "gloo",
+              span: Span(
+                start: 191,
+                end: 195,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 195,
+              end: 196,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 197,
+                    end: 200,
+                  ),
+                ),
+                value: Some(SassInterpolatedStr(
+                  type: "SassInterpolatedStr",
+                  elements: [
+                    InterpolableStrStaticPart(
+                      type: "InterpolableStrStaticPart",
+                      value: "hey",
+                      raw: "\"hey",
+                      span: Span(
+                        start: 201,
+                        end: 205,
+                      ),
+                    ),
+                    SassBinaryExpression(
+                      type: "SassBinaryExpression",
+                      left: Number(
+                        type: "Number",
+                        value: 1.0,
+                        raw: "1",
+                        span: Span(
+                          start: 207,
+                          end: 208,
+                        ),
+                      ),
+                      op: SassBinaryOperator(
+                        type: "SassBinaryOperator",
+                        kind: Plus,
+                        span: Span(
+                          start: 208,
+                          end: 209,
+                        ),
+                      ),
+                      right: Number(
+                        type: "Number",
+                        value: 2.0,
+                        raw: "2",
+                        span: Span(
+                          start: 209,
+                          end: 210,
+                        ),
+                      ),
+                      span: Span(
+                        start: 207,
+                        end: 210,
+                      ),
+                    ),
+                    InterpolableStrStaticPart(
+                      type: "InterpolableStrStaticPart",
+                      value: ".css",
+                      raw: ".css\"",
+                      span: Span(
+                        start: 211,
+                        end: 216,
+                      ),
+                    ),
+                  ],
+                  span: Span(
+                    start: 201,
+                    end: 216,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 197,
+                  end: 217,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 191,
+              end: 217,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "floo",
+              raw: "floo",
+              span: Span(
+                start: 221,
+                end: 225,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 225,
+              end: 226,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 227,
+                    end: 230,
+                  ),
+                ),
+                value: Some(SassInterpolatedUrl(
+                  type: "SassInterpolatedUrl",
+                  elements: [
+                    InterpolableUrlStaticPart(
+                      type: "InterpolableUrlStaticPart",
+                      value: "hadoop-",
+                      raw: "hadoop-",
+                      span: Span(
+                        start: 231,
+                        end: 238,
+                      ),
+                    ),
+                    SassBinaryExpression(
+                      type: "SassBinaryExpression",
+                      left: SassVariable(
+                        type: "SassVariable",
+                        name: Ident(
+                          type: "Ident",
+                          name: "y",
+                          raw: "y",
+                          span: Span(
+                            start: 241,
+                            end: 242,
+                          ),
+                        ),
+                        span: Span(
+                          start: 240,
+                          end: 242,
+                        ),
+                      ),
+                      op: SassBinaryOperator(
+                        type: "SassBinaryOperator",
+                        kind: Plus,
+                        span: Span(
+                          start: 242,
+                          end: 243,
+                        ),
+                      ),
+                      right: Number(
+                        type: "Number",
+                        value: 321.0,
+                        raw: "321",
+                        span: Span(
+                          start: 243,
+                          end: 246,
+                        ),
+                      ),
+                      span: Span(
+                        start: 240,
+                        end: 246,
+                      ),
+                    ),
+                    InterpolableUrlStaticPart(
+                      type: "InterpolableUrlStaticPart",
+                      value: ".css",
+                      raw: ".css",
+                      span: Span(
+                        start: 247,
+                        end: 251,
+                      ),
+                    ),
+                  ],
+                  span: Span(
+                    start: 231,
+                    end: 251,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 227,
+                  end: 252,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 221,
+              end: 252,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "flum",
+              raw: "flum",
+              span: Span(
+                start: 256,
+                end: 260,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 260,
+              end: 261,
+            ),
+            value: [
+              Function(
+                type: "Function",
+                name: Ident(
+                  type: "Ident",
+                  name: "image-url",
+                  raw: "image-url",
+                  span: Span(
+                    start: 262,
+                    end: 271,
+                  ),
+                ),
+                args: [
+                  Str(
+                    type: "Str",
+                    value: "fudge.png",
+                    raw: "\"fudge.png\"",
+                    span: Span(
+                      start: 272,
+                      end: 283,
+                    ),
+                  ),
+                  Delimiter(
+                    type: "Delimiter",
+                    kind: Comma,
+                    span: Span(
+                      start: 283,
+                      end: 284,
+                    ),
+                  ),
+                  Ident(
+                    type: "Ident",
+                    name: "hux",
+                    raw: "hux",
+                    span: Span(
+                      start: 285,
+                      end: 288,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 262,
+                  end: 289,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 256,
+              end: 289,
+            ),
+          ),
+          SassVariableDeclaration(
+            type: "SassVariableDeclaration",
+            namespace: None,
+            name: SassVariable(
+              type: "SassVariable",
+              name: Ident(
+                type: "Ident",
+                name: "bg",
+                raw: "bg",
+                span: Span(
+                  start: 294,
+                  end: 296,
+                ),
+              ),
+              span: Span(
+                start: 293,
+                end: 296,
+              ),
+            ),
+            colonSpan: Span(
+              start: 296,
+              end: 297,
+            ),
+            value: Str(
+              type: "Str",
+              value: "image.png",
+              raw: "\"image.png\"",
+              span: Span(
+                start: 298,
+                end: 309,
+              ),
+            ),
+            flags: [],
+            span: Span(
+              start: 293,
+              end: 309,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "background",
+              raw: "background",
+              span: Span(
+                start: 313,
+                end: 323,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 323,
+              end: 324,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 325,
+                    end: 328,
+                  ),
+                ),
+                value: Some(SassInterpolatedStr(
+                  type: "SassInterpolatedStr",
+                  elements: [
+                    InterpolableStrStaticPart(
+                      type: "InterpolableStrStaticPart",
+                      value: "",
+                      raw: "\"",
+                      span: Span(
+                        start: 329,
+                        end: 330,
+                      ),
+                    ),
+                    SassVariable(
+                      type: "SassVariable",
+                      name: Ident(
+                        type: "Ident",
+                        name: "bg",
+                        raw: "bg",
+                        span: Span(
+                          start: 333,
+                          end: 335,
+                        ),
+                      ),
+                      span: Span(
+                        start: 332,
+                        end: 335,
+                      ),
+                    ),
+                    InterpolableStrStaticPart(
+                      type: "InterpolableStrStaticPart",
+                      value: "",
+                      raw: "\"",
+                      span: Span(
+                        start: 336,
+                        end: 337,
+                      ),
+                    ),
+                  ],
+                  span: Span(
+                    start: 329,
+                    end: 337,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 325,
+                  end: 338,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 313,
+              end: 338,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "mudge",
+              raw: "mudge",
+              span: Span(
+                start: 342,
+                end: 347,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 347,
+              end: 348,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 349,
+                    end: 352,
+                  ),
+                ),
+                value: Some(UrlRaw(
+                  type: "UrlRaw",
+                  value: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAABGdBTUEAALGOfPtRkwAAACBjSFJNAAB6JQAAgIMAAPn/AACA6QAAdTAAAOpgAAA6mAAAF2+SX8VGAAACeElEQVR42nySy29McRTHP/fOnTvT6bQNrdHKMGGhFkTSELGxwoJY8Q9YWFhYEUJsRSKCsJWikjYSJBIbinpVPJLSRlEkKK2WTnXmvl+/Y4F4tPVJPqtvzjcnJ0cTEQxdY/miFH6gcAJpaWrQl86t05rR9axSKD8UZ6KqJscm5bMdyDDgAYgIBoCORm2G1u0b6w8unJ/bmDG1QtpUmIYiZ8Zk0zEpYmW76tujV9J3/Ep04v0XdR2IDYAdWxYt27Sa8/l8btWIlaYSupgqpNaMUYbC0DUa8qKXWpLGNSvZEETpZO/Z4B5gGQCRMio1xdVfioUIa3AQJ/ZARWhJgkQJKq3wfJ3RwETGhRtPgx7ABtBEhCVNBqViU2tn5+5bLfXmgurIYwJrGFEJmqZh2T4jo2X0YIreZ+7dfeejrcCEiKADfCon3O4fHzp25Nx+8nnqF65lXnEphQUtNBYKaKkMcRgxVY29093JUWCCn+gAORMaTLh0dbCjo/1KO3X1kC6BGIR+QLVioSc+F+9HnW/G1DX+QAcw0j8c/QaHj3UfeN0/MMicEmSL+J5P6DkMDUcfLvZGJ4FwWoHl/lAEXo344zv3dO3ynXJIpg7XdnBtj46bwSnblwH+QQdQ8lsNeNg32nOm/fIh3CGS0OXOQHCv90XYwUyICM2NNX85f26WUnOu5smFzX0vu9qktZjeNtusAbB+XdvfAWDZnjeurX2XST1Y8X6s7zmzYABUrHBaYNshYRC4k340FcZU/1vg2JVpgeP4uJXypHK8soD134In/W+mb+AJvffvvC022It/ve1MaCJCXU6f4UCQy1CbNVONH7/Gw7Md8fsAtddMUh5fveYAAAAASUVORK5CYII=",
+                  raw: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAABGdBTUEAALGOfPtRkwAAACBjSFJNAAB6JQAAgIMAAPn/AACA6QAAdTAAAOpgAAA6mAAAF2+SX8VGAAACeElEQVR42nySy29McRTHP/fOnTvT6bQNrdHKMGGhFkTSELGxwoJY8Q9YWFhYEUJsRSKCsJWikjYSJBIbinpVPJLSRlEkKK2WTnXmvl+/Y4F4tPVJPqtvzjcnJ0cTEQxdY/miFH6gcAJpaWrQl86t05rR9axSKD8UZ6KqJscm5bMdyDDgAYgIBoCORm2G1u0b6w8unJ/bmDG1QtpUmIYiZ8Zk0zEpYmW76tujV9J3/Ep04v0XdR2IDYAdWxYt27Sa8/l8btWIlaYSupgqpNaMUYbC0DUa8qKXWpLGNSvZEETpZO/Z4B5gGQCRMio1xdVfioUIa3AQJ/ZARWhJgkQJKq3wfJ3RwETGhRtPgx7ABtBEhCVNBqViU2tn5+5bLfXmgurIYwJrGFEJmqZh2T4jo2X0YIreZ+7dfeejrcCEiKADfCon3O4fHzp25Nx+8nnqF65lXnEphQUtNBYKaKkMcRgxVY29093JUWCCn+gAORMaTLh0dbCjo/1KO3X1kC6BGIR+QLVioSc+F+9HnW/G1DX+QAcw0j8c/QaHj3UfeN0/MMicEmSL+J5P6DkMDUcfLvZGJ4FwWoHl/lAEXo344zv3dO3ynXJIpg7XdnBtj46bwSnblwH+QQdQ8lsNeNg32nOm/fIh3CGS0OXOQHCv90XYwUyICM2NNX85f26WUnOu5smFzX0vu9qktZjeNtusAbB+XdvfAWDZnjeurX2XST1Y8X6s7zmzYABUrHBaYNshYRC4k340FcZU/1vg2JVpgeP4uJXypHK8soD134In/W+mb+AJvffvvC022It/ve1MaCJCXU6f4UCQy1CbNVONH7/Gw7Md8fsAtddMUh5fveYAAAAASUVORK5CYII=",
+                  span: Span(
+                    start: 353,
+                    end: 1403,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 349,
+                  end: 1404,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 342,
+              end: 1404,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "nudge",
+              raw: "nudge",
+              span: Span(
+                start: 1408,
+                end: 1413,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 1413,
+              end: 1414,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 1415,
+                    end: 1418,
+                  ),
+                ),
+                value: Some(UrlRaw(
+                  type: "UrlRaw",
+                  value: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAAAAAA6mKC9AAAAGElEQVQYV2N4DwX/oYBhgARgDJjEAAkAAEC99wFuu0VFAAAAAElFTkSuQmCC",
+                  raw: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAAAAAA6mKC9AAAAGElEQVQYV2N4DwX/oYBhgARgDJjEAAkAAEC99wFuu0VFAAAAAElFTkSuQmCC",
+                  span: Span(
+                    start: 1419,
+                    end: 1549,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 1415,
+                  end: 1550,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 1408,
+              end: 1550,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "pudge",
+              raw: "pudge",
+              span: Span(
+                start: 1554,
+                end: 1559,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 1559,
+              end: 1560,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 1561,
+                    end: 1564,
+                  ),
+                ),
+                value: Some(UrlRaw(
+                  type: "UrlRaw",
+                  value: "http://wiki.jbussdieker.name/skins/common/images/Checker-16x16.png?2012-05-02T13:40:00Z",
+                  raw: "http://wiki.jbussdieker.name/skins/common/images/Checker-16x16.png?2012-05-02T13:40:00Z",
+                  span: Span(
+                    start: 1565,
+                    end: 1652,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 1561,
+                  end: 1653,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 1554,
+              end: 1653,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "trailing-spaces",
+              raw: "trailing-spaces",
+              span: Span(
+                start: 1657,
+                end: 1672,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 1672,
+              end: 1673,
+            ),
+            value: [
+              Url(
+                type: "Url",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 1674,
+                    end: 1677,
+                  ),
+                ),
+                value: Some(SassInterpolatedUrl(
+                  type: "SassInterpolatedUrl",
+                  elements: [
+                    InterpolableUrlStaticPart(
+                      type: "InterpolableUrlStaticPart",
+                      value: "a",
+                      raw: "a",
+                      span: Span(
+                        start: 1678,
+                        end: 1679,
+                      ),
+                    ),
+                    Ident(
+                      type: "Ident",
+                      name: "b",
+                      raw: "b",
+                      span: Span(
+                        start: 1681,
+                        end: 1682,
+                      ),
+                    ),
+                    InterpolableUrlStaticPart(
+                      type: "InterpolableUrlStaticPart",
+                      value: "c",
+                      raw: "c",
+                      span: Span(
+                        start: 1683,
+                        end: 1684,
+                      ),
+                    ),
+                  ],
+                  span: Span(
+                    start: 1678,
+                    end: 1684,
+                  ),
+                )),
+                modifiers: [],
+                span: Span(
+                  start: 1674,
+                  end: 1685,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 1657,
+              end: 1685,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "expr1",
+              raw: "expr1",
+              span: Span(
+                start: 1691,
+                end: 1696,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 1696,
+              end: 1697,
+            ),
+            value: [
+              Function(
+                type: "Function",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 1698,
+                    end: 1701,
+                  ),
+                ),
+                args: [
+                  Function(
+                    type: "Function",
+                    name: Ident(
+                      type: "Ident",
+                      name: "join-url",
+                      raw: "join-url",
+                      span: Span(
+                        start: 1702,
+                        end: 1710,
+                      ),
+                    ),
+                    args: [
+                      Str(
+                        type: "Str",
+                        value: "..",
+                        raw: "\"..\"",
+                        span: Span(
+                          start: 1711,
+                          end: 1715,
+                        ),
+                      ),
+                      Delimiter(
+                        type: "Delimiter",
+                        kind: Comma,
+                        span: Span(
+                          start: 1715,
+                          end: 1716,
+                        ),
+                      ),
+                      Str(
+                        type: "Str",
+                        value: "image.png",
+                        raw: "\"image.png\"",
+                        span: Span(
+                          start: 1717,
+                          end: 1728,
+                        ),
+                      ),
+                    ],
+                    span: Span(
+                      start: 1702,
+                      end: 1729,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 1698,
+                  end: 1730,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 1691,
+              end: 1730,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "expr2",
+              raw: "expr2",
+              span: Span(
+                start: 1734,
+                end: 1739,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 1739,
+              end: 1740,
+            ),
+            value: [
+              Function(
+                type: "Function",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 1741,
+                    end: 1744,
+                  ),
+                ),
+                args: [
+                  SassBinaryExpression(
+                    type: "SassBinaryExpression",
+                    left: Number(
+                      type: "Number",
+                      value: 1.0,
+                      raw: "1",
+                      span: Span(
+                        start: 1745,
+                        end: 1746,
+                      ),
+                    ),
+                    op: SassBinaryOperator(
+                      type: "SassBinaryOperator",
+                      kind: Plus,
+                      span: Span(
+                        start: 1747,
+                        end: 1748,
+                      ),
+                    ),
+                    right: Number(
+                      type: "Number",
+                      value: 2.0,
+                      raw: "2",
+                      span: Span(
+                        start: 1749,
+                        end: 1750,
+                      ),
+                    ),
+                    span: Span(
+                      start: 1745,
+                      end: 1750,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 1741,
+                  end: 1751,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 1734,
+              end: 1751,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "expr3",
+              raw: "expr3",
+              span: Span(
+                start: 1755,
+                end: 1760,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 1760,
+              end: 1761,
+            ),
+            value: [
+              Function(
+                type: "Function",
+                name: Ident(
+                  type: "Ident",
+                  name: "url",
+                  raw: "url",
+                  span: Span(
+                    start: 1762,
+                    end: 1765,
+                  ),
+                ),
+                args: [
+                  SassInterpolatedIdent(
+                    type: "SassInterpolatedIdent",
+                    elements: [
+                      InterpolableIdentStaticPart(
+                        type: "InterpolableIdentStaticPart",
+                        value: "a",
+                        raw: "a",
+                        span: Span(
+                          start: 1766,
+                          end: 1767,
+                        ),
+                      ),
+                      Ident(
+                        type: "Ident",
+                        name: "b",
+                        raw: "b",
+                        span: Span(
+                          start: 1769,
+                          end: 1770,
+                        ),
+                      ),
+                    ],
+                    span: Span(
+                      start: 1766,
+                      end: 1771,
+                    ),
+                  ),
+                  Str(
+                    type: "Str",
+                    value: "c",
+                    raw: "\"c\"",
+                    span: Span(
+                      start: 1771,
+                      end: 1774,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 1762,
+                  end: 1775,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 1755,
+              end: 1775,
+            ),
+          ),
+        ],
+        span: Span(
+          start: 4,
+          end: 1778,
+        ),
+      ),
+      span: Span(
+        start: 0,
+        end: 1778,
+      ),
+    ),
+    AtRule(
+      type: "AtRule",
+      name: Ident(
+        type: "Ident",
+        name: "import",
+        raw: "import",
+        span: Span(
+          start: 1781,
+          end: 1787,
+        ),
+      ),
+      prelude: Some(ImportPrelude(
+        type: "ImportPrelude",
+        href: Url(
+          type: "Url",
+          name: Ident(
+            type: "Ident",
+            name: "url",
+            raw: "url",
+            span: Span(
+              start: 1788,
+              end: 1791,
+            ),
+          ),
+          value: Some(SassInterpolatedUrl(
+            type: "SassInterpolatedUrl",
+            elements: [
+              InterpolableUrlStaticPart(
+                type: "InterpolableUrlStaticPart",
+                value: "//fonts.googleapis.com/css?family=",
+                raw: "//fonts.googleapis.com/css?family=",
+                span: Span(
+                  start: 1792,
+                  end: 1826,
+                ),
+              ),
+              Function(
+                type: "Function",
+                name: Ident(
+                  type: "Ident",
+                  name: "get-font-family",
+                  raw: "get-font-family",
+                  span: Span(
+                    start: 1828,
+                    end: 1843,
+                  ),
+                ),
+                args: [
+                  Str(
+                    type: "Str",
+                    value: "Roboto",
+                    raw: "\"Roboto\"",
+                    span: Span(
+                      start: 1847,
+                      end: 1855,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 1828,
+                  end: 1856,
+                ),
+              ),
+              InterpolableUrlStaticPart(
+                type: "InterpolableUrlStaticPart",
+                value: ":100,300,500,700,900&display=swap",
+                raw: ":100,300,500,700,900&display=swap",
+                span: Span(
+                  start: 1857,
+                  end: 1890,
+                ),
+              ),
+            ],
+            span: Span(
+              start: 1792,
+              end: 1890,
+            ),
+          )),
+          modifiers: [],
+          span: Span(
+            start: 1788,
+            end: 1891,
+          ),
+        ),
+        layer: None,
+        supports: None,
+        media: None,
+        span: Span(
+          start: 1788,
+          end: 1891,
+        ),
+      )),
+      block: None,
+      span: Span(
+        start: 1780,
+        end: 1891,
+      ),
+    ),
+  ],
+  span: Span(
+    start: 0,
+    end: 1893,
+  ),
+)

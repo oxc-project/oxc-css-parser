@@ -4,11 +4,11 @@ allow_dirty = true
 changelog_config = "cliff.toml"
 
 [[package]]
-name = "oxc-css"
+name = "oxc-css-parser"
 version_group = "group"
-changelog_include = ["oxc-css-macro"]
+changelog_include = ["oxc-css-parser-macro"]
 
 [[package]]
-name = "oxc-css-macro"
+name = "oxc-css-parser-macro"
 version_group = "group"
 changelog_update = false

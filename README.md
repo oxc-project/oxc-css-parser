@@ -1,9 +1,9 @@
-# oxc-css
+# oxc-css-parser
 
-[![Crates.io](https://img.shields.io/crates/v/oxc-css?style=flat-square)](https://crates.io/crates/oxc-css)
-[![docs.rs](https://img.shields.io/docsrs/oxc-css?style=flat-square)](https://docs.rs/oxc-css)
+[![Crates.io](https://img.shields.io/crates/v/oxc-css-parser?style=flat-square)](https://crates.io/crates/oxc-css-parser)
+[![docs.rs](https://img.shields.io/docsrs/oxc-css-parser?style=flat-square)](https://docs.rs/oxc-css-parser)
 
-oxc-css is a parser which can parse CSS, SCSS, Sass (indented syntax) and Less. However, it won't compile SCSS, Sass or Less to CSS.
+oxc-css-parser is a parser which can parse CSS, SCSS, Sass (indented syntax) and Less. However, it won't compile SCSS, Sass or Less to CSS.
 
 ## 🧪 Playground
 
@@ -12,16 +12,16 @@ There is an online playground for inspecting AST. Visit: [https://raffia-play.ve
 ## 🍭 Example
 
 ```rust
-use oxc_css::{ast::Stylesheet, Parser, Syntax};
+use oxc_css_parser::{ast::Stylesheet, Parser, Syntax};
 
 let mut parser = Parser::new("a { color: green }", Syntax::Css);
 let ast = parser.parse::<Stylesheet>().unwrap();
 println!("{:#?}", ast);
 ```
 
-You can find more examples in the [examples](https://github.com/oxc-project/oxc-css/blob/main/crates/oxc_css/examples) directory.
+You can find more examples in the [examples](https://github.com/oxc-project/oxc-css/blob/main/crates/oxc_css_parser/examples) directory.
 
-For detailed usage, check out [docs.rs](https://docs.rs/oxc-css).
+For detailed usage, check out [docs.rs](https://docs.rs/oxc-css-parser).
 
 ## ⌛ Benchmark
 
