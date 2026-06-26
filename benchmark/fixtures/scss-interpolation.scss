@@ -1,0 +1,283 @@
+foo[val="bar #{"foo" + " bar"} baz"] {a: b}
+
+@foo #{"directive"} {
+  .#{"foo"} { #{"foo-prop"}: #{"foo-val"}; }
+}
+
+a /*#{"}*/ {
+  margin: 2px;
+}
+
+a /*#{#{*/ {
+  margin: 2px;
+}
+
+div {
+  blah: "hello #{2+2} world #{unit(23px)} #{'bloo\n'} blah";
+}
+
+a { --#{"foo"}-bar: b; }
+
+[#{$zzz}=foo] { a: b; }
+.#{$zzz} { a: b; }
+##{$zzz} { a: b; }
+:#{$zzz}::#{$zzz} { a: b; }
+
+.js:root #{if(&, '&', '')} {}
+
+.col#{$infix}-#{$i} {}
+
+tr:nth-child(#{$table-striped-order}) {}
+tr:nth-of-type(#{$table-striped-order}) {}
+
+@#{$ar-name} #{meta.call($converter, $ar-str, $this-util)} {}
+@#{$name} #{"#{$blocks}"} {}
+
+.after-hyphen {
+  // We want to treat interpolation as though it's a valid identifier character,
+  // which means that if it comes after a hyphen or double-hyphen it should be
+  // treated as part of an interpolated identifier that includes that hyphen.
+  standalone-single: -#{foo};
+  standalone-double: --#{foo};
+
+  // It also means that we shouldn't treat the hyphen as a subtraction
+  // operation.
+  adjacent-single: #{foo} -#{bar};
+  adjacent-double: #{foo} --#{bar};
+}
+
+.trailing-non-name-start {
+  // We want to treat interpolation as though it's a valid identifier character,
+  // which means that if it's followed by a [name character][] that's not a
+  // [name start character][] it should still treat that as part of the
+  // identifier.
+  //
+  // [name character]: https://drafts.csswg.org/css-syntax-3/#name-code-point
+  // [name start character]: https://drafts.csswg.org/css-syntax-3/#name-start-code-point
+  digit: foo#{bar}12;
+  hyphen: foo#{bar}-12;
+  double-hyphen: foo#{bar}--12;
+}
+
+.double-interpolation {
+  output: #{#{literal}};
+  output: #{"[#{literal}]"};
+  output: #{"#{literal}"};
+  output: #{'#{literal}'};
+  output: #{"['#{literal}']"};
+}
+
+.escape {
+  output: "[\#{literal}]";
+  output: "\#{literal}";
+  output: '\#{literal}';
+  output: "['\#{literal}']";
+}
+
+.double-quoted {
+  output: #{"dquoted"};
+  output: "[#{"dquoted"}]";
+  output: "#{"dquoted"}";
+  output: '#{"dquoted"}';
+  output: "['#{"dquoted"}']";
+}
+
+.singled-quoted {
+  output: #{'squoted'};
+  output: "[#{'squoted'}]";
+  output: "#{'squoted'}";
+  output: '#{'squoted'}';
+  output: "['#{'squoted'}']";
+}
+
+.space-list-quoted {
+  output: #{"alpha" 'beta'};
+  output: "[#{"alpha" 'beta'}]";
+  output: "#{"alpha" 'beta'}";
+  output: '#{"alpha" 'beta'}';
+  output: "['#{"alpha" 'beta'}']";
+}
+
+.comma-list-quoted {
+  output: #{"alpha", 'beta'};
+  output: "[#{"alpha", 'beta'}]";
+  output: "#{"alpha", 'beta'}";
+  output: '#{"alpha", 'beta'}';
+  output: "['#{"alpha", 'beta'}']";
+}
+
+.space-list-complex {
+  output: #{gamme "'"delta"'"};
+  output: "[#{gamme "'"delta"'"}]";
+  output: "#{gamme "'"delta"'"}";
+  output: '#{gamme "'"delta"'"}';
+  output: "['#{gamme "'"delta"'"}']";
+}
+
+.comma-list-complex {
+  output: #{gamma, "'"delta"'"};
+  output: "[#{gamma, "'"delta"'"}]";
+  output: "#{gamma, "'"delta"'"}";
+  output: '#{gamma, "'"delta"'"}';
+  output: "['#{gamma, "'"delta"'"}']";
+}
+
+.escaped-backslash {
+  output: #{\\};
+  output: "[#{\\}]";
+  output: "#{\\}";
+  output: '#{\\}';
+  output: "['#{\\}']";
+}
+
+.escaped-literal {
+  output: #{l\\ite\ral};
+  output: "[#{l\\ite\ral}]";
+  output: "#{l\\ite\ral}";
+  output: '#{l\\ite\ral}';
+  output: "['#{l\\ite\ral}']";
+}
+
+.escaped-double-quoted {
+  output: #{"l\\ite\ral"};
+  output: "[#{"l\\ite\ral"}]";
+  output: "#{"l\\ite\ral"}";
+  output: '#{"l\\ite\ral"}';
+  output: "['#{"l\\ite\ral"}']";
+}
+
+.escaped-single-quoted {
+  output: #{'l\\ite\ral'};
+  output: "[#{'l\\ite\ral'}]";
+  output: "#{'l\\ite\ral'}";
+  output: '#{'l\\ite\ral'}';
+  output: "['#{'l\\ite\ral'}']";
+}
+
+.escapes-literal-numbers {
+  output: #{\1\2\3\4\5\6\7\8\9};
+  output: "[#{\1\2\3\4\5\6\7\8\9}]";
+  output: "#{\1\2\3\4\5\6\7\8\9}";
+  output: '#{\1\2\3\4\5\6\7\8\9}';
+  output: "['#{\1\2\3\4\5\6\7\8\9}']";
+}
+
+.escapes-double-quoted-numbers {
+  output: #{"\1\2\3\4\5\6\7\8\9"};
+  output: "[#{"\1\2\3\4\5\6\7\8\9"}]";
+  output: "#{"\1\2\3\4\5\6\7\8\9"}";
+  output: '#{"\1\2\3\4\5\6\7\8\9"}';
+  output: "['#{"\1\2\3\4\5\6\7\8\9"}']";
+}
+
+.escapes-single-qouted-numbers {
+  output: #{'\1\2\3\4\5\6\7\8\9'};
+  output: "[#{'\1\2\3\4\5\6\7\8\9'}]";
+  output: "#{'\1\2\3\4\5\6\7\8\9'}";
+  output: '#{'\1\2\3\4\5\6\7\8\9'}';
+  output: "['#{'\1\2\3\4\5\6\7\8\9'}']";
+}
+
+.escapes-literal-lowercase {
+  output: #{\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z};
+  output: "[#{\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z}]";
+  output: "#{\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z}";
+  output: '#{\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z}';
+  output: "['#{\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z}']";
+}
+
+.escapes-double-quoted-lowercase {
+  output: #{"\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z"};
+  output: "[#{"\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z"}]";
+  output: "#{"\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z"}";
+  output: '#{"\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z"}';
+  output: "['#{"\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z"}']";
+}
+
+.escapes-single-quoted-lowercase {
+  output: #{'\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z'};
+  output: "[#{'\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z'}]";
+  output: "#{'\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z'}";
+  output: '#{'\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z'}';
+  output: "['#{'\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z'}']";
+}
+
+.escapes-literal-uppercase {
+  output: #{\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z};
+  output: "[#{\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z}]";
+  output: "#{\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z}";
+  output: '#{\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z}';
+  output: "['#{\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z}']";
+}
+
+.escapes-double-quoted-uppercase {
+  output: #{"\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z"};
+  output: "[#{"\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z"}]";
+  output: "#{"\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z"}";
+  output: '#{"\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z"}';
+  output: "['#{"\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z"}']";
+}
+
+.escapes-single-qouted-uppercase {
+  output: #{'\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z'};
+  output: "[#{'\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z'}]";
+  output: "#{'\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z'}";
+  output: '#{'\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z'}';
+  output: "['#{'\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z'}']";
+}
+
+.escapes-literal-specials {
+  output: #{\0_\a_\A};
+  output: "[#{\0_\a_\A}]";
+  output: "#{\0_\a_\A}";
+  output: '#{\0_\a_\A}';
+  output: "['#{\0_\a_\A}']";
+}
+
+.escapes-double-quoted-specials {
+  output: #{"\0_\a_\A"};
+  output: "[#{"\0_\a_\A"}]";
+  output: "#{"\0_\a_\A"}";
+  output: '#{"\0_\a_\A"}';
+  output: "['#{"\0_\a_\A"}']";
+}
+
+.escaped-single-quoted-specials {
+  output: #{'\0_\a_\A'};
+  output: "[#{'\0_\a_\A'}]";
+  output: "#{'\0_\a_\A'}";
+  output: '#{'\0_\a_\A'}';
+  output: "['#{'\0_\a_\A'}']";
+}
+
+.escaped-literal-qoutes {
+  output: #{\"\'};
+  output: "[#{\"\'}]";
+  output: "#{\"\'}";
+  output: '#{\"\'}';
+  output: "['#{\"\'}']";
+}
+
+.escaped-double-quotes {
+  output: #{"\""};
+  output: "[#{"\""}]";
+  output: "#{"\""}";
+  output: '#{"\""}';
+  output: "['#{"\""}']";
+}
+
+.escaped-single-quotes {
+  output: #{'\''};
+  output: "[#{'\''}]";
+  output: "#{'\''}";
+  output: '#{'\''}';
+  output: "['#{'\''}']";
+}
+
+.weird-space-separated-list {
+  output: #{"["'foo'"]"};
+  output: "[#{"["'foo'"]"}]";
+  output: "#{"["'foo'"]"}";
+  output: '#{"["'foo'"]"}';
+  output: "['#{"["'foo'"]"}']";
+}

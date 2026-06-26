@@ -24,12 +24,16 @@ For detailed API documentation, see [docs.rs](https://docs.rs/oxc-css-parser).
 
 The benchmark suite compares parser performance against other CSS parsers.
 
-Install `cargo-criterion`, then add CSS files to a local `bench_data` directory:
+Install `cargo-criterion`, then run the checked-in fixture benchmark:
 
 ```sh
 cargo install cargo-criterion
 cargo criterion
 ```
+
+To benchmark custom inputs, add CSS, SCSS, Sass, or Less files to a local `bench_data`
+directory. When `bench_data` contains supported files, it is used instead of the
+checked-in fixtures.
 
 ## Credits
 
