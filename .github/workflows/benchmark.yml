@@ -1,0 +1,64 @@
+name: Benchmark
+
+permissions: {}
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - "**/*.rs"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "benchmark/Cargo.toml"
+      - ".github/workflows/benchmark.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.rs"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "benchmark/Cargo.toml"
+      - ".github/workflows/benchmark.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required for OIDC authentication with CodSpeed
+    steps:
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
+
+      - uses: oxc-project/setup-rust@3d6fb132fbe7cdcb66bf8ec193911c2945369d12 # v1.0.17
+        with:
+          cache-key: benchmark
+          save-cache: ${{ github.ref_name == 'main' }}
+          tools: cargo-codspeed
+
+      - name: Prepare benchmark data
+        run: |
+          mkdir -p bench_data
+          printf '%s\n' \
+            'a { color: green; margin: calc(1rem + 2px); }' \
+            '@media screen and (min-width: 768px) { .container { display: grid; } }' \
+            > bench_data/codspeed.css
+
+      - name: Build benchmark
+        run: cargo codspeed build -p oxc-css-parser-benchmark --features codspeed
+
+      - name: Run benchmark
+        uses: CodSpeedHQ/action@c145068895e045cc725ee76fcd2307624b65c3af # v4.17.5
+        timeout-minutes: 15
+        with:
+          mode: instrumentation
+          run: cargo codspeed run

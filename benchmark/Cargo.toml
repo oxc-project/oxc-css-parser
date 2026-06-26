@@ -9,8 +9,12 @@ publish = false
 [dependencies]
 oxc-css-parser = { path = "../crates/oxc_css_parser" }
 
+[features]
+default = []
+codspeed = ["criterion2/codspeed"]
+
 [dev-dependencies]
-criterion = "0.8"
+criterion2 = { version = "3", default-features = false }
 
 [[bench]]
 name = "self"
