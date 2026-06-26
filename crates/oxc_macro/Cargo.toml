@@ -1,6 +1,6 @@
 [package]
 name = "oxc-css-macro"
-version = "0.2.0"
+version = "0.0.1"
 edition = "2024"
 authors = ["Pig Fang <g-plane@hotmail.com>"]
 description = "Macros for oxc-css."
