@@ -15,7 +15,7 @@ let ast = parser.parse::<Stylesheet>().unwrap();
 println!("{:#?}", ast);
 ```
 
-More examples are available in [`examples`](https://github.com/oxc-project/oxc-css-parser/tree/main/crates/oxc_css_parser/examples).
+More examples are available in [`examples`](https://github.com/oxc-project/oxc-css-parser/tree/main/examples).
 
 For detailed API documentation, see [docs.rs](https://docs.rs/oxc-css-parser).
 

@@ -29,4 +29,17 @@ variant_helpers = []
 
 [[bench]]
 name = "self"
+path = "../../benches/self.rs"
 harness = false
+
+[[example]]
+name = "comments"
+path = "../../examples/comments.rs"
+
+[[example]]
+name = "json"
+path = "../../examples/json.rs"
+
+[[example]]
+name = "print_ast"
+path = "../../examples/print_ast.rs"
