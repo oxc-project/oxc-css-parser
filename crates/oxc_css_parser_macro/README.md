@@ -1,6 +1,6 @@
 # oxc-css-parser-macro
 
-This crate provides proc macros for oxc-css-parser, and it should only be used internally in oxc-css-parser.
+Internal procedural macros for `oxc-css-parser`.
 
 ## License
 

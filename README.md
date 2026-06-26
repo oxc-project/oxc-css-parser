@@ -3,13 +3,9 @@
 [![Crates.io](https://img.shields.io/crates/v/oxc-css-parser?style=flat-square)](https://crates.io/crates/oxc-css-parser)
 [![docs.rs](https://img.shields.io/docsrs/oxc-css-parser?style=flat-square)](https://docs.rs/oxc-css-parser)
 
-oxc-css-parser is a parser which can parse CSS, SCSS, Sass (indented syntax) and Less. However, it won't compile SCSS, Sass or Less to CSS.
+`oxc-css-parser` parses CSS, SCSS, Sass, and Less. It produces an AST and does not compile preprocessor syntax to CSS.
 
-## 🧪 Playground
-
-There is an online playground for inspecting AST. Visit: [https://raffia-play.vercel.app/](https://raffia-play.vercel.app/).
-
-## 🍭 Example
+## Example
 
 ```rust
 use oxc_css_parser::{ast::Stylesheet, Parser, Syntax};
@@ -19,21 +15,22 @@ let ast = parser.parse::<Stylesheet>().unwrap();
 println!("{:#?}", ast);
 ```
 
-You can find more examples in the [examples](https://github.com/oxc-project/oxc-css/blob/main/crates/oxc_css_parser/examples) directory.
+More examples are available in [`examples`](https://github.com/oxc-project/oxc-css-parser/tree/main/crates/oxc_css_parser/examples).
 
-For detailed usage, check out [docs.rs](https://docs.rs/oxc-css-parser).
+For detailed API documentation, see [docs.rs](https://docs.rs/oxc-css-parser).
 
-## ⌛ Benchmark
+## Benchmark
 
-You can compare performance with other parsers in benchmark.
+The benchmark suite compares parser performance against other CSS parsers.
 
-First, you need to setup Rust and clone this repository. You also need to install `cargo-criterion` by running `cargo install cargo-criterion`.
+Install `cargo-criterion`, then add CSS files to a local `bench_data` directory:
 
-Then, copy some CSS files to `bench_data` directory. You need to create that directory by yourself.
+```sh
+cargo install cargo-criterion
+cargo criterion
+```
 
-Now you can run benchmark by running `cargo criterion`.
-
-## ✨ Credit
+## Credits
 
 Tests come from:
 
@@ -43,7 +40,7 @@ Tests come from:
 - [Sass Spec Suite](https://github.com/sass/sass-spec)
 - [Less Test Suite](https://github.com/less/less.js/tree/master/packages/test-data)
 
-## 📜 License
+## License
 
 MIT License
 
