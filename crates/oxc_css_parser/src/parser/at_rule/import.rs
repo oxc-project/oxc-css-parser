@@ -38,17 +38,13 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for ImportPrelude<'s> {
             Token::Ident(ident) if ident.name().eq_ignore_ascii_case("layer") => {
                 let ident = input.parse::<Ident>()?;
                 let layer = match peek!(input) {
-                    TokenWithSpan {
-                        token: Token::LParen(..),
-                        span,
-                    } if span.start == ident.span.end => {
+                    TokenWithSpan { token: Token::LParen(..), span }
+                        if span.start == ident.span.end =>
+                    {
                         bump!(input);
                         let args = vec![input.parse().map(ComponentValue::LayerName)?];
                         let end = expect!(input, RParen).1.end;
-                        let span = Span {
-                            start: ident.span.start,
-                            end,
-                        };
+                        let span = Span { start: ident.span.start, end };
                         ImportPreludeLayer::WithName(Function {
                             name: FunctionName::Ident(InterpolableIdent::Literal(ident)),
                             args,
@@ -66,10 +62,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for ImportPrelude<'s> {
         let supports = input.try_parse(|parser| {
             let (ident, span) = expect!(parser, Ident);
             if !ident.name().eq_ignore_ascii_case("supports") {
-                return Err(Error {
-                    kind: ErrorKind::TryParseError,
-                    span,
-                });
+                return Err(Error { kind: ErrorKind::TryParseError, span });
             }
 
             expect_without_ws_or_comments!(parser, LParen);
@@ -80,13 +73,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for ImportPrelude<'s> {
                 parser.parse().map(ImportPreludeSupportsKind::Declaration)?
             };
             let (_, Span { end, .. }) = expect!(parser, RParen);
-            Ok(ImportPreludeSupports {
-                kind,
-                span: Span {
-                    start: span.start,
-                    end,
-                },
-            })
+            Ok(ImportPreludeSupports { kind, span: Span { start: span.start, end } })
         });
         if let Ok(supports) = &supports {
             span.end = supports.span().end;
@@ -100,12 +87,6 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for ImportPrelude<'s> {
             Some(media)
         };
 
-        Ok(ImportPrelude {
-            href,
-            layer,
-            supports: supports.ok(),
-            media,
-            span,
-        })
+        Ok(ImportPrelude { href, layer, supports: supports.ok(), media, span })
     }
 }

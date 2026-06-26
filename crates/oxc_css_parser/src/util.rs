@@ -70,10 +70,7 @@ pub(crate) fn assert_no_ws_or_comment(left: &Span, right: &Span) -> PResult<()> 
     } else {
         Err(Error {
             kind: ErrorKind::UnexpectedWhitespaceOrComments,
-            span: Span {
-                start: left.end,
-                end: right.start,
-            },
+            span: Span { start: left.end, end: right.start },
         })
     }
 }
@@ -82,10 +79,7 @@ pub(crate) fn assert_no_ws(source: &str, start: &Span, end: &Span) -> PResult<()
     if has_ws(source, start.end, end.start) {
         Err(Error {
             kind: ErrorKind::UnexpectedWhitespace,
-            span: Span {
-                start: start.end,
-                end: end.start,
-            },
+            span: Span { start: start.end, end: end.start },
         })
     } else {
         Ok(())

@@ -15,10 +15,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for SupportsCondition<'s> {
             Token::Ident(token) if token.name().eq_ignore_ascii_case("not") => {
                 let keyword = input.parse::<Ident>()?;
                 let condition = input.parse::<SupportsInParens>()?;
-                let span = Span {
-                    start: keyword.span.start,
-                    end: condition.span().end,
-                };
+                let span = Span { start: keyword.span.start, end: condition.span().end };
                 Ok(SupportsCondition {
                     conditions: vec![SupportsConditionKind::Not(SupportsNot {
                         keyword,
@@ -37,10 +34,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for SupportsCondition<'s> {
                     if name.eq_ignore_ascii_case("and") {
                         let ident = input.parse::<Ident>()?;
                         let condition = input.parse::<SupportsInParens>()?;
-                        let span = Span {
-                            start: ident.span.start,
-                            end: condition.span().end,
-                        };
+                        let span = Span { start: ident.span.start, end: condition.span().end };
                         conditions.push(SupportsConditionKind::And(SupportsAnd {
                             keyword: ident,
                             condition,
@@ -49,10 +43,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for SupportsCondition<'s> {
                     } else if name.eq_ignore_ascii_case("or") {
                         let ident = input.parse::<Ident>()?;
                         let condition = input.parse::<SupportsInParens>()?;
-                        let span = Span {
-                            start: ident.span.start,
-                            end: condition.span().end,
-                        };
+                        let span = Span { start: ident.span.start, end: condition.span().end };
                         conditions.push(SupportsConditionKind::Or(SupportsOr {
                             keyword: ident,
                             condition,
@@ -74,10 +65,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for SupportsCondition<'s> {
 impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for SupportsInParens<'s> {
     fn parse(input: &mut Parser<'cmt, 's>) -> PResult<Self> {
         match peek!(input) {
-            TokenWithSpan {
-                token: Token::LParen(..),
-                ..
-            } => input
+            TokenWithSpan { token: Token::LParen(..), .. } => input
                 .try_parse(|parser| {
                     parser.parse::<SupportsDecl>().map(|supports_decl| {
                         let span = supports_decl.span.clone();
@@ -96,10 +84,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for SupportsInParens<'s> {
                         span: Span { start, end },
                     })
                 }),
-            TokenWithSpan {
-                token: Token::Ident(..),
-                ..
-            } => {
+            TokenWithSpan { token: Token::Ident(..), .. } => {
                 let function_ident = input.parse::<Ident>()?;
                 if function_ident.name.eq_ignore_ascii_case("selector") {
                     expect!(input, LParen);
@@ -114,10 +99,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for SupportsInParens<'s> {
                     let function =
                         input.parse_function(InterpolableIdent::Literal(function_ident))?;
                     let span = function.span.clone();
-                    Ok(SupportsInParens {
-                        kind: SupportsInParensKind::Function(function),
-                        span,
-                    })
+                    Ok(SupportsInParens { kind: SupportsInParensKind::Function(function), span })
                 }
             }
             TokenWithSpan { token, span } => Err(Error {
@@ -133,9 +115,6 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for SupportsDecl<'s> {
         let start = expect!(input, LParen).1.start;
         let decl = input.parse()?;
         let end = expect!(input, RParen).1.end;
-        Ok(SupportsDecl {
-            decl,
-            span: Span { start, end },
-        })
+        Ok(SupportsDecl { decl, span: Span { start, end } })
     }
 }

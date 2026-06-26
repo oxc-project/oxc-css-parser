@@ -30,10 +30,7 @@ pub(super) const LESS_CTX_ALLOW_KEYFRAME_BLOCK: u8 = 2;
 impl<'cmt, 's: 'cmt> Parser<'cmt, 's> {
     pub(super) fn with_state(&mut self, state: ParserState) -> WithState<'cmt, 's, '_> {
         let original_state = mem::replace(&mut self.state, state);
-        WithState {
-            parser: self,
-            original_state,
-        }
+        WithState { parser: self, original_state }
     }
 }
 

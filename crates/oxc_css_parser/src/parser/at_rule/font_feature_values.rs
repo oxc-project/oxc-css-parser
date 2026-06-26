@@ -19,10 +19,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for FontFamilyName<'s> {
                 if let Some(last) = idents.last() {
                     span.end = last.span().end;
                 }
-                Ok(FontFamilyName::Unquoted(UnquotedFontFamilyName {
-                    idents,
-                    span,
-                }))
+                Ok(FontFamilyName::Unquoted(UnquotedFontFamilyName { idents, span }))
             }
         }
     }

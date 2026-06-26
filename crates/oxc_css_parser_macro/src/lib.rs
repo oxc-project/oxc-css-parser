@@ -54,10 +54,7 @@ pub fn span_ignored_eq_derive(input: TokenStream) -> TokenStream {
     let generics = &ast.generics;
 
     let generated = match &ast.data {
-        Data::Struct(DataStruct {
-            fields: Fields::Named(fields),
-            ..
-        }) => {
+        Data::Struct(DataStruct { fields: Fields::Named(fields), .. }) => {
             let comparions = fields
                 .named
                 .iter()

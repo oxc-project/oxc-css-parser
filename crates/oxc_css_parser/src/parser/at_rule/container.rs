@@ -60,20 +60,10 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for ContainerConditionAnd<'s> {
         let keyword = input.parse::<Ident>()?;
         if keyword.name.eq_ignore_ascii_case("and") {
             let query_in_parens = input.parse::<QueryInParens>()?;
-            let span = Span {
-                start: keyword.span.start,
-                end: query_in_parens.span.end,
-            };
-            Ok(ContainerConditionAnd {
-                keyword,
-                query_in_parens,
-                span,
-            })
+            let span = Span { start: keyword.span.start, end: query_in_parens.span.end };
+            Ok(ContainerConditionAnd { keyword, query_in_parens, span })
         } else {
-            Err(Error {
-                kind: ErrorKind::ExpectContainerConditionAnd,
-                span: keyword.span,
-            })
+            Err(Error { kind: ErrorKind::ExpectContainerConditionAnd, span: keyword.span })
         }
     }
 }
@@ -83,20 +73,10 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for ContainerConditionNot<'s> {
         let keyword = input.parse::<Ident>()?;
         if keyword.name.eq_ignore_ascii_case("not") {
             let query_in_parens = input.parse::<QueryInParens>()?;
-            let span = Span {
-                start: keyword.span.start,
-                end: query_in_parens.span.end,
-            };
-            Ok(ContainerConditionNot {
-                keyword,
-                query_in_parens,
-                span,
-            })
+            let span = Span { start: keyword.span.start, end: query_in_parens.span.end };
+            Ok(ContainerConditionNot { keyword, query_in_parens, span })
         } else {
-            Err(Error {
-                kind: ErrorKind::ExpectContainerConditionNot,
-                span: keyword.span,
-            })
+            Err(Error { kind: ErrorKind::ExpectContainerConditionNot, span: keyword.span })
         }
     }
 }
@@ -106,20 +86,10 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for ContainerConditionOr<'s> {
         let keyword = input.parse::<Ident>()?;
         if keyword.name.eq_ignore_ascii_case("or") {
             let query_in_parens = input.parse::<QueryInParens>()?;
-            let span = Span {
-                start: keyword.span.start,
-                end: query_in_parens.span.end,
-            };
-            Ok(ContainerConditionOr {
-                keyword,
-                query_in_parens,
-                span,
-            })
+            let span = Span { start: keyword.span.start, end: query_in_parens.span.end };
+            Ok(ContainerConditionOr { keyword, query_in_parens, span })
         } else {
-            Err(Error {
-                kind: ErrorKind::ExpectContainerConditionOr,
-                span: keyword.span,
-            })
+            Err(Error { kind: ErrorKind::ExpectContainerConditionOr, span: keyword.span })
         }
     }
 }
@@ -133,10 +103,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for QueryInParens<'s> {
                 QueryInParensKind::SizeFeature(Box::new(input.parse()?))
             };
             let (_, Span { end, .. }) = expect!(input, RParen);
-            Ok(QueryInParens {
-                kind,
-                span: Span { start, end },
-            })
+            Ok(QueryInParens { kind, span: Span { start, end } })
         } else {
             let (style_keyword, ident_span) = expect!(input, Ident);
             let keyword = style_keyword.name();
@@ -144,32 +111,16 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for QueryInParens<'s> {
                 expect_without_ws_or_comments!(input, LParen);
                 let kind = input.parse().map(QueryInParensKind::StyleQuery)?;
                 let (_, Span { end, .. }) = expect!(input, RParen);
-                Ok(QueryInParens {
-                    kind,
-                    span: Span {
-                        start: ident_span.start,
-                        end,
-                    },
-                })
+                Ok(QueryInParens { kind, span: Span { start: ident_span.start, end } })
             } else if keyword.eq_ignore_ascii_case("scroll-state") {
                 // https://drafts.csswg.org/css-conditional-5/#scroll-state-container
                 expect_without_ws_or_comments!(input, LParen);
-                let kind = input
-                    .parse()
-                    .map(|media| QueryInParensKind::ScrollState(Box::new(media)))?;
+                let kind =
+                    input.parse().map(|media| QueryInParensKind::ScrollState(Box::new(media)))?;
                 let (_, Span { end, .. }) = expect!(input, RParen);
-                Ok(QueryInParens {
-                    kind,
-                    span: Span {
-                        start: ident_span.start,
-                        end,
-                    },
-                })
+                Ok(QueryInParens { kind, span: Span { start: ident_span.start, end } })
             } else {
-                Err(Error {
-                    kind: ErrorKind::ExpectStyleQuery,
-                    span: ident_span,
-                })
+                Err(Error { kind: ErrorKind::ExpectStyleQuery, span: ident_span })
             }
         }
     }
@@ -226,20 +177,10 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for StyleConditionAnd<'s> {
         let ident = input.parse::<Ident>()?;
         if ident.name.eq_ignore_ascii_case("and") {
             let style_in_parens = input.parse::<StyleInParens>()?;
-            let span = Span {
-                start: ident.span.start,
-                end: style_in_parens.span.end,
-            };
-            Ok(StyleConditionAnd {
-                keyword: ident,
-                style_in_parens,
-                span,
-            })
+            let span = Span { start: ident.span.start, end: style_in_parens.span.end };
+            Ok(StyleConditionAnd { keyword: ident, style_in_parens, span })
         } else {
-            Err(Error {
-                kind: ErrorKind::ExpectStyleConditionAnd,
-                span: ident.span,
-            })
+            Err(Error { kind: ErrorKind::ExpectStyleConditionAnd, span: ident.span })
         }
     }
 }
@@ -249,20 +190,10 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for StyleConditionNot<'s> {
         let keyword = input.parse::<Ident>()?;
         if keyword.name.eq_ignore_ascii_case("not") {
             let style_in_parens = input.parse::<StyleInParens>()?;
-            let span = Span {
-                start: keyword.span.start,
-                end: style_in_parens.span.end,
-            };
-            Ok(StyleConditionNot {
-                keyword,
-                style_in_parens,
-                span,
-            })
+            let span = Span { start: keyword.span.start, end: style_in_parens.span.end };
+            Ok(StyleConditionNot { keyword, style_in_parens, span })
         } else {
-            Err(Error {
-                kind: ErrorKind::ExpectStyleConditionNot,
-                span: keyword.span,
-            })
+            Err(Error { kind: ErrorKind::ExpectStyleConditionNot, span: keyword.span })
         }
     }
 }
@@ -272,20 +203,10 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for StyleConditionOr<'s> {
         let keyword = input.parse::<Ident>()?;
         if keyword.name.eq_ignore_ascii_case("or") {
             let style_in_parens = input.parse::<StyleInParens>()?;
-            let span = Span {
-                start: keyword.span.start,
-                end: style_in_parens.span.end,
-            };
-            Ok(StyleConditionOr {
-                keyword,
-                style_in_parens,
-                span,
-            })
+            let span = Span { start: keyword.span.start, end: style_in_parens.span.end };
+            Ok(StyleConditionOr { keyword, style_in_parens, span })
         } else {
-            Err(Error {
-                kind: ErrorKind::ExpectStyleConditionOr,
-                span: keyword.span,
-            })
+            Err(Error { kind: ErrorKind::ExpectStyleConditionOr, span: keyword.span })
         }
     }
 }
@@ -295,10 +216,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for StyleInParens<'s> {
         let (_, Span { start, .. }) = expect!(input, LParen);
         let kind = input.parse()?;
         let (_, Span { end, .. }) = expect!(input, RParen);
-        Ok(StyleInParens {
-            kind,
-            span: Span { start, end },
-        })
+        Ok(StyleInParens { kind, span: Span { start, end } })
     }
 }
 
@@ -332,20 +250,15 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for ContainerPrelude<'s> {
                 if ident.name.eq_ignore_ascii_case("not")
                     || ident.name.eq_ignore_ascii_case("scroll-state") =>
             {
-                Err(Error {
-                    kind: ErrorKind::TryParseError,
-                    span: ident.span,
-                })
+                Err(Error { kind: ErrorKind::TryParseError, span: ident.span })
             }
             InterpolableIdent::Literal(ident) if ident.name.eq_ignore_ascii_case("style") => {
                 match peek!(parser) {
-                    TokenWithSpan {
-                        token: Token::LParen(..),
-                        span,
-                    } if span.start == ident.span.end => Err(Error {
-                        kind: ErrorKind::TryParseError,
-                        span: ident.span,
-                    }),
+                    TokenWithSpan { token: Token::LParen(..), span }
+                        if span.start == ident.span.end =>
+                    {
+                        Err(Error { kind: ErrorKind::TryParseError, span: ident.span })
+                    }
                     _ => Ok(InterpolableIdent::Literal(ident)),
                 }
             }
@@ -356,10 +269,6 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for ContainerPrelude<'s> {
         if let Ok(name) = &name {
             span.start = name.span().start;
         }
-        Ok(ContainerPrelude {
-            name: name.ok(),
-            condition,
-            span,
-        })
+        Ok(ContainerPrelude { name: name.ok(), condition, span })
     }
 }

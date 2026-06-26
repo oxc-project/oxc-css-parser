@@ -14,14 +14,8 @@ impl<'s> TryFrom<(token::Dimension<'s>, Span)> for Dimension<'s> {
     type Error = Error;
 
     fn try_from((token, span): (token::Dimension<'s>, Span)) -> PResult<Self> {
-        let value_span = Span {
-            start: span.start,
-            end: span.start + token.value.raw.len(),
-        };
-        let unit_span = Span {
-            start: span.start + token.value.raw.len(),
-            end: span.end,
-        };
+        let value_span = Span { start: span.start, end: span.start + token.value.raw.len() };
+        let unit_span = Span { start: span.start + token.value.raw.len(), end: span.end };
 
         let value = (token.value, value_span).try_into()?;
         let unit = Ident::from((token.unit, unit_span));
@@ -92,42 +86,25 @@ impl<'s> TryFrom<(token::Dimension<'s>, Span)> for Dimension<'s> {
             DimensionKind::Unknown
         };
 
-        Ok(Dimension {
-            value,
-            unit,
-            kind,
-            span,
-        })
+        Ok(Dimension { value, unit, kind, span })
     }
 }
 
 impl<'s> From<(token::Ident<'s>, Span)> for Ident<'s> {
     fn from((token, span): (token::Ident<'s>, Span)) -> Self {
-        Ident {
-            name: token.name(),
-            raw: token.raw,
-            span,
-        }
+        Ident { name: token.name(), raw: token.raw, span }
     }
 }
 
 impl<'s> From<(token::Placeholder<'s>, Span)> for Placeholder<'s> {
     fn from((token, span): (token::Placeholder<'s>, Span)) -> Self {
-        Placeholder {
-            index: token.index,
-            suffix: token.suffix,
-            span,
-        }
+        Placeholder { index: token.index, suffix: token.suffix, span }
     }
 }
 
 impl<'s> From<(token::Ident<'s>, Span)> for InterpolableIdentStaticPart<'s> {
     fn from((token, span): (token::Ident<'s>, Span)) -> Self {
-        InterpolableIdentStaticPart {
-            value: token.name(),
-            raw: token.raw,
-            span,
-        }
+        InterpolableIdentStaticPart { value: token.name(), raw: token.raw, span }
     }
 }
 
@@ -138,15 +115,8 @@ impl<'s> TryFrom<(token::Number<'s>, Span)> for Number<'s> {
         token
             .raw
             .parse()
-            .map_err(|_| Error {
-                kind: ErrorKind::InvalidNumber,
-                span: span.clone(),
-            })
-            .map(|value| Self {
-                value,
-                raw: token.raw,
-                span,
-            })
+            .map_err(|_| Error { kind: ErrorKind::InvalidNumber, span: span.clone() })
+            .map(|value| Self { value, raw: token.raw, span })
     }
 }
 
@@ -164,26 +134,15 @@ impl<'s> From<(token::StrTemplate<'s>, Span)> for InterpolableStrStaticPart<'s> 
         } else {
             Cow::from(raw_without_quotes)
         };
-        Self {
-            value,
-            raw: token.raw,
-            span,
-        }
+        Self { value, raw: token.raw, span }
     }
 }
 
 impl<'s> From<(token::UrlTemplate<'s>, Span)> for InterpolableUrlStaticPart<'s> {
     fn from((token, span): (token::UrlTemplate<'s>, Span)) -> Self {
-        let value = if token.escaped {
-            util::handle_escape(token.raw)
-        } else {
-            Cow::from(token.raw)
-        };
-        Self {
-            value,
-            raw: token.raw,
-            span,
-        }
+        let value =
+            if token.escaped { util::handle_escape(token.raw) } else { Cow::from(token.raw) };
+        Self { value, raw: token.raw, span }
     }
 }
 
@@ -195,10 +154,6 @@ impl<'s> From<(token::Str<'s>, Span)> for Str<'s> {
         } else {
             Cow::from(raw_without_quotes)
         };
-        Self {
-            value,
-            raw: str.raw,
-            span,
-        }
+        Self { value, raw: str.raw, span }
     }
 }

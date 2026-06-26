@@ -11,9 +11,6 @@ pub fn parse_stylesheet(source: String, syntax: JsValue) -> Result<JsValue, JsVa
             let serializer = serde_wasm_bindgen::Serializer::new().serialize_missing_as_null(true);
             ast.serialize(&serializer).map_err(JsValue::from)
         }
-        Err(error) => Err(serde_wasm_bindgen::to_value(&(
-            &error,
-            error.kind.to_string(),
-        ))?),
+        Err(error) => Err(serde_wasm_bindgen::to_value(&(&error, error.kind.to_string()))?),
     }
 }

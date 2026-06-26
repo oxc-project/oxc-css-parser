@@ -66,11 +66,8 @@ impl<'cmt, 's: 'cmt> Parser<'cmt, 's> {
 
     fn try_parse<R, F: FnOnce(&mut Self) -> PResult<R>>(&mut self, f: F) -> PResult<R> {
         let tokenizer_state = self.tokenizer.state.clone();
-        let comments_count = if let Some(comments) = &self.tokenizer.comments {
-            comments.len()
-        } else {
-            0
-        };
+        let comments_count =
+            if let Some(comments) = &self.tokenizer.comments { comments.len() } else { 0 };
         let recoverable_errors_count = self.recoverable_errors.len();
         let cached_token = self.cached_token.clone();
         let result = f(self);

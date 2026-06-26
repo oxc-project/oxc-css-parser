@@ -30,10 +30,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for Declaration<'s> {
         };
 
         // https://tailwindcss.com/docs/theme#overriding-the-default-theme
-        let name_suffix = if let TokenWithSpan {
-            token: Token::Asterisk(..),
-            span,
-        } = peek!(input)
+        let name_suffix = if let TokenWithSpan { token: Token::Asterisk(..), span } = peek!(input)
             && name.span().end == span.start
         {
             bump!(input);
@@ -42,11 +39,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for Declaration<'s> {
             None
         };
 
-        let less_property_merge = if input.syntax == Syntax::Less {
-            input.parse()?
-        } else {
-            None
-        };
+        let less_property_merge = if input.syntax == Syntax::Less { input.parse()? } else { None };
 
         let (_, colon_span) = expect!(input, Colon);
         let value = {
@@ -157,17 +150,11 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for ImportantAnnotation<'s> {
     fn parse(input: &mut Parser<'cmt, 's>) -> PResult<Self> {
         let (_, span) = expect!(input, Exclamation);
         let ident: Ident = input.parse::<Ident>()?;
-        let span = Span {
-            start: span.start,
-            end: ident.span.end,
-        };
+        let span = Span { start: span.start, end: ident.span.end };
         if ident.name.eq_ignore_ascii_case("important") {
             Ok(ImportantAnnotation { ident, span })
         } else {
-            Err(Error {
-                kind: ErrorKind::ExpectImportantAnnotation,
-                span,
-            })
+            Err(Error { kind: ErrorKind::ExpectImportantAnnotation, span })
         }
     }
 }
@@ -181,15 +168,8 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for QualifiedRule<'s> {
             })
             .parse::<SelectorList>()?;
         let block = input.parse::<SimpleBlock>()?;
-        let span = Span {
-            start: selector_list.span.start,
-            end: block.span.end,
-        };
-        Ok(QualifiedRule {
-            selector: selector_list,
-            block,
-            span,
-        })
+        let span = Span { start: selector_list.span.start, end: block.span.end };
+        Ok(QualifiedRule { selector: selector_list, block, span })
     }
 }
 
@@ -203,10 +183,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for SimpleBlock<'s> {
                 let offset = peek!(input).span.start;
                 return Ok(SimpleBlock {
                     statements: vec![],
-                    span: Span {
-                        start: offset,
-                        end: offset,
-                    },
+                    span: Span { start: offset, end: offset },
                 });
             }
         } else {
@@ -217,27 +194,17 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for SimpleBlock<'s> {
 
         if is_sass {
             match bump!(input) {
-                TokenWithSpan {
-                    token: Token::Dedent(..) | Token::Eof(..),
-                    span,
-                } => {
+                TokenWithSpan { token: Token::Dedent(..) | Token::Eof(..), span } => {
                     let end = statements.last().map_or(span.start, |last| last.span().end);
-                    Ok(SimpleBlock {
-                        statements,
-                        span: Span { start, end },
-                    })
+                    Ok(SimpleBlock { statements, span: Span { start, end } })
                 }
-                TokenWithSpan { span, .. } => Err(Error {
-                    kind: ErrorKind::ExpectDedentOrEof,
-                    span,
-                }),
+                TokenWithSpan { span, .. } => {
+                    Err(Error { kind: ErrorKind::ExpectDedentOrEof, span })
+                }
             }
         } else {
             let end = expect!(input, RBrace).1.end;
-            Ok(SimpleBlock {
-                statements,
-                span: Span { start, end },
-            })
+            Ok(SimpleBlock { statements, span: Span { start, end } })
         }
     }
 }
@@ -246,13 +213,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for Stylesheet<'s> {
     fn parse(input: &mut Parser<'cmt, 's>) -> PResult<Self> {
         let statements = input.parse_statements(/* is_top_level */ true)?;
         expect!(input, Eof);
-        Ok(Stylesheet {
-            statements,
-            span: Span {
-                start: 0,
-                end: input.source.len(),
-            },
-        })
+        Ok(Stylesheet { statements, span: Span { start: 0, end: input.source.len() } })
     }
 }
 

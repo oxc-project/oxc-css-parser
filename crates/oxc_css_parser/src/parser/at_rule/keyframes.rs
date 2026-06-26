@@ -27,22 +27,11 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for KeyframeBlock<'s> {
         debug_assert_eq!(comma_spans.len() + 1, selectors.len());
 
         let block = input
-            .with_state(ParserState {
-                in_keyframes_at_rule: false,
-                ..input.state.clone()
-            })
+            .with_state(ParserState { in_keyframes_at_rule: false, ..input.state.clone() })
             .parse::<SimpleBlock>()?;
 
-        let span = Span {
-            start,
-            end: block.span.end,
-        };
-        Ok(KeyframeBlock {
-            selectors,
-            comma_spans,
-            block,
-            span,
-        })
+        let span = Span { start, end: block.span.end };
+        Ok(KeyframeBlock { selectors, comma_spans, block, span })
     }
 }
 

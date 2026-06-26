@@ -21,12 +21,7 @@ impl<'cmt, 's: 'cmt> ParserBuilder<'cmt, 's> {
     /// Create a parser builder from given source code.
     pub fn new(source: &'s str) -> Self {
         let source = source.strip_prefix('\u{feff}').unwrap_or(source);
-        ParserBuilder {
-            source,
-            options: None,
-            syntax: Syntax::default(),
-            comments: None,
-        }
+        ParserBuilder { source, options: None, syntax: Syntax::default(), comments: None }
     }
 
     /// Specify the syntax for parsing.

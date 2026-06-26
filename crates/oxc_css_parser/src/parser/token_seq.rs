@@ -41,10 +41,7 @@ impl<'cmt, 's: 'cmt> Parser<'cmt, 's> {
             tokens.push(bump!(self));
         }
         let span = Span {
-            start: tokens
-                .first()
-                .map(|token| token.span.start)
-                .unwrap_or(start),
+            start: tokens.first().map(|token| token.span.start).unwrap_or(start),
             end: if let Some(last) = tokens.last() {
                 last.span.end
             } else {

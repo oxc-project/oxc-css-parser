@@ -27,17 +27,9 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for CustomSelector<'s> {
                 .as_ref()
                 .map(|prefix_arg| prefix_arg.span.start)
                 .unwrap_or(name.span.start),
-            end: args
-                .as_ref()
-                .map(|args| args.span.end)
-                .unwrap_or(name.span.end),
+            end: args.as_ref().map(|args| args.span.end).unwrap_or(name.span.end),
         };
-        Ok(CustomSelector {
-            prefix_arg,
-            name,
-            args,
-            span,
-        })
+        Ok(CustomSelector { prefix_arg, name, args, span })
     }
 }
 
@@ -47,10 +39,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for CustomSelectorArg<'s> {
         Ok(CustomSelectorArg {
             name: (
                 dollar_var.ident,
-                Span {
-                    start: dollar_var_span.start + 1,
-                    end: dollar_var_span.end,
-                },
+                Span { start: dollar_var_span.start + 1, end: dollar_var_span.end },
             )
                 .into(),
             span: dollar_var_span,
@@ -72,11 +61,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for CustomSelectorArgs<'s> {
         }
 
         let (_, Span { end, .. }) = expect!(input, RParen);
-        Ok(CustomSelectorArgs {
-            args,
-            comma_spans,
-            span: Span { start, end },
-        })
+        Ok(CustomSelectorArgs { args, comma_spans, span: Span { start, end } })
     }
 }
 
@@ -85,14 +70,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for CustomSelectorPrelude<'s> {
     fn parse(input: &mut Parser<'cmt, 's>) -> PResult<Self> {
         let custom_selector = input.parse::<CustomSelector>()?;
         let selector = input.parse::<SelectorList>()?;
-        let span = Span {
-            start: custom_selector.span.start,
-            end: selector.span.end,
-        };
-        Ok(CustomSelectorPrelude {
-            custom_selector,
-            selector,
-            span,
-        })
+        let span = Span { start: custom_selector.span.start, end: selector.span.end };
+        Ok(CustomSelectorPrelude { custom_selector, selector, span })
     }
 }

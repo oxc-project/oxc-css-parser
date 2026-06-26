@@ -47,22 +47,14 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
             state: TokenizerState {
                 chars,
                 current_indent: 0,
-                indents: if syntax == Syntax::Sass {
-                    vec![0]
-                } else {
-                    vec![]
-                },
+                indents: if syntax == Syntax::Sass { vec![0] } else { vec![] },
             },
         }
     }
 
     #[inline]
     pub fn bump(&mut self) -> PResult<TokenWithSpan<'s>> {
-        if let Some(indent) = self.skip_ws_or_comment() {
-            Ok(indent)
-        } else {
-            self.next()
-        }
+        if let Some(indent) = self.skip_ws_or_comment() { Ok(indent) } else { self.next() }
     }
 
     #[inline]
@@ -71,31 +63,19 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
     }
 
     pub fn current_offset(&mut self) -> usize {
-        if let Some((offset, _)) = self.state.chars.peek() {
-            *offset
-        } else {
-            self.source.len()
-        }
+        if let Some((offset, _)) = self.state.chars.peek() { *offset } else { self.source.len() }
     }
 
     #[inline]
     fn peek_two_chars(&self) -> Option<(usize, char, char)> {
         let mut iter = self.state.chars.clone();
-        iter.next()
-            .zip(iter.next())
-            .map(|((start, first), (_, second))| (start, first, second))
+        iter.next().zip(iter.next()).map(|((start, first), (_, second))| (start, first, second))
     }
 
     #[cold]
     fn build_eof_error(&mut self) -> Error {
         let offset = self.current_offset();
-        Error {
-            kind: ErrorKind::UnexpectedEof,
-            span: Span {
-                start: offset,
-                end: offset,
-            },
-        }
+        Error { kind: ErrorKind::UnexpectedEof, span: Span { start: offset, end: offset } }
     }
 
     fn next(&mut self) -> PResult<TokenWithSpan<'s>> {
@@ -109,10 +89,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
             Some((start, '{')) => {
                 let token = TokenWithSpan {
                     token: Token::LBrace(LBrace {}),
-                    span: Span {
-                        start: *start,
-                        end: start + 1,
-                    },
+                    span: Span { start: *start, end: start + 1 },
                 };
                 self.state.chars.next();
                 return Ok(token);
@@ -171,10 +148,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                 let offset = self.current_offset();
                 Ok(TokenWithSpan {
                     token: Token::Eof(Eof {}),
-                    span: Span {
-                        start: offset,
-                        end: offset,
-                    },
+                    span: Span { start: offset, end: offset },
                 })
             }
         }
@@ -184,11 +158,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
         // Sass can dedent more than one level at a time,
         // so we need to produce a dedent token for each level.
         if self.syntax == Syntax::Sass
-            && self
-                .state
-                .indents
-                .last()
-                .is_some_and(|last| *last > self.state.current_indent)
+            && self.state.indents.last().is_some_and(|last| *last > self.state.current_indent)
             && let Some((i, _)) = self.state.chars.peek()
         {
             self.state.indents.pop();
@@ -250,35 +220,22 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                     match len.cmp(&self.state.indents.last().copied().unwrap_or_default()) {
                         Ordering::Greater => {
                             self.state.indents.push(len);
-                            TokenWithSpan {
-                                token: Token::Indent(Indent {}),
-                                span,
-                            }
+                            TokenWithSpan { token: Token::Indent(Indent {}), span }
                         }
                         Ordering::Less => {
                             self.state.indents.pop();
-                            TokenWithSpan {
-                                token: Token::Dedent(Dedent {}),
-                                span,
-                            }
+                            TokenWithSpan { token: Token::Dedent(Dedent {}), span }
                         }
-                        Ordering::Equal => TokenWithSpan {
-                            token: Token::Linebreak(Linebreak {}),
-                            span,
-                        },
+                        Ordering::Equal => {
+                            TokenWithSpan { token: Token::Linebreak(Linebreak {}), span }
+                        }
                     }
                 });
             }
         }
 
         let offset = self.current_offset();
-        Some(TokenWithSpan {
-            token: Token::Eof(Eof {}),
-            span: Span {
-                start: offset,
-                end: offset,
-            },
-        })
+        Some(TokenWithSpan { token: Token::Eof(Eof {}), span: Span { start: offset, end: offset } })
     }
 
     fn scan_block_comment(&mut self) {
@@ -309,11 +266,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
 
         if let Some(comments) = &mut self.comments {
             let content = unsafe { self.source.get_unchecked(start + 2..content_end) };
-            comments.push(Comment {
-                content,
-                kind: CommentKind::Block,
-                span: Span { start, end },
-            });
+            comments.push(Comment { content, kind: CommentKind::Block, span: Span { start, end } });
         }
     }
 
@@ -354,11 +307,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
 
         if let Some(comments) = &mut self.comments {
             let content = unsafe { self.source.get_unchecked(start + 2..end) };
-            comments.push(Comment {
-                content,
-                kind: CommentKind::Line,
-                span: Span { start, end },
-            });
+            comments.push(Comment { content, kind: CommentKind::Line, span: Span { start, end } });
         }
     }
 
@@ -557,10 +506,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                 self.scan_dimension(number, span)
             }
             (Some((_, '%')), ..) => self.scan_percentage(number, span),
-            _ => Ok(TokenWithSpan {
-                token: Token::Number(number),
-                span,
-            }),
+            _ => Ok(TokenWithSpan { token: Token::Number(number), span }),
         }
     }
 
@@ -572,10 +518,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
         let (unit, unit_span) = self.scan_ident_sequence()?;
         Ok(TokenWithSpan {
             token: Token::Dimension(Dimension { value, unit }),
-            span: Span {
-                start: value_span.start,
-                end: unit_span.end,
-            },
+            span: Span { start: value_span.start, end: unit_span.end },
         })
     }
 
@@ -583,10 +526,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
         self.state.chars.next();
         Ok(TokenWithSpan {
             token: Token::Percentage(Percentage { value }),
-            span: Span {
-                start: span.start,
-                end: span.end + 1,
-            },
+            span: Span { start: span.start, end: span.end + 1 },
         })
     }
 
@@ -596,10 +536,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
             Some((index, _)) => {
                 return Err(Error {
                     kind: ErrorKind::ExpectString,
-                    span: Span {
-                        start: index,
-                        end: index + 1,
-                    },
+                    span: Span { start: index, end: index + 1 },
                 });
             }
             None => return Err(self.build_eof_error()),
@@ -627,10 +564,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                 None => {
                     return Err(Error {
                         kind: ErrorKind::UnterminatedString,
-                        span: Span {
-                            start,
-                            end: self.source.len(),
-                        },
+                        span: Span { start, end: self.source.len() },
                     });
                 }
             }
@@ -682,10 +616,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                 None => {
                     return Err(Error {
                         kind: ErrorKind::UnterminatedString,
-                        span: Span {
-                            start,
-                            end: self.source.len(),
-                        },
+                        span: Span { start, end: self.source.len() },
                     });
                 }
             }
@@ -693,10 +624,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
 
         debug_assert!(start + 1 < end);
         let raw = unsafe { self.source.get_unchecked(start..end) };
-        Ok(TokenWithSpan {
-            token: Token::Str(Str { raw, escaped }),
-            span: Span { start, end },
-        })
+        Ok(TokenWithSpan { token: Token::Str(Str { raw, escaped }), span: Span { start, end } })
     }
 
     pub(crate) fn scan_string_template(&mut self, quote: char) -> PResult<(StrTemplate<'s>, Span)> {
@@ -708,10 +636,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                 Some((i, '\n')) => {
                     return Err(Error {
                         kind: ErrorKind::UnexpectedLinebreak,
-                        span: Span {
-                            start: i,
-                            end: i + 1,
-                        },
+                        span: Span { start: i, end: i + 1 },
                     });
                 }
                 Some((_, '\\')) => {
@@ -724,30 +649,14 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
 
                     let raw = unsafe { self.source.get_unchecked(start..i + 1) };
                     let span = Span { start, end };
-                    return Ok((
-                        StrTemplate {
-                            raw,
-                            escaped,
-                            head: false,
-                            tail: true,
-                        },
-                        span,
-                    ));
+                    return Ok((StrTemplate { raw, escaped, head: false, tail: true }, span));
                 }
                 Some((end, c @ '#' | c @ '@' | c @ '$'))
                     if self.is_start_of_interpolation_in_str_template(c) =>
                 {
                     let raw = unsafe { self.source.get_unchecked(start..end) };
                     let span = Span { start, end };
-                    return Ok((
-                        StrTemplate {
-                            raw,
-                            escaped,
-                            head: false,
-                            tail: false,
-                        },
-                        span,
-                    ));
+                    return Ok((StrTemplate { raw, escaped, head: false, tail: false }, span));
                 }
                 Some(..) => {}
                 None => return Err(self.build_eof_error()),
@@ -770,10 +679,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
 
     fn scan_ident(&mut self) -> PResult<TokenWithSpan<'s>> {
         self.scan_ident_sequence()
-            .map(|(ident, span)| TokenWithSpan {
-                token: Token::Ident(ident),
-                span,
-            })
+            .map(|(ident, span)| TokenWithSpan { token: Token::Ident(ident), span })
     }
 
     pub(crate) fn scan_ident_template(&mut self) -> PResult<Option<(Ident<'s>, Span)>> {
@@ -816,14 +722,8 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
             Some((start, c)) => {
                 debug_assert_eq!(c, '-');
                 Ok(TokenWithSpan {
-                    token: Token::Ident(Ident {
-                        escaped: false,
-                        raw: "-",
-                    }),
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    token: Token::Ident(Ident { escaped: false, raw: "-" }),
+                    span: Span { start, end: start + 1 },
                 })
             }
             None => Err(self.build_eof_error()),
@@ -849,11 +749,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                     let raw = unsafe { self.source.get_unchecked(start..end) };
                     let span = Span { start, end };
                     return Ok(TokenWithSpan {
-                        token: Token::UrlTemplate(UrlTemplate {
-                            raw,
-                            escaped,
-                            tail: false,
-                        }),
+                        token: Token::UrlTemplate(UrlTemplate { raw, escaped, tail: false }),
                         span,
                     });
                 }
@@ -867,10 +763,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                         Some((i, c)) => {
                             return Err(Error {
                                 kind: ErrorKind::InvalidUrl,
-                                span: Span {
-                                    start: i,
-                                    end: i + c.len_utf8(),
-                                },
+                                span: Span { start: i, end: i + c.len_utf8() },
                             });
                         }
                         None => return Err(self.build_eof_error()),
@@ -879,10 +772,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                 Some((i, '(' | '"' | '\'')) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidUrl,
-                        span: Span {
-                            start: i,
-                            end: i + 1,
-                        },
+                        span: Span { start: i, end: i + 1 },
                     });
                 }
                 Some(..) => {}
@@ -893,10 +783,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
         debug_assert!(start <= end);
         let raw = unsafe { self.source.get_unchecked(start..end) };
         let span = Span { start, end };
-        Ok(TokenWithSpan {
-            token: Token::UrlRaw(UrlRaw { raw, escaped }),
-            span,
-        })
+        Ok(TokenWithSpan { token: Token::UrlRaw(UrlRaw { raw, escaped }), span })
     }
 
     pub(crate) fn scan_url_template(&mut self) -> PResult<(UrlTemplate<'s>, Span)> {
@@ -913,26 +800,12 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
 
                     let raw = unsafe { self.source.get_unchecked(start..end) };
                     let span = Span { start, end };
-                    return Ok((
-                        UrlTemplate {
-                            raw,
-                            escaped,
-                            tail: true,
-                        },
-                        span,
-                    ));
+                    return Ok((UrlTemplate { raw, escaped, tail: true }, span));
                 }
                 Some((end, '#')) if self.is_start_of_interpolation_in_url_template() => {
                     let raw = unsafe { self.source.get_unchecked(start..end) };
                     let span = Span { start, end };
-                    return Ok((
-                        UrlTemplate {
-                            raw,
-                            escaped,
-                            tail: false,
-                        },
-                        span,
-                    ));
+                    return Ok((UrlTemplate { raw, escaped, tail: false }, span));
                 }
                 Some((end, c)) if c.is_ascii_whitespace() => {
                     self.skip_ws();
@@ -950,10 +823,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                         Some((i, c)) => {
                             return Err(Error {
                                 kind: ErrorKind::InvalidUrl,
-                                span: Span {
-                                    start: i,
-                                    end: i + c.len_utf8(),
-                                },
+                                span: Span { start: i, end: i + c.len_utf8() },
                             });
                         }
                         None => return Err(self.build_eof_error()),
@@ -962,10 +832,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                 Some((i, '(' | '"' | '\'')) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidUrl,
-                        span: Span {
-                            start: i,
-                            end: i + 1,
-                        },
+                        span: Span { start: i, end: i + 1 },
                     });
                 }
                 Some(..) => {}
@@ -996,10 +863,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
             Some((i, _)) => {
                 return Err(Error {
                     kind: ErrorKind::InvalidHash,
-                    span: Span {
-                        start: i,
-                        end: i + c.len_utf8(),
-                    },
+                    span: Span { start: i, end: i + c.len_utf8() },
                 });
             }
             None => {
@@ -1030,10 +894,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
 
         debug_assert!(end > start + 1);
         let raw = unsafe { self.source.get_unchecked(start + 1..end) };
-        Ok(TokenWithSpan {
-            token: Token::Hash(Hash { escaped, raw }),
-            span: Span { start, end },
-        })
+        Ok(TokenWithSpan { token: Token::Hash(Hash { escaped, raw }), span: Span { start, end } })
     }
 
     fn scan_dollar_var(&mut self) -> PResult<TokenWithSpan<'s>> {
@@ -1042,10 +903,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
         let (ident, span) = self.scan_ident_sequence()?;
         Ok(TokenWithSpan {
             token: Token::DollarVar(DollarVar { ident }),
-            span: Span {
-                start,
-                end: span.end,
-            },
+            span: Span { start, end: span.end },
         })
     }
 
@@ -1060,10 +918,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
             Some((i, '}')) => {
                 let span = Span { start, end: i + 1 };
                 if first_char == '@' {
-                    Ok(TokenWithSpan {
-                        token: Token::AtLBraceVar(AtLBraceVar { ident }),
-                        span,
-                    })
+                    Ok(TokenWithSpan { token: Token::AtLBraceVar(AtLBraceVar { ident }), span })
                 } else {
                     Ok(TokenWithSpan {
                         token: Token::DollarLBraceVar(DollarLBraceVar { ident }),
@@ -1073,10 +928,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
             }
             Some((i, c)) => Err(Error {
                 kind: ErrorKind::ExpectRightBraceForLessVar,
-                span: Span {
-                    start: i,
-                    end: i + c.len_utf8(),
-                },
+                span: Span { start: i, end: i + c.len_utf8() },
             }),
             None => Err(self.build_eof_error()),
         }
@@ -1089,10 +941,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
         let (ident, span) = self.scan_ident_sequence()?;
         Ok(TokenWithSpan {
             token: Token::AtKeyword(AtKeyword { ident }),
-            span: Span {
-                start,
-                end: span.end,
-            },
+            span: Span { start, end: span.end },
         })
     }
 
@@ -1107,19 +956,10 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
             while self.current_offset() < end {
                 self.state.chars.next();
             }
-            Ok(TokenWithSpan {
-                token: Token::Placeholder(placeholder),
-                span: Span { start, end },
-            })
+            Ok(TokenWithSpan { token: Token::Placeholder(placeholder), span: Span { start, end } })
         } else {
             self.state.chars.next(); // consume the stray backtick
-            Err(Error {
-                kind: ErrorKind::UnknownToken,
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
-            })
+            Err(Error { kind: ErrorKind::UnknownToken, span: Span { start, end: start + 1 } })
         }
     }
 
@@ -1153,13 +993,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
             .take_while(|&b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b >= 0x80)
             .count();
         let end = close_end + suffix_len;
-        Some((
-            Placeholder {
-                index,
-                suffix: &source[close_end..end],
-            },
-            end,
-        ))
+        Some((Placeholder { index, suffix: &source[close_end..end] }, end))
     }
 
     /// If a placeholder begins exactly at the current position, scan and return
@@ -1176,10 +1010,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
         while self.current_offset() < end {
             self.state.chars.next();
         }
-        Some(TokenWithSpan {
-            token: Token::Placeholder(placeholder),
-            span: Span { start, end },
-        })
+        Some(TokenWithSpan { token: Token::Placeholder(placeholder), span: Span { start, end } })
     }
 
     fn scan_backtick_code(&mut self) -> PResult<TokenWithSpan<'s>> {
@@ -1226,18 +1057,12 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::DotDotDot(DotDotDot {}),
-                        span: Span {
-                            start,
-                            end: start + 3,
-                        },
+                        span: Span { start, end: start + 3 },
                     })
                 } else {
                     Ok(TokenWithSpan {
                         token: Token::Dot(Dot {}),
-                        span: Span {
-                            start,
-                            end: start + 1,
-                        },
+                        span: Span { start, end: start + 1 },
                     })
                 }
             }
@@ -1246,93 +1071,57 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::ColonColon(ColonColon {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 _ => Ok(TokenWithSpan {
                     token: Token::Colon(Colon {}),
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '}')) => Ok(TokenWithSpan {
                 token: Token::RBrace(RBrace {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
             Some((start, '(')) => Ok(TokenWithSpan {
                 token: Token::LParen(LParen {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
             Some((start, ')')) => Ok(TokenWithSpan {
                 token: Token::RParen(RParen {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
             Some((start, '[')) => Ok(TokenWithSpan {
                 token: Token::LBracket(LBracket {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
             Some((start, ']')) => Ok(TokenWithSpan {
                 token: Token::RBracket(RBracket {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
             Some((start, '/')) => Ok(TokenWithSpan {
                 token: Token::Solidus(Solidus {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
             Some((start, ',')) => Ok(TokenWithSpan {
                 token: Token::Comma(Comma {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
             Some((start, ';')) => Ok(TokenWithSpan {
                 token: Token::Semicolon(Semicolon {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
             Some((start, '>')) => match self.state.chars.peek() {
                 Some((_, '=')) => {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::GreaterThanEqual(GreaterThanEqual {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 _ => Ok(TokenWithSpan {
                     token: Token::GreaterThan(GreaterThan {}),
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '<')) => match self.state.chars.peek() {
@@ -1340,47 +1129,32 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::LessThanEqual(LessThanEqual {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 Some((_, '!')) => {
                     let mut chars = self.state.chars.clone();
                     if {
                         chars.next();
-                        matches!(
-                            (chars.next(), chars.peek()),
-                            (Some((_, '-')), Some((_, '-')))
-                        )
+                        matches!((chars.next(), chars.peek()), (Some((_, '-')), Some((_, '-'))))
                     } {
                         self.state.chars.next();
                         self.state.chars.next();
                         self.state.chars.next();
                         Ok(TokenWithSpan {
                             token: Token::Cdo(Cdo {}),
-                            span: Span {
-                                start,
-                                end: start + 4,
-                            },
+                            span: Span { start, end: start + 4 },
                         })
                     } else {
                         Ok(TokenWithSpan {
                             token: Token::LessThan(LessThan {}),
-                            span: Span {
-                                start,
-                                end: start + 1,
-                            },
+                            span: Span { start, end: start + 1 },
                         })
                     }
                 }
                 _ => Ok(TokenWithSpan {
                     token: Token::LessThan(LessThan {}),
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '+')) => match self.state.chars.peek() {
@@ -1388,18 +1162,12 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::PlusUnderscore(PlusUnderscore {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 _ => Ok(TokenWithSpan {
                     token: Token::Plus(Plus {}),
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '=')) => match self.state.chars.peek() {
@@ -1407,70 +1175,46 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::EqualEqual(EqualEqual {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 _ => Ok(TokenWithSpan {
                     token: Token::Equal(Equal {}),
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '-')) => Ok(TokenWithSpan {
                 token: Token::Minus(Minus {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
             Some((start, '~')) => match self.state.chars.peek() {
                 Some((_, '=')) => {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::TildeEqual(TildeEqual {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 _ => Ok(TokenWithSpan {
                     token: Token::Tilde(Tilde {}),
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '&')) => Ok(TokenWithSpan {
                 token: Token::Ampersand(Ampersand {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
             Some((start, '*')) => match self.state.chars.peek() {
                 Some((_, '=')) => {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::AsteriskEqual(AsteriskEqual {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 _ => Ok(TokenWithSpan {
                     token: Token::Asterisk(Asterisk {}),
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '|')) => match self.state.chars.peek() {
@@ -1478,28 +1222,19 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::BarEqual(BarEqual {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 Some((_, '|')) => {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::BarBar(BarBar {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 _ => Ok(TokenWithSpan {
                     token: Token::Bar(Bar {}),
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '^')) => match self.state.chars.peek() {
@@ -1507,18 +1242,12 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::CaretEqual(CaretEqual {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 _ => Err(Error {
                     kind: ErrorKind::UnknownToken,
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '$')) => match self.state.chars.peek() {
@@ -1526,18 +1255,12 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::DollarEqual(DollarEqual {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 _ => Err(Error {
                     kind: ErrorKind::UnknownToken,
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '!')) => match self.state.chars.peek() {
@@ -1545,82 +1268,51 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::ExclamationEqual(ExclamationEqual {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 _ => Ok(TokenWithSpan {
                     token: Token::Exclamation(Exclamation {}),
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '?')) => Ok(TokenWithSpan {
                 token: Token::Question(Question {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
             Some((start, '#')) => match self.state.chars.peek() {
                 Some((_, '{')) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
                     self.state.chars.next();
                     Ok(TokenWithSpan {
                         token: Token::HashLBrace(HashLBrace {}),
-                        span: Span {
-                            start,
-                            end: start + 2,
-                        },
+                        span: Span { start, end: start + 2 },
                     })
                 }
                 _ => Ok(TokenWithSpan {
                     token: Token::NumberSign(NumberSign {}),
-                    span: Span {
-                        start,
-                        end: start + 1,
-                    },
+                    span: Span { start, end: start + 1 },
                 }),
             },
             Some((start, '%')) => Ok(TokenWithSpan {
                 token: Token::Percent(Percent {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
+                span: Span { start, end: start + 1 },
             }),
-            Some((start, '@')) if self.syntax != Syntax::Css => Ok(TokenWithSpan {
-                token: Token::At(At {}),
-                span: Span {
-                    start,
-                    end: start + 1,
-                },
-            }),
+            Some((start, '@')) if self.syntax != Syntax::Css => {
+                Ok(TokenWithSpan { token: Token::At(At {}), span: Span { start, end: start + 1 } })
+            }
             Some((i, c)) if c.is_ascii_whitespace() => Err(Error {
                 kind: ErrorKind::UnexpectedWhitespace,
-                span: Span {
-                    start: i,
-                    end: i + 1,
-                },
+                span: Span { start: i, end: i + 1 },
             }),
             Some((i, c)) => Err(Error {
                 kind: ErrorKind::UnknownToken,
-                span: Span {
-                    start: i,
-                    end: i + c.len_utf8(),
-                },
+                span: Span { start: i, end: i + c.len_utf8() },
             }),
             None => {
                 let offset = self.current_offset();
                 Ok(TokenWithSpan {
                     token: Token::Eof(Eof {}),
-                    span: Span {
-                        start: offset,
-                        end: offset,
-                    },
+                    span: Span { start: offset, end: offset },
                 })
             }
         }
@@ -1631,13 +1323,7 @@ impl<'cmt, 's: 'cmt> Tokenizer<'cmt, 's> {
         self.state.chars.next();
         self.state.chars.next();
         self.state.chars.next();
-        Ok(TokenWithSpan {
-            token: Token::Cdc(Cdc {}),
-            span: Span {
-                start,
-                end: start + 3,
-            },
-        })
+        Ok(TokenWithSpan { token: Token::Cdc(Cdc {}), span: Span { start, end: start + 3 } })
     }
 
     #[inline]

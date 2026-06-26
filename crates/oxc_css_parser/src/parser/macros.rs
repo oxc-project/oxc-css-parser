@@ -22,10 +22,7 @@ macro_rules! expect {
             tokenizer::{Token, TokenSymbol, TokenWithSpan},
         };
         match bump!($parser) {
-            TokenWithSpan {
-                token: Token::$variant(token),
-                span,
-            } => (token, span),
+            TokenWithSpan { token: Token::$variant(token), span } => (token, span),
             TokenWithSpan { token, span } => {
                 return Err(Error {
                     kind: ErrorKind::Unexpected(
@@ -71,10 +68,7 @@ macro_rules! expect_without_ws_or_comments {
         let tokenizer = &mut $parser.tokenizer;
         let token_with_span = tokenizer.bump_without_ws_or_comments()?;
         match token_with_span {
-            TokenWithSpan {
-                token: Token::$variant(token),
-                span,
-            } => (token, span),
+            TokenWithSpan { token: Token::$variant(token), span } => (token, span),
             TokenWithSpan { token, span } => {
                 return Err(Error {
                     kind: ErrorKind::Unexpected(
@@ -98,10 +92,7 @@ macro_rules! eat {
         };
         let token_with_span = bump!($parser);
         match token_with_span {
-            TokenWithSpan {
-                token: Token::$variant(token),
-                span,
-            } => Some((token, span)),
+            TokenWithSpan { token: Token::$variant(token), span } => Some((token, span)),
             value => {
                 $parser.cached_token = Some(value);
                 None

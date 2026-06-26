@@ -14,20 +14,10 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaAnd<'s> {
         let keyword = input.parse::<Ident>()?;
         if keyword.name.eq_ignore_ascii_case("and") {
             let media_in_parens = input.parse::<MediaInParens>()?;
-            let span = Span {
-                start: keyword.span.start,
-                end: media_in_parens.span.end,
-            };
-            Ok(MediaAnd {
-                keyword,
-                media_in_parens,
-                span,
-            })
+            let span = Span { start: keyword.span.start, end: media_in_parens.span.end };
+            Ok(MediaAnd { keyword, media_in_parens, span })
         } else {
-            Err(Error {
-                kind: ErrorKind::ExpectMediaAnd,
-                span: keyword.span,
-            })
+            Err(Error { kind: ErrorKind::ExpectMediaAnd, span: keyword.span })
         }
     }
 }
@@ -35,29 +25,20 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaAnd<'s> {
 impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaConditionAfterMediaType<'s> {
     fn parse(input: &mut Parser<'cmt, 's>) -> PResult<Self> {
         let and: Ident = match bump!(input) {
-            TokenWithSpan {
-                token: Token::Ident(ident),
-                span,
-            } if ident.name().eq_ignore_ascii_case("and") => (ident, span).into(),
+            TokenWithSpan { token: Token::Ident(ident), span }
+                if ident.name().eq_ignore_ascii_case("and") =>
+            {
+                (ident, span).into()
+            }
             TokenWithSpan { span, .. } => {
-                return Err(Error {
-                    kind: ErrorKind::ExpectMediaAnd,
-                    span,
-                });
+                return Err(Error { kind: ErrorKind::ExpectMediaAnd, span });
             }
         };
 
         let condition = input.parse_media_condition(/* allow_or */ false)?;
 
-        let span = Span {
-            start: and.span.start,
-            end: condition.span.end,
-        };
-        Ok(MediaConditionAfterMediaType {
-            and,
-            condition,
-            span,
-        })
+        let span = Span { start: and.span.start, end: condition.span.end };
+        Ok(MediaConditionAfterMediaType { and, condition, span })
     }
 }
 
@@ -65,9 +46,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaFeature<'s> {
     fn parse(input: &mut Parser<'cmt, 's>) -> PResult<Self> {
         match input.parse_media_feature_value()? {
             ComponentValue::InterpolableIdent(ident) => match &peek!(input).token {
-                Token::Colon(..) => input
-                    .parse_media_feature_plain(ident)
-                    .map(MediaFeature::Plain),
+                Token::Colon(..) => input.parse_media_feature_plain(ident).map(MediaFeature::Plain),
                 Token::LessThan(..)
                 | Token::LessThanEqual(..)
                 | Token::GreaterThan(..)
@@ -98,45 +77,28 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaFeature<'s> {
 impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaFeatureComparison {
     fn parse(input: &mut Parser<'cmt, 's>) -> PResult<Self> {
         match bump!(input) {
-            TokenWithSpan {
-                token: Token::LessThan(..),
-                span,
-            } => Ok(MediaFeatureComparison {
-                kind: MediaFeatureComparisonKind::LessThan,
-                span,
-            }),
-            TokenWithSpan {
-                token: Token::LessThanEqual(..),
-                span,
-            } => Ok(MediaFeatureComparison {
+            TokenWithSpan { token: Token::LessThan(..), span } => {
+                Ok(MediaFeatureComparison { kind: MediaFeatureComparisonKind::LessThan, span })
+            }
+            TokenWithSpan { token: Token::LessThanEqual(..), span } => Ok(MediaFeatureComparison {
                 kind: MediaFeatureComparisonKind::LessThanOrEqual,
                 span,
             }),
-            TokenWithSpan {
-                token: Token::GreaterThan(..),
-                span,
-            } => Ok(MediaFeatureComparison {
-                kind: MediaFeatureComparisonKind::GreaterThan,
-                span,
-            }),
-            TokenWithSpan {
-                token: Token::GreaterThanEqual(..),
-                span,
-            } => Ok(MediaFeatureComparison {
-                kind: MediaFeatureComparisonKind::GreaterThanOrEqual,
-                span,
-            }),
-            TokenWithSpan {
-                token: Token::Equal(..),
-                span,
-            } => Ok(MediaFeatureComparison {
-                kind: MediaFeatureComparisonKind::Equal,
-                span,
-            }),
-            TokenWithSpan { span, .. } => Err(Error {
-                kind: ErrorKind::ExpectMediaFeatureComparison,
-                span,
-            }),
+            TokenWithSpan { token: Token::GreaterThan(..), span } => {
+                Ok(MediaFeatureComparison { kind: MediaFeatureComparisonKind::GreaterThan, span })
+            }
+            TokenWithSpan { token: Token::GreaterThanEqual(..), span } => {
+                Ok(MediaFeatureComparison {
+                    kind: MediaFeatureComparisonKind::GreaterThanOrEqual,
+                    span,
+                })
+            }
+            TokenWithSpan { token: Token::Equal(..), span } => {
+                Ok(MediaFeatureComparison { kind: MediaFeatureComparisonKind::Equal, span })
+            }
+            TokenWithSpan { span, .. } => {
+                Err(Error { kind: ErrorKind::ExpectMediaFeatureComparison, span })
+            }
         }
     }
 }
@@ -159,10 +121,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaInParens<'s> {
         let (_, Span { start, .. }) = expect!(input, LParen);
         let kind = input.parse()?;
         let (_, Span { end, .. }) = expect!(input, RParen);
-        Ok(MediaInParens {
-            kind,
-            span: Span { start, end },
-        })
+        Ok(MediaInParens { kind, span: Span { start, end } })
     }
 }
 
@@ -178,18 +137,12 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaInParensKind<'s> {
                 Ok(media_condition)
             } else {
                 let span = peek!(parser).span.clone();
-                Err(Error {
-                    kind: ErrorKind::ExpectMediaFeatureName,
-                    span,
-                })
+                Err(Error { kind: ErrorKind::ExpectMediaFeatureName, span })
             }
         }) {
             Ok(MediaInParensKind::MediaCondition(media_condition))
         } else {
-            input
-                .parse()
-                .map(Box::new)
-                .map(MediaInParensKind::MediaFeature)
+            input.parse().map(Box::new).map(MediaInParensKind::MediaFeature)
         }
     }
 }
@@ -199,20 +152,10 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaNot<'s> {
         let keyword = input.parse::<Ident>()?;
         if keyword.name.eq_ignore_ascii_case("not") {
             let media_in_parens = input.parse::<MediaInParens>()?;
-            let span = Span {
-                start: keyword.span.start,
-                end: media_in_parens.span.end,
-            };
-            Ok(MediaNot {
-                keyword,
-                media_in_parens,
-                span,
-            })
+            let span = Span { start: keyword.span.start, end: media_in_parens.span.end };
+            Ok(MediaNot { keyword, media_in_parens, span })
         } else {
-            Err(Error {
-                kind: ErrorKind::ExpectMediaNot,
-                span: keyword.span,
-            })
+            Err(Error { kind: ErrorKind::ExpectMediaNot, span: keyword.span })
         }
     }
 }
@@ -222,20 +165,10 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaOr<'s> {
         let keyword = input.parse::<Ident>()?;
         if keyword.name.eq_ignore_ascii_case("or") {
             let media_in_parens = input.parse::<MediaInParens>()?;
-            let span = Span {
-                start: keyword.span.start,
-                end: media_in_parens.span.end,
-            };
-            Ok(MediaOr {
-                keyword,
-                media_in_parens,
-                span,
-            })
+            let span = Span { start: keyword.span.start, end: media_in_parens.span.end };
+            Ok(MediaOr { keyword, media_in_parens, span })
         } else {
-            Err(Error {
-                kind: ErrorKind::ExpectMediaOr,
-                span: keyword.span,
-            })
+            Err(Error { kind: ErrorKind::ExpectMediaOr, span: keyword.span })
         }
     }
 }
@@ -249,17 +182,15 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaQuery<'s> {
         } else if input.syntax == Syntax::Less {
             match peek!(input).token {
                 Token::AtKeyword(..) => {
-                    input
-                        .parse_less_maybe_variable_or_with_lookups()
-                        .map(|value| match value {
-                            ComponentValue::LessVariable(variable) => {
-                                MediaQuery::LessVariable(variable)
-                            }
-                            ComponentValue::LessNamespaceValue(namespace_value) => {
-                                MediaQuery::LessNamespaceValue(namespace_value)
-                            }
-                            _ => unreachable!(),
-                        })
+                    input.parse_less_maybe_variable_or_with_lookups().map(|value| match value {
+                        ComponentValue::LessVariable(variable) => {
+                            MediaQuery::LessVariable(variable)
+                        }
+                        ComponentValue::LessNamespaceValue(namespace_value) => {
+                            MediaQuery::LessNamespaceValue(namespace_value)
+                        }
+                        _ => unreachable!(),
+                    })
                 }
                 Token::Dot(..) | Token::Hash(..) => input.parse().map(|less_namespace_value| {
                     MediaQuery::LessNamespaceValue(Box::new(less_namespace_value))
@@ -291,11 +222,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaQueryList<'s> {
             let index = queries.len() - 1;
             queries.get_unchecked(index).span().end
         };
-        Ok(MediaQueryList {
-            queries,
-            comma_spans,
-            span,
-        })
+        Ok(MediaQueryList { queries, comma_spans, span })
     }
 }
 
@@ -338,12 +265,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for MediaQueryWithType<'s> {
         if let Some(condition) = &condition {
             span.end = condition.span.end;
         }
-        Ok(MediaQueryWithType {
-            modifier,
-            media_type,
-            condition,
-            span,
-        })
+        Ok(MediaQueryWithType { modifier, media_type, condition, span })
     }
 }
 
@@ -353,10 +275,7 @@ impl<'cmt, 's: 'cmt> Parser<'cmt, 's> {
             Token::Ident(ident) if ident.name().eq_ignore_ascii_case("not") => {
                 let media_not = self.parse::<MediaNot>()?;
                 let span = media_not.span.clone();
-                Ok(MediaCondition {
-                    conditions: vec![MediaConditionKind::Not(media_not)],
-                    span,
-                })
+                Ok(MediaCondition { conditions: vec![MediaConditionKind::Not(media_not)], span })
             }
             _ => {
                 let first = self.parse::<MediaInParens>()?;
@@ -398,16 +317,8 @@ impl<'cmt, 's: 'cmt> Parser<'cmt, 's> {
     ) -> PResult<MediaFeaturePlain<'s>> {
         let (_, colon_span) = expect!(self, Colon);
         let value = self.parse_media_feature_value()?;
-        let span = Span {
-            start: ident.span().start,
-            end: value.span().end,
-        };
-        Ok(MediaFeaturePlain {
-            name: MediaFeatureName::Ident(ident),
-            colon_span,
-            value,
-            span,
-        })
+        let span = Span { start: ident.span().start, end: value.span().end };
+        Ok(MediaFeaturePlain { name: MediaFeatureName::Ident(ident), colon_span, value, span })
     }
 
     fn parse_media_feature_range_or_range_interval(
@@ -425,10 +336,7 @@ impl<'cmt, 's: 'cmt> Parser<'cmt, 's> {
                 | Token::Equal(..) => {
                     let right_comparison = self.parse()?;
                     let right = self.parse_media_feature_value()?;
-                    let span = Span {
-                        start: left.span().start,
-                        end: right.span().end,
-                    };
+                    let span = Span { start: left.span().start, end: right.span().end };
                     Ok(MediaFeature::RangeInterval(MediaFeatureRangeInterval {
                         left,
                         left_comparison: comparison,
@@ -439,10 +347,7 @@ impl<'cmt, 's: 'cmt> Parser<'cmt, 's> {
                     }))
                 }
                 _ => {
-                    let span = Span {
-                        start: left.span().start,
-                        end: ident.span().end,
-                    };
+                    let span = Span { start: left.span().start, end: ident.span().end };
                     Ok(MediaFeature::Range(MediaFeatureRange {
                         left,
                         comparison,
@@ -460,10 +365,7 @@ impl<'cmt, 's: 'cmt> Parser<'cmt, 's> {
                     span: name_or_right.span().clone(),
                 });
             }
-            let span = Span {
-                start: left.span().start,
-                end: name_or_right.span().end,
-            };
+            let span = Span { start: left.span().start, end: name_or_right.span().end };
             Ok(MediaFeature::Range(MediaFeatureRange {
                 left,
                 comparison,
@@ -501,10 +403,7 @@ impl<'cmt, 's: 'cmt> Parser<'cmt, 's> {
                     condition: None,
                     span: mq_span,
                 },
-                TokenWithSpan {
-                    token: crate::token::Token::LParen(..),
-                    span: lparen_span,
-                },
+                TokenWithSpan { token: crate::token::Token::LParen(..), span: lparen_span },
             ) if mq_span.end == lparen_span.start => {
                 bump!(self);
                 let args = self.parse_function_args()?;
@@ -512,10 +411,7 @@ impl<'cmt, 's: 'cmt> Parser<'cmt, 's> {
                 Ok(MediaQuery::Function(Function {
                     name: FunctionName::Ident(name),
                     args,
-                    span: Span {
-                        start: mq_span.start,
-                        end,
-                    },
+                    span: Span { start: mq_span.start, end },
                 }))
             }
             (media_query_with_type, _) => Ok(MediaQuery::WithType(media_query_with_type)),

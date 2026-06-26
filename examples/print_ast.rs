@@ -29,9 +29,7 @@ fn main() {
             let recoverable_errors = parser.recoverable_errors();
             if !recoverable_errors.is_empty() {
                 println!("========");
-                recoverable_errors
-                    .iter()
-                    .for_each(|error| print_error(path, &code, error));
+                recoverable_errors.iter().for_each(|error| print_error(path, &code, error));
             }
         }
         Err(error) => print_error(path, &code, &error),

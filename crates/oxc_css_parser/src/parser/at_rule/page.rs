@@ -33,10 +33,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for PageSelector<'s> {
 
         loop {
             match peek!(input) {
-                TokenWithSpan {
-                    token: Token::Colon(..),
-                    span,
-                } if span.start == end => {
+                TokenWithSpan { token: Token::Colon(..), span } if span.start == end => {
                     let item = input.parse::<PseudoPage>()?;
                     end = item.span.end;
                     pseudo.push(item);
@@ -45,11 +42,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for PageSelector<'s> {
             }
         }
 
-        Ok(PageSelector {
-            name,
-            pseudo,
-            span: Span { start, end },
-        })
+        Ok(PageSelector { name, pseudo, span: Span { start, end } })
     }
 }
 
@@ -68,11 +61,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for PageSelectorList<'s> {
         if let Some(last) = selectors.last() {
             span.end = last.span.end;
         }
-        Ok(PageSelectorList {
-            selectors,
-            comma_spans,
-            span,
-        })
+        Ok(PageSelectorList { selectors, comma_spans, span })
     }
 }
 
@@ -84,10 +73,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for PseudoPage<'s> {
         let name_span = name.span();
         util::assert_no_ws_or_comment(&colon_span, name_span)?;
 
-        let span = Span {
-            start: colon_span.start,
-            end: name_span.end,
-        };
+        let span = Span { start: colon_span.start, end: name_span.end };
         Ok(PseudoPage { name, span })
     }
 }

@@ -2,9 +2,7 @@ use oxc_css_parser::{ParserBuilder, ParserOptions, Syntax, TemplatePlaceholder, 
 
 fn opts() -> ParserOptions {
     ParserOptions {
-        template_placeholder: Some(TemplatePlaceholder {
-            prefix: "PLACEHOLDER-",
-        }),
+        template_placeholder: Some(TemplatePlaceholder { prefix: "PLACEHOLDER-" }),
         ..Default::default()
     }
 }
@@ -12,11 +10,7 @@ fn opts() -> ParserOptions {
 fn parse(code: &str, options: Option<ParserOptions>) -> Stylesheet<'_> {
     // Backtick placeholders require SCSS (the builder asserts this); without the
     // option, parse as plain CSS so the backtick stays an ordinary error.
-    let syntax = if options.is_some() {
-        Syntax::Scss
-    } else {
-        Syntax::Css
-    };
+    let syntax = if options.is_some() { Syntax::Scss } else { Syntax::Css };
     let mut builder = ParserBuilder::new(code).syntax(syntax);
     if let Some(options) = options {
         builder = builder.options(options);
@@ -42,10 +36,7 @@ fn real_at_rules_unaffected_by_option() {
 #[test]
 fn statement_position_placeholder() {
     let ss = parse("`PLACEHOLDER-3`;", Some(opts()));
-    assert!(matches!(
-        ss.statements[0],
-        Statement::Placeholder(Placeholder { index: 3, .. })
-    ));
+    assert!(matches!(ss.statements[0], Statement::Placeholder(Placeholder { index: 3, .. })));
 }
 
 #[test]
@@ -62,11 +53,7 @@ fn value_position_placeholder_glues_following_ident_as_suffix() {
     assert_eq!(decl.value.len(), 1);
     assert!(matches!(
         &decl.value[0],
-        ComponentValue::Placeholder(Placeholder {
-            index: 0,
-            suffix: "px",
-            ..
-        })
+        ComponentValue::Placeholder(Placeholder { index: 0, suffix: "px", .. })
     ));
 }
 
@@ -76,11 +63,7 @@ fn bare_placeholder_has_empty_suffix() {
     let ss = parse("`PLACEHOLDER-3`;", Some(opts()));
     assert!(matches!(
         ss.statements[0],
-        Statement::Placeholder(Placeholder {
-            index: 3,
-            suffix: "",
-            ..
-        })
+        Statement::Placeholder(Placeholder { index: 3, suffix: "", .. })
     ));
 }
 
@@ -166,9 +149,10 @@ fn placeholder_attribute_selector_value() {
         .expect("expected attribute selector");
     assert!(matches!(
         &attr.value,
-        Some(AttributeSelectorValue::Ident(
-            InterpolableIdent::Placeholder(Placeholder { index: 0, .. })
-        ))
+        Some(AttributeSelectorValue::Ident(InterpolableIdent::Placeholder(Placeholder {
+            index: 0,
+            ..
+        })))
     ));
 }
 
@@ -188,21 +172,12 @@ fn bare_placeholder_needs_no_trailing_semicolon() {
     // postcss it does not require a `;`, so the next statement may follow it
     // directly (`${a}\n@media {...}` / `${a} ${b}`).
     let ss = parse("`PLACEHOLDER-0`\n@media x{a{color:red}}", Some(opts()));
-    assert!(matches!(
-        ss.statements[0],
-        Statement::Placeholder(Placeholder { index: 0, .. })
-    ));
+    assert!(matches!(ss.statements[0], Statement::Placeholder(Placeholder { index: 0, .. })));
     assert!(matches!(ss.statements[1], Statement::AtRule(_)));
 
     let ss = parse("`PLACEHOLDER-0` `PLACEHOLDER-1`", Some(opts()));
-    assert!(matches!(
-        ss.statements[0],
-        Statement::Placeholder(Placeholder { index: 0, .. })
-    ));
-    assert!(matches!(
-        ss.statements[1],
-        Statement::Placeholder(Placeholder { index: 1, .. })
-    ));
+    assert!(matches!(ss.statements[0], Statement::Placeholder(Placeholder { index: 0, .. })));
+    assert!(matches!(ss.statements[1], Statement::Placeholder(Placeholder { index: 1, .. })));
 }
 
 #[test]
@@ -210,10 +185,7 @@ fn placeholder_led_selector_does_not_cross_newline() {
     // A placeholder on its own source line is a standalone statement; the
     // selector on the next line is a separate rule (not one `${m} & > .x {}`).
     let ss = parse("`PLACEHOLDER-0`\n& > .x { color: red }", Some(opts()));
-    assert!(matches!(
-        ss.statements[0],
-        Statement::Placeholder(Placeholder { index: 0, .. })
-    ));
+    assert!(matches!(ss.statements[0], Statement::Placeholder(Placeholder { index: 0, .. })));
     assert!(matches!(ss.statements[1], Statement::QualifiedRule(_)));
 
     // But a same-line `${Component} { ... }` is one qualified rule.
@@ -223,20 +195,14 @@ fn placeholder_led_selector_does_not_cross_newline() {
     // A same-line selector containing `;`/`}` inside an attribute string (or a
     // `#{...}` interpolation brace) must stay one qualified rule: the gate only
     // checks newline-crossing, the real grammar is left to QualifiedRule::parse.
-    let ss = parse(
-        r#"`PLACEHOLDER-0`[data-x="a;b"] { color: red }"#,
-        Some(opts()),
-    );
+    let ss = parse(r#"`PLACEHOLDER-0`[data-x="a;b"] { color: red }"#, Some(opts()));
     assert!(matches!(ss.statements[0], Statement::QualifiedRule(_)));
     assert_eq!(ss.statements.len(), 1);
 
     // A bare `\r` counts as a newline too (the tokenizer treats it as a line
     // break), so it splits the same way `\n` does.
     let ss = parse("`PLACEHOLDER-0`\r& > .x { color: red }", Some(opts()));
-    assert!(matches!(
-        ss.statements[0],
-        Statement::Placeholder(Placeholder { index: 0, .. })
-    ));
+    assert!(matches!(ss.statements[0], Statement::Placeholder(Placeholder { index: 0, .. })));
     assert!(matches!(ss.statements[1], Statement::QualifiedRule(_)));
 }
 
@@ -248,14 +214,8 @@ fn placeholder_as_declaration_property_name() {
     let Statement::Declaration(decl) = &ss.statements[0] else {
         panic!("expected declaration");
     };
-    assert!(matches!(
-        decl.name,
-        InterpolableIdent::Placeholder(Placeholder { index: 0, .. })
-    ));
-    assert!(matches!(
-        decl.value[0],
-        ComponentValue::Placeholder(Placeholder { index: 1, .. })
-    ));
+    assert!(matches!(decl.name, InterpolableIdent::Placeholder(Placeholder { index: 0, .. })));
+    assert!(matches!(decl.value[0], ComponentValue::Placeholder(Placeholder { index: 1, .. })));
 
     // A trailing `;` is optional (`${foo}: ${bar}` with no `;`).
     let ss = parse("`PLACEHOLDER-0`: `PLACEHOLDER-1`", Some(opts()));
@@ -267,10 +227,7 @@ fn media_feature_value_placeholder_glued_to_unit() {
     // `@media (max-width: ${x}px)`: the glued unit is the placeholder's suffix,
     // so the single-value media feature slot holds one `Placeholder` (no parse
     // failure, no wrapper node).
-    let ss = parse(
-        "@media (max-width:`PLACEHOLDER-0`px){a{color:red}}",
-        Some(opts()),
-    );
+    let ss = parse("@media (max-width:`PLACEHOLDER-0`px){a{color:red}}", Some(opts()));
     let Statement::AtRule(at_rule) = &ss.statements[0] else {
         panic!("expected at-rule");
     };
@@ -291,11 +248,7 @@ fn media_feature_value_placeholder_glued_to_unit() {
     };
     assert!(matches!(
         &plain.value,
-        ComponentValue::Placeholder(Placeholder {
-            index: 0,
-            suffix: "px",
-            ..
-        })
+        ComponentValue::Placeholder(Placeholder { index: 0, suffix: "px", .. })
     ));
 }
 

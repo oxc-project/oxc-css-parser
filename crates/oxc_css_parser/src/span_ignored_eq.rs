@@ -89,10 +89,7 @@ where
     #[inline]
     fn span_ignored_eq(&self, other: &Self) -> bool {
         self.len() == other.len()
-            && self
-                .iter()
-                .zip(other.iter())
-                .all(|(a, b)| a.span_ignored_eq(b))
+            && self.iter().zip(other.iter()).all(|(a, b)| a.span_ignored_eq(b))
     }
 }
 
@@ -103,10 +100,7 @@ where
     #[inline]
     fn span_ignored_eq(&self, other: &Self) -> bool {
         self.len() == other.len()
-            && self
-                .iter()
-                .zip(other.iter())
-                .all(|(a, b)| a.span_ignored_eq(b))
+            && self.iter().zip(other.iter()).all(|(a, b)| a.span_ignored_eq(b))
     }
 }
 

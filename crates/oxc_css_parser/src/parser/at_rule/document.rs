@@ -18,11 +18,7 @@ impl<'cmt, 's: 'cmt> Parse<'cmt, 's> for DocumentPrelude<'s> {
         if let Some(last) = matchers.last() {
             span.end = last.span().end;
         }
-        Ok(DocumentPrelude {
-            matchers,
-            comma_spans,
-            span,
-        })
+        Ok(DocumentPrelude { matchers, comma_spans, span })
     }
 }
 

@@ -6,30 +6,21 @@ fn bench_parser(c: &mut Criterion) {
     let mut group = c.benchmark_group("self");
     group.measurement_time(Duration::from_secs(12));
 
-    let bench_data_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("bench_data");
+    let bench_data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join("bench_data");
 
     fs::read_dir(&bench_data_dir)
         .unwrap_or_else(|error| {
-            panic!(
-                "failed to read benchmark data directory {}: {error}",
-                bench_data_dir.display()
-            )
+            panic!("failed to read benchmark data directory {}: {error}", bench_data_dir.display())
         })
         .filter_map(|entry| entry.ok())
         .filter_map(|entry| {
-            entry
-                .path()
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .and_then(|ext| match ext {
-                    "css" => Some((entry, Syntax::Css)),
-                    "scss" => Some((entry, Syntax::Scss)),
-                    "sass" => Some((entry, Syntax::Sass)),
-                    "less" => Some((entry, Syntax::Less)),
-                    _ => None,
-                })
+            entry.path().extension().and_then(|ext| ext.to_str()).and_then(|ext| match ext {
+                "css" => Some((entry, Syntax::Css)),
+                "scss" => Some((entry, Syntax::Scss)),
+                "sass" => Some((entry, Syntax::Sass)),
+                "less" => Some((entry, Syntax::Less)),
+                _ => None,
+            })
         })
         .filter(|(entry, ..)| entry.file_type().is_ok_and(|file_type| file_type.is_file()))
         .for_each(|(entry, syntax)| {
