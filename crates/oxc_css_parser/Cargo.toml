@@ -15,11 +15,18 @@ smallvec = { version = "1.15", features = ["const_generics"] }
 
 [dev-dependencies]
 codespan-reporting = "0.13"
+criterion2 = { version = "3", default-features = false }
 insta = { version = "1.47", features = ["glob", "ron"] }
 serde_json = "1.0"
 
 [features]
+default = []
+codspeed = ["criterion2/codspeed"]
 config_serde = ["serde"]
 serialize = ["serde", "smallvec/serde"]
 span_ignored_eq = []
 variant_helpers = []
+
+[[bench]]
+name = "self"
+harness = false

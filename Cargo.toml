@@ -1,7 +1,6 @@
 [workspace]
 resolver = "3"
 members = [
-  "benchmark",
   "crates/oxc_css_parser",
   "crates/oxc_css_parser_macro",
   "wasm",

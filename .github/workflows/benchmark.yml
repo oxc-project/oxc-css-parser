@@ -10,7 +10,7 @@ on:
       - "**/*.rs"
       - "Cargo.lock"
       - "Cargo.toml"
-      - "benchmark/Cargo.toml"
+      - "crates/oxc_css_parser/Cargo.toml"
       - ".github/workflows/benchmark.yml"
   push:
     branches:
@@ -19,7 +19,7 @@ on:
       - "**/*.rs"
       - "Cargo.lock"
       - "Cargo.toml"
-      - "benchmark/Cargo.toml"
+      - "crates/oxc_css_parser/Cargo.toml"
       - ".github/workflows/benchmark.yml"
 
 concurrency:
@@ -54,7 +54,7 @@ jobs:
             > bench_data/codspeed.css
 
       - name: Build benchmark
-        run: cargo codspeed build -p oxc-css-parser-benchmark --features codspeed
+        run: cargo codspeed build -p oxc-css-parser --features codspeed
 
       - name: Run benchmark
         uses: CodSpeedHQ/action@63f3e98b61959fe67f146a3ff022e4136fe9bb9c # v4.17.6
