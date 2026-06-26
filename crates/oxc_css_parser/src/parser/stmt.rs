@@ -411,10 +411,8 @@ impl<'a> Parser<'a> {
                         let at_keyword_name = at_keyword.ident.name();
                         match &*at_keyword_name {
                             "if" => {
-                                statements.push(Statement::SassIfAtRule(arena_box!(
-                                    self,
-                                    self.parse()?
-                                )));
+                                statements
+                                    .push(Statement::SassIfAtRule(arena_box!(self, self.parse()?)));
                                 is_block_element = true;
                             }
                             "else" => {
@@ -487,10 +485,8 @@ impl<'a> Parser<'a> {
                     is_block_element = true;
                 }
                 Token::DollarVar(..) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
-                    statements.push(Statement::SassVariableDeclaration(arena_box!(
-                        self,
-                        self.parse()?
-                    )));
+                    statements
+                        .push(Statement::SassVariableDeclaration(arena_box!(self, self.parse()?)));
                 }
                 Token::GreaterThan(..) | Token::Plus(..) | Token::Tilde(..) | Token::BarBar(..) => {
                     if self.syntax == Syntax::Less {
