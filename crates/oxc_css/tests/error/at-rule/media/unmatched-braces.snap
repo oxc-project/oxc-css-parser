@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect token `}`, but found `<eof>`
+  ┌─ unmatched-braces.css:5:1
+  │
+5 │ 
+  │ ^
+
+

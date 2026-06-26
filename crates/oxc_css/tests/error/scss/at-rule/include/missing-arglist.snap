@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect token `(`, but found `{`
+  ┌─ missing-arglist.scss:1:22
+  │
+1 │ @include mixin using {}
+  │                      ^
+
+

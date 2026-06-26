@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect token `{`, but found `:`
+  ┌─ declaration.css:2:8
+  │
+2 │   width: 100px;
+  │        ^
+
+

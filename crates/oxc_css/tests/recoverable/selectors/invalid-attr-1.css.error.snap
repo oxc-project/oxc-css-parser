@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/recoverable.rs
+---
+error: attribute selector value is expected
+  ┌─ invalid-attr-1.css:1:7
+  │
+1 │ [href=] {}
+  │       ^
+
+

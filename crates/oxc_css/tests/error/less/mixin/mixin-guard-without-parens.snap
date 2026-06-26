@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect token `;`, but found `<ident>`
+  ┌─ mixin-guard-without-parens.less:1:15
+  │
+1 │ .max (@a, @b) when @a {}
+  │               ^^^^
+
+

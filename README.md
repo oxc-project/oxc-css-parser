@@ -19,7 +19,7 @@ let ast = parser.parse::<Stylesheet>().unwrap();
 println!("{:#?}", ast);
 ```
 
-You can find more examples in the [examples](https://github.com/oxc-project/oxc-css/blob/main/raffia/examples) directory.
+You can find more examples in the [examples](https://github.com/oxc-project/oxc-css/blob/main/crates/oxc_css/examples) directory.
 
 For detailed usage, check out [docs.rs](https://docs.rs/oxc-css).
 

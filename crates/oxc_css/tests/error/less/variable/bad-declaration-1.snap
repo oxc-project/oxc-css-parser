@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: CSS rule is expected
+  ┌─ bad-declaration-1.less:1:1
+  │
+1 │ @@demo: "hi";
+  │ ^
+
+

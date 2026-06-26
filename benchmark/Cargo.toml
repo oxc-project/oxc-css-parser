@@ -7,7 +7,7 @@ license = "MIT"
 publish = false
 
 [dependencies]
-oxc-css = { path = "../raffia" }
+oxc-css = { path = "../crates/oxc_css" }
 
 [dev-dependencies]
 criterion = "0.8"

@@ -1,0 +1,63 @@
+---
+source: crates/oxc_css/tests/recoverable.rs
+---
+Stylesheet(
+  type: "Stylesheet",
+  statements: [
+    Declaration(
+      type: "Declaration",
+      name: Ident(
+        type: "Ident",
+        name: "height",
+        raw: "height",
+        span: Span(
+          start: 0,
+          end: 6,
+        ),
+      ),
+      nameSuffix: None,
+      colonSpan: Span(
+        start: 6,
+        end: 7,
+      ),
+      value: [
+        Dimension(
+          type: "Dimension",
+          value: Number(
+            type: "Number",
+            value: 1.0,
+            raw: "1",
+            span: Span(
+              start: 8,
+              end: 9,
+            ),
+          ),
+          unit: Ident(
+            type: "Ident",
+            name: "pxe",
+            raw: "px\\65",
+            span: Span(
+              start: 9,
+              end: 14,
+            ),
+          ),
+          kind: Unknown,
+          span: Span(
+            start: 8,
+            end: 14,
+          ),
+        ),
+      ],
+      important: None,
+      lessPropertyMerge: None,
+      span: Span(
+        start: 0,
+        end: 14,
+      ),
+    ),
+  ],
+  span: Span(
+    start: 0,
+    end: 14,
+  ),
+)

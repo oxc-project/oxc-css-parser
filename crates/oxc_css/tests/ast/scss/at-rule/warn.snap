@@ -1,0 +1,295 @@
+---
+source: crates/oxc_css/tests/ast.rs
+---
+Stylesheet(
+  type: "Stylesheet",
+  statements: [
+    AtRule(
+      type: "AtRule",
+      name: Ident(
+        type: "Ident",
+        name: "warn",
+        raw: "warn",
+        span: Span(
+          start: 1,
+          end: 5,
+        ),
+      ),
+      prelude: Some(Str(
+        type: "Str",
+        value: "w",
+        raw: "\"w\"",
+        span: Span(
+          start: 6,
+          end: 9,
+        ),
+      )),
+      block: None,
+      span: Span(
+        start: 0,
+        end: 9,
+      ),
+    ),
+    QualifiedRule(
+      type: "QualifiedRule",
+      selector: SelectorList(
+        type: "SelectorList",
+        selectors: [
+          ComplexSelector(
+            type: "ComplexSelector",
+            children: [
+              CompoundSelector(
+                type: "CompoundSelector",
+                children: [
+                  TagNameSelector(
+                    type: "TagNameSelector",
+                    name: WqName(
+                      type: "WqName",
+                      name: Ident(
+                        type: "Ident",
+                        name: "a",
+                        raw: "a",
+                        span: Span(
+                          start: 12,
+                          end: 13,
+                        ),
+                      ),
+                      prefix: None,
+                      span: Span(
+                        start: 12,
+                        end: 13,
+                      ),
+                    ),
+                    span: Span(
+                      start: 12,
+                      end: 13,
+                    ),
+                  ),
+                ],
+                span: Span(
+                  start: 12,
+                  end: 13,
+                ),
+              ),
+            ],
+            span: Span(
+              start: 12,
+              end: 13,
+            ),
+          ),
+        ],
+        commaSpans: [],
+        span: Span(
+          start: 12,
+          end: 13,
+        ),
+      ),
+      block: SimpleBlock(
+        type: "SimpleBlock",
+        statements: [
+          AtRule(
+            type: "AtRule",
+            name: Ident(
+              type: "Ident",
+              name: "warn",
+              raw: "warn",
+              span: Span(
+                start: 19,
+                end: 23,
+              ),
+            ),
+            prelude: Some(Str(
+              type: "Str",
+              value: "w",
+              raw: "\"w\"",
+              span: Span(
+                start: 24,
+                end: 27,
+              ),
+            )),
+            block: None,
+            span: Span(
+              start: 18,
+              end: 27,
+            ),
+          ),
+          Declaration(
+            type: "Declaration",
+            name: Ident(
+              type: "Ident",
+              name: "b",
+              raw: "b",
+              span: Span(
+                start: 31,
+                end: 32,
+              ),
+            ),
+            nameSuffix: None,
+            colonSpan: Span(
+              start: 32,
+              end: 33,
+            ),
+            value: [
+              Ident(
+                type: "Ident",
+                name: "c",
+                raw: "c",
+                span: Span(
+                  start: 34,
+                  end: 35,
+                ),
+              ),
+            ],
+            important: None,
+            lessPropertyMerge: None,
+            span: Span(
+              start: 31,
+              end: 35,
+            ),
+          ),
+        ],
+        span: Span(
+          start: 14,
+          end: 38,
+        ),
+      ),
+      span: Span(
+        start: 12,
+        end: 38,
+      ),
+    ),
+    AtRule(
+      type: "AtRule",
+      name: Ident(
+        type: "Ident",
+        name: "function",
+        raw: "function",
+        span: Span(
+          start: 41,
+          end: 49,
+        ),
+      ),
+      prelude: Some(SassFunction(
+        type: "SassFunction",
+        name: Ident(
+          type: "Ident",
+          name: "c",
+          raw: "c",
+          span: Span(
+            start: 50,
+            end: 51,
+          ),
+        ),
+        parameters: SassParameters(
+          type: "SassParameters",
+          params: [],
+          arbitraryParam: None,
+          commaSpans: [],
+          span: Span(
+            start: 51,
+            end: 53,
+          ),
+        ),
+        span: Span(
+          start: 50,
+          end: 53,
+        ),
+      )),
+      block: Some(SimpleBlock(
+        type: "SimpleBlock",
+        statements: [
+          AtRule(
+            type: "AtRule",
+            name: Ident(
+              type: "Ident",
+              name: "warn",
+              raw: "warn",
+              span: Span(
+                start: 59,
+                end: 63,
+              ),
+            ),
+            prelude: Some(Ident(
+              type: "Ident",
+              name: "test",
+              raw: "test",
+              span: Span(
+                start: 64,
+                end: 68,
+              ),
+            )),
+            block: None,
+            span: Span(
+              start: 58,
+              end: 68,
+            ),
+          ),
+          AtRule(
+            type: "AtRule",
+            name: Ident(
+              type: "Ident",
+              name: "return",
+              raw: "return",
+              span: Span(
+                start: 73,
+                end: 79,
+              ),
+            ),
+            prelude: Some(Ident(
+              type: "Ident",
+              name: "d",
+              raw: "d",
+              span: Span(
+                start: 80,
+                end: 81,
+              ),
+            )),
+            block: None,
+            span: Span(
+              start: 72,
+              end: 81,
+            ),
+          ),
+        ],
+        span: Span(
+          start: 54,
+          end: 84,
+        ),
+      )),
+      span: Span(
+        start: 40,
+        end: 84,
+      ),
+    ),
+    AtRule(
+      type: "AtRule",
+      name: Ident(
+        type: "Ident",
+        name: "warn",
+        raw: "w\\61rn",
+        span: Span(
+          start: 87,
+          end: 93,
+        ),
+      ),
+      prelude: Some(Ident(
+        type: "Ident",
+        name: "warning",
+        raw: "warning",
+        span: Span(
+          start: 94,
+          end: 101,
+        ),
+      )),
+      block: None,
+      span: Span(
+        start: 86,
+        end: 101,
+      ),
+    ),
+  ],
+  span: Span(
+    start: 0,
+    end: 103,
+  ),
+)

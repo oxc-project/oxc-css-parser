@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: CSS rule is expected
+  ┌─ scss-as-sass.sass:1:22
+  │
+1 │ @mixin button-base() {
+  │                      ^
+
+

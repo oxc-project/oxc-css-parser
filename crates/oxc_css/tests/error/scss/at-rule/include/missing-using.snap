@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect token `;`, but found `(`
+  ┌─ missing-using.scss:1:18
+  │
+1 │ @include mixin() () {}
+  │                  ^
+
+

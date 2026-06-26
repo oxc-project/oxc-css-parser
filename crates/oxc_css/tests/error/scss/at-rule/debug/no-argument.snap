@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: component value is expected
+  ┌─ no-argument.scss:1:7
+  │
+1 │ @debug;
+  │       ^
+
+

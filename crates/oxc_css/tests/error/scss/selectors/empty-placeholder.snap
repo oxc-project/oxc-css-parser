@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect one of `<ident>` or `#{`, but found `{`
+  ┌─ empty-placeholder.scss:1:3
+  │
+1 │ % {
+  │   ^
+
+

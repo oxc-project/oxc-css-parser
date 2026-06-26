@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect token `)`, but found `<eof>`
+  ┌─ unterminated.scss:4:1
+  │
+4 │ 
+  │ ^
+
+

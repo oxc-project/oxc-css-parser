@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect token `<ident>`, but found `;`
+  ┌─ as-nothing.scss:1:16
+  │
+1 │ @forward "a" as;
+  │                ^
+
+

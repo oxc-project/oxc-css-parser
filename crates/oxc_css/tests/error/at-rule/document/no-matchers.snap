@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect token `<ident>`, but found `{`
+  ┌─ no-matchers.css:1:11
+  │
+1 │ @document {}
+  │           ^
+
+

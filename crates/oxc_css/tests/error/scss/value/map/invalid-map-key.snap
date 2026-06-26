@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect token `;`, but found `...`
+  ┌─ invalid-map-key.scss:1:21
+  │
+1 │ $id: inspect((a,b:c)...)
+  │                     ^^^
+
+

@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: CSS rule is expected
+  ┌─ out-of-keyframes-at-rule.css:1:1
+  │
+1 │ 0% {}
+  │ ^^
+
+

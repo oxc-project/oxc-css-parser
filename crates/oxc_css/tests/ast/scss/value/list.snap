@@ -1,0 +1,493 @@
+---
+source: crates/oxc_css/tests/ast.rs
+---
+Stylesheet(
+  type: "Stylesheet",
+  statements: [
+    SassVariableDeclaration(
+      type: "SassVariableDeclaration",
+      namespace: None,
+      name: SassVariable(
+        type: "SassVariable",
+        name: Ident(
+          type: "Ident",
+          name: "mylist",
+          raw: "mylist",
+          span: Span(
+            start: 1,
+            end: 7,
+          ),
+        ),
+        span: Span(
+          start: 0,
+          end: 7,
+        ),
+      ),
+      colonSpan: Span(
+        start: 7,
+        end: 8,
+      ),
+      value: SassParenthesizedExpression(
+        type: "SassParenthesizedExpression",
+        expr: SassList(
+          type: "SassList",
+          elements: [
+            Ident(
+              type: "Ident",
+              name: "alpha",
+              raw: "alpha",
+              span: Span(
+                start: 10,
+                end: 15,
+              ),
+            ),
+            Ident(
+              type: "Ident",
+              name: "beta",
+              raw: "beta",
+              span: Span(
+                start: 17,
+                end: 21,
+              ),
+            ),
+            Ident(
+              type: "Ident",
+              name: "gamma",
+              raw: "gamma",
+              span: Span(
+                start: 23,
+                end: 28,
+              ),
+            ),
+          ],
+          commaSpans: Some([
+            Span(
+              start: 15,
+              end: 16,
+            ),
+            Span(
+              start: 21,
+              end: 22,
+            ),
+            Span(
+              start: 28,
+              end: 29,
+            ),
+          ]),
+          span: Span(
+            start: 10,
+            end: 29,
+          ),
+        ),
+        span: Span(
+          start: 9,
+          end: 31,
+        ),
+      ),
+      flags: [],
+      span: Span(
+        start: 0,
+        end: 31,
+      ),
+    ),
+    SassVariableDeclaration(
+      type: "SassVariableDeclaration",
+      namespace: None,
+      name: SassVariable(
+        type: "SassVariable",
+        name: Ident(
+          type: "Ident",
+          name: "my-single-item-list",
+          raw: "my-single-item-list",
+          span: Span(
+            start: 34,
+            end: 53,
+          ),
+        ),
+        span: Span(
+          start: 33,
+          end: 53,
+        ),
+      ),
+      colonSpan: Span(
+        start: 53,
+        end: 54,
+      ),
+      value: SassParenthesizedExpression(
+        type: "SassParenthesizedExpression",
+        expr: SassList(
+          type: "SassList",
+          elements: [
+            Ident(
+              type: "Ident",
+              name: "alpha",
+              raw: "alpha",
+              span: Span(
+                start: 56,
+                end: 61,
+              ),
+            ),
+          ],
+          commaSpans: Some([
+            Span(
+              start: 61,
+              end: 62,
+            ),
+          ]),
+          span: Span(
+            start: 56,
+            end: 62,
+          ),
+        ),
+        span: Span(
+          start: 55,
+          end: 63,
+        ),
+      ),
+      flags: [],
+      span: Span(
+        start: 33,
+        end: 63,
+      ),
+    ),
+    SassVariableDeclaration(
+      type: "SassVariableDeclaration",
+      namespace: None,
+      name: SassVariable(
+        type: "SassVariable",
+        name: Ident(
+          type: "Ident",
+          name: "box-shadow-first-two",
+          raw: "box-shadow-first-two",
+          span: Span(
+            start: 66,
+            end: 86,
+          ),
+        ),
+        span: Span(
+          start: 65,
+          end: 86,
+        ),
+      ),
+      colonSpan: Span(
+        start: 86,
+        end: 87,
+      ),
+      value: SassList(
+        type: "SassList",
+        elements: [
+          SassList(
+            type: "SassList",
+            elements: [
+              Number(
+                type: "Number",
+                value: 0.0,
+                raw: "0",
+                span: Span(
+                  start: 88,
+                  end: 89,
+                ),
+              ),
+              Dimension(
+                type: "Dimension",
+                value: Number(
+                  type: "Number",
+                  value: 0.5,
+                  raw: "0.5",
+                  span: Span(
+                    start: 90,
+                    end: 93,
+                  ),
+                ),
+                unit: Ident(
+                  type: "Ident",
+                  name: "em",
+                  raw: "em",
+                  span: Span(
+                    start: 93,
+                    end: 95,
+                  ),
+                ),
+                kind: Length,
+                span: Span(
+                  start: 90,
+                  end: 95,
+                ),
+              ),
+              SassVariable(
+                type: "SassVariable",
+                name: Ident(
+                  type: "Ident",
+                  name: "background",
+                  raw: "background",
+                  span: Span(
+                    start: 97,
+                    end: 107,
+                  ),
+                ),
+                span: Span(
+                  start: 96,
+                  end: 107,
+                ),
+              ),
+            ],
+            commaSpans: None,
+            span: Span(
+              start: 88,
+              end: 107,
+            ),
+          ),
+          SassList(
+            type: "SassList",
+            elements: [
+              Number(
+                type: "Number",
+                value: 0.0,
+                raw: "0",
+                span: Span(
+                  start: 109,
+                  end: 110,
+                ),
+              ),
+              Dimension(
+                type: "Dimension",
+                value: Number(
+                  type: "Number",
+                  value: -0.5,
+                  raw: "-0.5",
+                  span: Span(
+                    start: 111,
+                    end: 115,
+                  ),
+                ),
+                unit: Ident(
+                  type: "Ident",
+                  name: "em",
+                  raw: "em",
+                  span: Span(
+                    start: 115,
+                    end: 117,
+                  ),
+                ),
+                kind: Length,
+                span: Span(
+                  start: 111,
+                  end: 117,
+                ),
+              ),
+              SassVariable(
+                type: "SassVariable",
+                name: Ident(
+                  type: "Ident",
+                  name: "background",
+                  raw: "background",
+                  span: Span(
+                    start: 119,
+                    end: 129,
+                  ),
+                ),
+                span: Span(
+                  start: 118,
+                  end: 129,
+                ),
+              ),
+            ],
+            commaSpans: None,
+            span: Span(
+              start: 109,
+              end: 129,
+            ),
+          ),
+        ],
+        commaSpans: Some([
+          Span(
+            start: 107,
+            end: 108,
+          ),
+        ]),
+        span: Span(
+          start: 88,
+          end: 129,
+        ),
+      ),
+      flags: [],
+      span: Span(
+        start: 65,
+        end: 129,
+      ),
+    ),
+    SassVariableDeclaration(
+      type: "SassVariableDeclaration",
+      namespace: None,
+      name: SassVariable(
+        type: "SassVariable",
+        name: Ident(
+          type: "Ident",
+          name: "list2",
+          raw: "list2",
+          span: Span(
+            start: 132,
+            end: 137,
+          ),
+        ),
+        span: Span(
+          start: 131,
+          end: 137,
+        ),
+      ),
+      colonSpan: Span(
+        start: 137,
+        end: 138,
+      ),
+      value: SassParenthesizedExpression(
+        type: "SassParenthesizedExpression",
+        expr: SassList(
+          type: "SassList",
+          elements: [
+            SassList(
+              type: "SassList",
+              elements: [
+                Dimension(
+                  type: "Dimension",
+                  value: Number(
+                    type: "Number",
+                    value: 1.0,
+                    raw: "1",
+                    span: Span(
+                      start: 140,
+                      end: 141,
+                    ),
+                  ),
+                  unit: Ident(
+                    type: "Ident",
+                    name: "px",
+                    raw: "px",
+                    span: Span(
+                      start: 141,
+                      end: 143,
+                    ),
+                  ),
+                  kind: Length,
+                  span: Span(
+                    start: 140,
+                    end: 143,
+                  ),
+                ),
+                Ident(
+                  type: "Ident",
+                  name: "solid",
+                  raw: "solid",
+                  span: Span(
+                    start: 144,
+                    end: 149,
+                  ),
+                ),
+              ],
+              commaSpans: None,
+              span: Span(
+                start: 140,
+                end: 149,
+              ),
+            ),
+          ],
+          commaSpans: Some([
+            Span(
+              start: 149,
+              end: 150,
+            ),
+          ]),
+          span: Span(
+            start: 140,
+            end: 150,
+          ),
+        ),
+        span: Span(
+          start: 139,
+          end: 151,
+        ),
+      ),
+      flags: [],
+      span: Span(
+        start: 131,
+        end: 151,
+      ),
+    ),
+    SassVariableDeclaration(
+      type: "SassVariableDeclaration",
+      namespace: None,
+      name: SassVariable(
+        type: "SassVariable",
+        name: Ident(
+          type: "Ident",
+          name: "no-whitespaces",
+          raw: "no-whitespaces",
+          span: Span(
+            start: 154,
+            end: 168,
+          ),
+        ),
+        span: Span(
+          start: 153,
+          end: 168,
+        ),
+      ),
+      colonSpan: Span(
+        start: 168,
+        end: 169,
+      ),
+      value: SassList(
+        type: "SassList",
+        elements: [
+          SassVariable(
+            type: "SassVariable",
+            name: Ident(
+              type: "Ident",
+              name: "variable",
+              raw: "variable",
+              span: Span(
+                start: 171,
+                end: 179,
+              ),
+            ),
+            span: Span(
+              start: 170,
+              end: 179,
+            ),
+          ),
+          SassInterpolatedIdent(
+            type: "SassInterpolatedIdent",
+            elements: [
+              Ident(
+                type: "Ident",
+                name: "something",
+                raw: "something",
+                span: Span(
+                  start: 181,
+                  end: 190,
+                ),
+              ),
+            ],
+            span: Span(
+              start: 179,
+              end: 191,
+            ),
+          ),
+        ],
+        commaSpans: None,
+        span: Span(
+          start: 170,
+          end: 191,
+        ),
+      ),
+      flags: [],
+      span: Span(
+        start: 153,
+        end: 191,
+      ),
+    ),
+  ],
+  span: Span(
+    start: 0,
+    end: 193,
+  ),
+)

@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect token `{`, but found `<at-keyword>`
+  ┌─ sass-as-scss.scss:2:3
+  │
+2 │   @include typography(button)
+  │   ^^^^^^^^
+
+

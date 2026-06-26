@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: expect token `;`, but found `<ident>`
+  ┌─ with-before-show.scss:1:31
+  │
+1 │ @forward "other" with ($a: b) show c;
+  │                               ^^^^
+
+

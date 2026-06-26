@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: unterminated string
+  ┌─ bad-string.css:2:12
+  │
+2 │   content: "
+  │            ^
+
+

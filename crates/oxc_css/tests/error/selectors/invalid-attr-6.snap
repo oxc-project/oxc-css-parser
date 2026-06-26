@@ -1,0 +1,10 @@
+---
+source: crates/oxc_css/tests/error.rs
+---
+error: attribute selector value is expected
+  ┌─ invalid-attr-6.css:1:14
+  │
+1 │ .class[attr= {}
+  │              ^
+
+
