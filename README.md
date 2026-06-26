@@ -43,5 +43,3 @@ Tests come from:
 ## License
 
 MIT License
-
-Copyright (c) 2022-present Pig Fang
