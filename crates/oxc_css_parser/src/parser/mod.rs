@@ -7,6 +7,8 @@ use crate::{
     },
     config::Syntax,
     error::{Error, PResult},
+    expect,
+    pos::Span,
     tokenizer::{TokenWithSpan, Tokenizer, token},
     util,
 };
@@ -18,6 +20,7 @@ mod builder;
 mod convert;
 mod less;
 mod macros;
+mod postcss_simple_vars;
 mod sass;
 mod selector;
 mod state;
@@ -96,6 +99,12 @@ impl<'a> Parser<'a> {
     #[inline]
     pub(crate) fn ident(&self, token: token::Ident<'a>, span: crate::Span) -> Ident<'a> {
         Ident { name: self.ident_name(&token), raw: token.raw, span }
+    }
+
+    pub(super) fn parse_dollar_var_ident(&mut self) -> PResult<(Ident<'a>, Span)> {
+        let (dollar_var, span) = expect!(self, DollarVar);
+        let name = self.ident(dollar_var.ident, Span { start: span.start + 1, end: span.end });
+        Ok((name, span))
     }
 
     pub(crate) fn dimension(
