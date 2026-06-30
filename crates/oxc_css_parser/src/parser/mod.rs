@@ -1,12 +1,13 @@
 use self::state::ParserState;
 use crate::{
-    ParserOptions, expect,
+    ParserOptions,
     ast::{
         Dimension, Ident, InterpolableIdentStaticPart, InterpolableStrStaticPart,
         InterpolableUrlStaticPart, Str,
     },
     config::Syntax,
     error::{Error, PResult},
+    expect,
     pos::Span,
     tokenizer::{TokenWithSpan, Tokenizer, token},
     util,
