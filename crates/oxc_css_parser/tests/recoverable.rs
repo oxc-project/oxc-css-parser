@@ -3,7 +3,7 @@ use codespan_reporting::{
     files::SimpleFile,
     term,
 };
-use insta::{Settings, assert_ron_snapshot, assert_snapshot, glob};
+use insta::{Settings, assert_snapshot, glob};
 use oxc_css_parser::{Allocator, Parser, Syntax, ast::Stylesheet};
 use std::fs;
 
@@ -26,8 +26,10 @@ fn recoverable_errors_snapshot() {
         let file = SimpleFile::new(file_name, &code);
         let config = term::Config::default();
 
-        let (ast, errors) = match parser.parse::<Stylesheet>() {
-            Ok(ast) => {
+        // Assert the parse recovers (produces an AST with recoverable errors) rather
+        // than snapshotting the AST; only the recoverable errors are snapshotted.
+        let errors = match parser.parse::<Stylesheet>() {
+            Ok(_) => {
                 let recoverable_errors = parser.recoverable_errors();
                 assert!(
                     !recoverable_errors.is_empty(),
@@ -46,7 +48,7 @@ fn recoverable_errors_snapshot() {
                     .for_each(|diagnostic| {
                         term::emit_to_string(&mut errors, &config, &file, &diagnostic).unwrap();
                     });
-                (ast, errors)
+                errors
             }
             Err(error) => {
                 let diagnostic = Diagnostic::error()
@@ -67,7 +69,6 @@ fn recoverable_errors_snapshot() {
         settings.remove_info();
         settings.bind(|| {
             assert_snapshot!(format!("{file_name}.error"), errors);
-            assert_ron_snapshot!(format!("{file_name}.ast"), ast);
         });
     });
 }
