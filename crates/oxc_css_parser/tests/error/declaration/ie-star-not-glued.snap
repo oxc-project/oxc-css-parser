@@ -1,0 +1,8 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: expect token `<ident>`, but found `*`
+  ┌─ ie-star-not-glued.css:1:5
+  │
+1 │ a { * color: red }
+  │     ^

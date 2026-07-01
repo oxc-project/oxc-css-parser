@@ -16,9 +16,20 @@ use crate::{
 impl<'a> Parse<'a> for Declaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         // Legacy IE hack: a `*` glued to the property name (e.g. `*color: red`)
-        // makes IE<=7 apply the declaration. Keep it as a property-name prefix.
-        let name_prefix_start = if let Token::Asterisk(..) = peek!(input).token {
-            Some(bump!(input).span.start)
+        // makes IE<=7 apply the declaration. Keep it as a property-name prefix — but
+        // only when glued: `* color` (whitespace or a comment after `*`) is not the
+        // hack, so leave the `*` for the normal (failing) parse.
+        let name_prefix_start = if let TokenWithSpan { token: Token::Asterisk(..), span } =
+            peek!(input)
+            && input
+                .source
+                .as_bytes()
+                .get(span.end)
+                .is_some_and(|b| !b.is_ascii_whitespace() && *b != b'/')
+        {
+            let start = span.start;
+            bump!(input);
+            Some(start)
         } else {
             None
         };
@@ -388,12 +399,18 @@ impl<'a> Parser<'a> {
                         // fall back to a declaration. (A `*` never starts a
                         // `LessExtendRule`, so this can precede the Less split.)
                         if self.syntax == Syntax::Less {
-                            if let Ok(stmt) = self.try_parse(Parser::parse_less_qualified_rule) {
-                                statements.push(stmt);
-                                is_block_element = true;
-                            } else {
-                                let decl = self.parse::<Declaration>()?;
-                                statements.push(Statement::Declaration(decl));
+                            match self.try_parse(Parser::parse_less_qualified_rule) {
+                                Ok(stmt) => {
+                                    statements.push(stmt);
+                                    is_block_element = true;
+                                }
+                                // Less refuses declarations at the top level, like the
+                                // ident-led path; keep root-level `*zoom: 1` an error.
+                                Err(rule_err) if is_top_level => return Err(rule_err),
+                                Err(_) => {
+                                    let decl = self.parse::<Declaration>()?;
+                                    statements.push(Statement::Declaration(decl));
+                                }
                             }
                         } else {
                             let (stmt, is_block) = self.parse_rule_or_declaration(is_top_level)?;
