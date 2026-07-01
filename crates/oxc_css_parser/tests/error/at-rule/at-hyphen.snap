@@ -1,0 +1,8 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: unknown token
+  ┌─ at-hyphen.css:1:5
+  │
+1 │ a { @-: 1px }
+  │     ^
