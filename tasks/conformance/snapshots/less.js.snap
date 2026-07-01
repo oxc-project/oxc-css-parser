@@ -1,7 +1,7 @@
 suite: less.js
 sha: 8ae2cc3bfa79f0718ad6fe5f263a1d6819fe9d5c
 files: 459   success: 377   failed: 82
-clean: 377  recovered: 3  hard_error: 78  panic: 1
+clean: 377  recovered: 3  hard_error: 79  panic: 0
 
 failures:
 ERROR    packages/test-data/tests-config/at-rules-compressed-evaluation/at-rules-compressed-evaluation.css    expect token `{`, but found `<ident>`
@@ -80,7 +80,7 @@ ERROR    packages/test-data/tests-unit/parser-slashed-combinator/parser-slashed-
 ERROR    packages/test-data/tests-unit/parser-slashed-combinator/parser-slashed-combinator.less    expect token `;`, but found `/`
 ERROR    packages/test-data/tests-unit/permissive-parse/permissive-parse.less    expect token `<ident>`, but found `<at-keyword>`
 ERROR    packages/test-data/tests-unit/property-name-interp/property-name-interp.css    expect token `<ident>`, but found `<dimension>`
-PANIC    packages/test-data/tests-unit/property-name-interp/property-name-interp.less
+ERROR    packages/test-data/tests-unit/property-name-interp/property-name-interp.less    expect token `(`, but found `{`
 ERROR    packages/test-data/tests-unit/strings/strings.less    expect token `;`, but found `{`
 ERROR    packages/test-data/tests-unit/urls/actual.css    invalid URL
 ERROR    packages/test-data/tests-unit/urls/urls.css    invalid URL
