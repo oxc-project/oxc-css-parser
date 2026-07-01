@@ -536,14 +536,24 @@ fn main() {
     panic::set_hook(Box::new(|_| {}));
 
     println!("cloning into {}", repos_dir().display());
+    let mut clone_failed = false;
     for suite in &selected {
         print!("  {:<22} {}  ", suite.name, &suite.sha[..12]);
         io::stdout().flush().ok();
         match ensure_repo(suite) {
             Ok(true) => println!("fetched"),
             Ok(false) => println!("up-to-date"),
-            Err(e) => println!("ERROR: {e}"),
+            Err(e) => {
+                println!("ERROR: {e}");
+                clone_failed = true;
+            }
         }
+    }
+    // Fail loudly rather than produce partial snapshots from a half-cloned corpus;
+    // clones flake on network hiccups, so callers (and CI) should retry.
+    if clone_failed {
+        eprintln!("\none or more clones failed (network?); re-run to retry.");
+        std::process::exit(1);
     }
 
     if clone_only {

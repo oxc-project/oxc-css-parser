@@ -24,6 +24,27 @@ jobs:
           persist-credentials: false
       - run: cargo test --all-features
 
+  conformance:
+    name: conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Regenerate conformance snapshots (retry clones on network flake)
+        run: |
+          for i in 1 2 3 4 5; do
+            if cargo run -p conformance; then ok=1; break; fi
+            echo "attempt $i failed; retrying in 10s"; sleep 10
+          done
+          [ "${ok:-0}" = 1 ]
+      - name: Assert snapshots are unchanged
+        run: |
+          git add tasks/conformance/snapshots
+          git diff --cached --exit-code -- tasks/conformance/snapshots \
+            || { echo '::error::conformance snapshots are stale — run `just conformance` and commit the result'; exit 1; }
+
   playground:
     name: playground
     if: ${{ github.event_name == 'push' }}

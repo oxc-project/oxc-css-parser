@@ -17,12 +17,12 @@ fmt:
 # Optionally restrict to named suites, e.g. `just conformance sass-spec less.js`
 # (a filtered run updates only those suites' snapshots, not summary.snap).
 conformance *suites:
-    cargo run -p conformance --release -- {{ suites }}
+    cargo run -p conformance -- {{ suites }}
 
 # Clone/update the conformance suites without parsing them.
 conformance-clone *suites:
-    cargo run -p conformance --release -- --clone {{ suites }}
+    cargo run -p conformance -- --clone {{ suites }}
 
 # Remove all cloned conformance repos.
 conformance-clean:
-    cargo run -p conformance --release -- --clean
+    cargo run -p conformance -- --clean
