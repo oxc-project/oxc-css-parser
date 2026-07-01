@@ -14,14 +14,21 @@ const PRECEDENCE_MULTIPLY: u8 = 2;
 const PRECEDENCE_PLUS: u8 = 1;
 
 impl<'a> Parser<'a> {
-    pub(in crate::parser) fn parse_calc_expr(&mut self) -> PResult<ComponentValue<'a>> {
-        self.parse_calc_expr_recursively(0)
+    pub(in crate::parser) fn parse_calc_expr(
+        &mut self,
+        allow_modulo: bool,
+    ) -> PResult<ComponentValue<'a>> {
+        self.parse_calc_expr_recursively(0, allow_modulo)
     }
 
-    fn parse_calc_expr_recursively(&mut self, precedence: u8) -> PResult<ComponentValue<'a>> {
+    fn parse_calc_expr_recursively(
+        &mut self,
+        precedence: u8,
+        allow_modulo: bool,
+    ) -> PResult<ComponentValue<'a>> {
         let mut left = if precedence >= PRECEDENCE_MULTIPLY {
             if eat!(self, LParen).is_some() {
-                let expr = self.parse_calc_expr()?;
+                let expr = self.parse_calc_expr(allow_modulo)?;
                 expect!(self, RParen);
                 expr
             } else if self.syntax == Syntax::Less {
@@ -34,7 +41,7 @@ impl<'a> Parser<'a> {
                 self.parse_component_value_atom()?
             }
         } else {
-            self.parse_calc_expr_recursively(precedence + 1)?
+            self.parse_calc_expr_recursively(precedence + 1, allow_modulo)?
         };
 
         loop {
@@ -45,12 +52,10 @@ impl<'a> Parser<'a> {
                 Token::Solidus(..) if precedence == PRECEDENCE_MULTIPLY => {
                     CalcOperator { kind: CalcOperatorKind::Division, span: bump!(self).span }
                 }
-                // Sass modulo (`%`) shares multiplicative precedence; CSS calc has no
-                // such operator, so only accept it in Sass syntaxes.
-                Token::Percent(..)
-                    if precedence == PRECEDENCE_MULTIPLY
-                        && matches!(self.syntax, Syntax::Scss | Syntax::Sass) =>
-                {
+                // Sass modulo (`%`) shares multiplicative precedence, but only the
+                // legacy SassScript `min`/`max` accept it (`allow_modulo`); true
+                // calculations (`calc`, `clamp`, `sin`, ...) reject it, as does CSS.
+                Token::Percent(..) if precedence == PRECEDENCE_MULTIPLY && allow_modulo => {
                     CalcOperator { kind: CalcOperatorKind::Modulo, span: bump!(self).span }
                 }
                 Token::Plus(..) if precedence == PRECEDENCE_PLUS => {
@@ -62,7 +67,7 @@ impl<'a> Parser<'a> {
                 _ => break,
             };
 
-            let right = self.parse_calc_expr_recursively(precedence + 1)?;
+            let right = self.parse_calc_expr_recursively(precedence + 1, allow_modulo)?;
             let span = Span { start: left.span().start, end: right.span().end };
             left = ComponentValue::Calc(Calc {
                 left: arena_box!(self, left),
@@ -315,6 +320,11 @@ impl<'a> Parser<'a> {
                         || ident.name.eq_ignore_ascii_case("pow")
                         || ident.name.eq_ignore_ascii_case("log") =>
                 {
+                    // Only the legacy SassScript `min`/`max` accept the Sass `%` modulo
+                    // operator; true calculations (`calc`, `clamp`, `sin`, ...) reject it.
+                    let allow_modulo = matches!(self.syntax, Syntax::Scss | Syntax::Sass)
+                        && (ident.name.eq_ignore_ascii_case("min")
+                            || ident.name.eq_ignore_ascii_case("max"));
                     let mut values = self.vec_with_capacity(1);
                     loop {
                         match peek!(self) {
@@ -334,7 +344,7 @@ impl<'a> Parser<'a> {
                                 ));
                                 break;
                             }
-                            _ => values.push(self.parse_calc_expr()?),
+                            _ => values.push(self.parse_calc_expr(allow_modulo)?),
                         }
                     }
                     values

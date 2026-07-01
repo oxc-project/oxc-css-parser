@@ -1,7 +1,7 @@
 a {
   b: max(1px, 7px % 4);
   c: min(1px, 7px % 4);
-  d: clamp(1px, 7px % 4, 10px);
-  e: max(10 % 3, 2);
-  f: max(1px, 7px % 4 + 2px);
+  d: max(10 % 3, 2);
+  e: max(1px, 7px % 4 + 2px);
+  f: max((7px % 4), 1px);
 }
