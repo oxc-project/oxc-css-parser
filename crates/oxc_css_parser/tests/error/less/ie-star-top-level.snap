@@ -1,0 +1,8 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: expect one of `<ident>` or `@{`, but found `<number>`
+  ┌─ ie-star-top-level.less:1:8
+  │
+1 │ *zoom: 1
+  │        ^

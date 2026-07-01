@@ -15,6 +15,24 @@ use crate::{
 
 impl<'a> Parse<'a> for Declaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
+        // Legacy IE hack: a `*` glued to the property name (e.g. `*color: red`)
+        // makes IE<=7 apply the declaration. Keep it as a property-name prefix — but
+        // only when glued: `* color` (whitespace or a comment after `*`) is not the
+        // hack, so leave the `*` for the normal (failing) parse.
+        let name_prefix_start = if input.state.allow_ie_star_hack
+            && let TokenWithSpan { token: Token::Asterisk(..), span } = peek!(input)
+            && input
+                .source
+                .as_bytes()
+                .get(span.end)
+                .is_some_and(|b| !b.is_ascii_whitespace() && *b != b'/')
+        {
+            let start = span.start;
+            bump!(input);
+            Some(start)
+        } else {
+            None
+        };
         // A css-in-js `${}` placeholder may stand in for the property name
         // (`${foo}: ${bar}`); it is not a real ident, so accept it directly.
         let name = if let Token::Placeholder(..) = peek!(input).token {
@@ -125,7 +143,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
         };
 
         let span = Span {
-            start: name.span().start,
+            start: name_prefix_start.unwrap_or(name.span().start),
             end: if let Some(important) = &important {
                 important.span.end
             } else if let Some(last) = value.last() {
@@ -136,6 +154,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
         };
         Ok(Declaration {
             name,
+            name_prefix: name_prefix_start.map(|_| '*'),
             name_suffix,
             colon_span,
             value,
@@ -248,6 +267,41 @@ impl<'a> Parser<'a> {
         Ok(values)
     }
 
+    /// Parse a qualified rule, falling back to a declaration when the `foo: bar`
+    /// vs `foo { }` prelude is ambiguous. Returns the statement and whether it
+    /// opened a block (for the caller's `is_block_element`).
+    fn parse_rule_or_declaration(&mut self, is_top_level: bool) -> PResult<(Statement<'a>, bool)> {
+        match self.try_parse(QualifiedRule::parse) {
+            Ok(rule) => Ok((Statement::QualifiedRule(rule), true)),
+            Err(error_rule) => match self.parse_style_rule_declaration() {
+                Ok(decl) => {
+                    // Only Scss/Sass produce `SassNestingDeclaration`; in CSS this is
+                    // always `false`, matching the previous per-syntax behavior.
+                    let is_block_element = matches!(
+                        decl.value.last(),
+                        Some(ComponentValue::SassNestingDeclaration(..))
+                    );
+                    if is_top_level {
+                        self.recoverable_errors.push(Error {
+                            kind: ErrorKind::TopLevelDeclaration,
+                            span: decl.span.clone(),
+                        });
+                    }
+                    Ok((Statement::Declaration(decl), is_block_element))
+                }
+                Err(error_decl) => Err(if is_top_level { error_rule } else { error_decl }),
+            },
+        }
+    }
+
+    /// Parse a declaration that is a statement in a style-rule block, enabling the
+    /// IE `*color` hack (see `ParserState::allow_ie_star_hack`). Feature-query
+    /// declarations (`@supports`, `@container style()`, `@import supports()`) call
+    /// `Declaration::parse` directly and so never enable it.
+    fn parse_style_rule_declaration(&mut self) -> PResult<Declaration<'a>> {
+        self.with_state(ParserState { allow_ie_star_hack: true, ..self.state.clone() }).parse()
+    }
+
     fn parse_statements(
         &mut self,
         is_top_level: bool,
@@ -269,30 +323,10 @@ impl<'a> Parser<'a> {
                                 statements.push(Statement::KeyframeBlock(self.parse()?));
                                 is_block_element = true;
                             } else {
-                                match self.try_parse(QualifiedRule::parse) {
-                                    Ok(rule) => {
-                                        statements.push(Statement::QualifiedRule(rule));
-                                        is_block_element = true;
-                                    }
-                                    Err(error_rule) => match self.parse::<Declaration>() {
-                                        Ok(decl) => {
-                                            if is_top_level {
-                                                self.recoverable_errors.push(Error {
-                                                    kind: ErrorKind::TopLevelDeclaration,
-                                                    span: decl.span.clone(),
-                                                });
-                                            }
-                                            statements.push(Statement::Declaration(decl));
-                                        }
-                                        Err(error_decl) => {
-                                            if is_top_level {
-                                                return Err(error_rule);
-                                            } else {
-                                                return Err(error_decl);
-                                            }
-                                        }
-                                    },
-                                }
+                                let (stmt, is_block) =
+                                    self.parse_rule_or_declaration(is_top_level)?;
+                                is_block_element = is_block;
+                                statements.push(stmt);
                             }
                         }
                         Syntax::Scss | Syntax::Sass => {
@@ -307,34 +341,10 @@ impl<'a> Parser<'a> {
                                 statements.push(Statement::KeyframeBlock(self.parse()?));
                                 is_block_element = true;
                             } else {
-                                match self.try_parse(QualifiedRule::parse) {
-                                    Ok(rule) => {
-                                        statements.push(Statement::QualifiedRule(rule));
-                                        is_block_element = true;
-                                    }
-                                    Err(error_rule) => match self.parse::<Declaration>() {
-                                        Ok(decl) => {
-                                            is_block_element = matches!(
-                                                decl.value.last(),
-                                                Some(ComponentValue::SassNestingDeclaration(..))
-                                            );
-                                            if is_top_level {
-                                                self.recoverable_errors.push(Error {
-                                                    kind: ErrorKind::TopLevelDeclaration,
-                                                    span: decl.span.clone(),
-                                                });
-                                            }
-                                            statements.push(Statement::Declaration(decl));
-                                        }
-                                        Err(error_decl) => {
-                                            if is_top_level {
-                                                return Err(error_rule);
-                                            } else {
-                                                return Err(error_decl);
-                                            }
-                                        }
-                                    },
-                                }
+                                let (stmt, is_block) =
+                                    self.parse_rule_or_declaration(is_top_level)?;
+                                is_block_element = is_block;
+                                statements.push(stmt);
                             }
                         }
                         Syntax::Less => {
@@ -391,7 +401,31 @@ impl<'a> Parser<'a> {
                 | Token::NumberSign(..)
                     if !self.state.in_keyframes_at_rule =>
                 {
-                    if self.syntax == Syntax::Less {
+                    if matches!(peek!(self).token, Token::Asterisk(..)) {
+                        // `*color: red` / `*zoom: 1` (an IE<=7 hack) looks like a `*`
+                        // universal selector but is a declaration; try the rule, then
+                        // fall back to a declaration. (A `*` never starts a
+                        // `LessExtendRule`, so this can precede the Less split.)
+                        if self.syntax == Syntax::Less {
+                            match self.try_parse(Parser::parse_less_qualified_rule) {
+                                Ok(stmt) => {
+                                    statements.push(stmt);
+                                    is_block_element = true;
+                                }
+                                // Less refuses declarations at the top level, like the
+                                // ident-led path; keep root-level `*zoom: 1` an error.
+                                Err(rule_err) if is_top_level => return Err(rule_err),
+                                Err(_) => {
+                                    let decl = self.parse_style_rule_declaration()?;
+                                    statements.push(Statement::Declaration(decl));
+                                }
+                            }
+                        } else {
+                            let (stmt, is_block) = self.parse_rule_or_declaration(is_top_level)?;
+                            is_block_element = is_block;
+                            statements.push(stmt);
+                        }
+                    } else if self.syntax == Syntax::Less {
                         if let Ok(extend_rule) = self.try_parse(LessExtendRule::parse) {
                             statements.push(Statement::LessExtendRule(extend_rule));
                         } else {
