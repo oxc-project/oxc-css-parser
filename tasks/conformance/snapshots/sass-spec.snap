@@ -1,7 +1,7 @@
 suite: sass-spec
 sha: a2ead9225786d49e91f5cc36755b7713596a2338
-files: 26785   success: 25409   failed: 1376
-clean: 25409  recovered: 29  hard_error: 1347  panic: 0
+files: 26785   success: 25411   failed: 1374
+clean: 25411  recovered: 29  hard_error: 1345  panic: 0
 
 failures:
 ERROR    spec/callable/arguments.hrx::function/trailing_comma/keyword_rest/output.css    component value is expected
@@ -130,8 +130,6 @@ ERROR    spec/core_functions/map/set.hrx::nested/value_is_not_a_map/output.css  
 ERROR    spec/core_functions/map/set.hrx::new_key/output.css    component value is expected
 ERROR    spec/core_functions/map/set.hrx::update_existing_key/output.css    component value is expected
 ERROR    spec/core_functions/map/values.hrx::empty/output.css    component value is expected
-ERROR    spec/core_functions/math/max.hrx::global/modulo/input.scss    component value is expected
-ERROR    spec/core_functions/math/min.hrx::global/modulo/input.scss    component value is expected
 ERROR    spec/core_functions/meta/apply.hrx::args/passes/rest/named/output.css    component value is expected
 ERROR    spec/core_functions/meta/inspect/list/empty.hrx::output.css    component value is expected
 ERROR    spec/core_functions/meta/inspect/list/nested.hrx::bracketed/in_comma/unbracketed/output.css    component value is expected
