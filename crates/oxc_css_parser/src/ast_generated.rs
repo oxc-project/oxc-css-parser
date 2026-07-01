@@ -111,7 +111,7 @@ impl_spanned_struct!(Calc<'a>);
 impl_spanned_struct!(CalcOperator);
 impl_spanned_enum!(CalcOperatorKind {
     tuple: [],
-    unit: [Plus, Minus, Multiply, Division, ],
+    unit: [Plus, Minus, Multiply, Division, Modulo, ],
 });
 impl_spanned_struct!(ClassSelector<'a>);
 impl_spanned_enum!(ColorProfilePrelude<'a> {
@@ -586,7 +586,7 @@ impl_span_ignored_eq_struct!(CalcOperator { kind, });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_enum!(CalcOperatorKind {
     tuple: [],
-    unit: [Plus, Minus, Multiply, Division, ],
+    unit: [Plus, Minus, Multiply, Division, Modulo, ],
 });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_struct!(ClassSelector<'a> { name, });

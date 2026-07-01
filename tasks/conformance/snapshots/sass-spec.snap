@@ -1,7 +1,7 @@
 suite: sass-spec
 sha: a2ead9225786d49e91f5cc36755b7713596a2338
-files: 26785   success: 25409   failed: 1376
-clean: 25409  recovered: 29  hard_error: 1347  panic: 0
+files: 26785   success: 25428   failed: 1357
+clean: 25428  recovered: 29  hard_error: 1328  panic: 0
 
 failures:
 ERROR    spec/callable/arguments.hrx::function/trailing_comma/keyword_rest/output.css    component value is expected
@@ -130,8 +130,6 @@ ERROR    spec/core_functions/map/set.hrx::nested/value_is_not_a_map/output.css  
 ERROR    spec/core_functions/map/set.hrx::new_key/output.css    component value is expected
 ERROR    spec/core_functions/map/set.hrx::update_existing_key/output.css    component value is expected
 ERROR    spec/core_functions/map/values.hrx::empty/output.css    component value is expected
-ERROR    spec/core_functions/math/max.hrx::global/modulo/input.scss    component value is expected
-ERROR    spec/core_functions/math/min.hrx::global/modulo/input.scss    component value is expected
 ERROR    spec/core_functions/meta/apply.hrx::args/passes/rest/named/output.css    component value is expected
 ERROR    spec/core_functions/meta/inspect/list/empty.hrx::output.css    component value is expected
 ERROR    spec/core_functions/meta/inspect/list/nested.hrx::bracketed/in_comma/unbracketed/output.css    component value is expected
@@ -1300,12 +1298,8 @@ RECOVER  spec/parser/selector.hrx::newline/after_comma_indented/input.sass    de
 ERROR    spec/values/calculation/abs.hrx::error/sass_script_and_variable/input.scss    component value is expected
 ERROR    spec/values/calculation/abs.hrx::error/syntax/invalid_arg/input.scss    unknown token
 ERROR    spec/values/calculation/abs.hrx::sass_script/input.scss    component value is expected
-ERROR    spec/values/calculation/acos.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/acos.hrx::error/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/asin.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/asin.hrx::error/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/atan.hrx::error/sass_script/input.scss    component value is expected
-ERROR    spec/values/calculation/atan2.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/atan2.hrx::error/syntax/invalid_arg/input.scss    unknown token
 ERROR    spec/values/calculation/calc-size.hrx::error/syntax/invalid_arg/input.scss    unknown token
 ERROR    spec/values/calculation/calc/error/syntax.hrx::dollar/input.scss    unknown token
@@ -1314,41 +1308,28 @@ ERROR    spec/values/calculation/calc/error/syntax.hrx::hash/input.scss    compo
 ERROR    spec/values/calculation/calc/error/syntax.hrx::interpolation/line_noise/input.scss    component value is expected
 ERROR    spec/values/calculation/calc/error/syntax.hrx::leading_operator/input.scss    component value is expected
 ERROR    spec/values/calculation/calc/error/syntax.hrx::trailing_operator/input.scss    component value is expected
-ERROR    spec/values/calculation/calc/error/syntax.hrx::unknown_operator/input.scss    component value is expected
 ERROR    spec/values/calculation/calc/no_operator.hrx::function/max/input.scss    component value is expected
 ERROR    spec/values/calculation/calc/no_operator.hrx::function/min/input.scss    component value is expected
 ERROR    spec/values/calculation/calc/operator.hrx::precedence/interpolation/calculation/asterisk/output.css    component value is expected
 ERROR    spec/values/calculation/calc/operator.hrx::precedence/interpolation/calculation/slash/output.css    component value is expected
 ERROR    spec/values/calculation/clamp.hrx::error/syntax/invalid_arg/input.scss    unknown token
 ERROR    spec/values/calculation/clamp.hrx::error/syntax/rest/input.scss    component value is expected
-ERROR    spec/values/calculation/cos.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/cos.hrx::error/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/exp.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/exp.hrx::error/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/hypot.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/hypot.hrx::error/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/log.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/log.hrx::error/syntax/invalid_arg/input.scss    unknown token
 ERROR    spec/values/calculation/max.hrx::error/syntax/invalid_arg/input.scss    unknown token
 ERROR    spec/values/calculation/min.hrx::error/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/mod.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/mod.hrx::error/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/pow.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/pow.hrx::error/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/rem.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/rem.hrx::error/syntax/invalid_arg/input.scss    unknown token
 ERROR    spec/values/calculation/round/error.hrx::one_argument/sass_script/variable_named_argument/input.scss    component value is expected
 ERROR    spec/values/calculation/round/error.hrx::one_argument/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/round/error.hrx::two_argument/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/round/one_argument.hrx::calc_unsafe_in_binary_operator/input.scss    component value is expected
 ERROR    spec/values/calculation/round/one_argument.hrx::sass_script/input.scss    component value is expected
-ERROR    spec/values/calculation/sign.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/sign.hrx::error/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/sin.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/sin.hrx::error/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/sqrt.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/sqrt.hrx::error/syntax/invalid_arg/input.scss    unknown token
-ERROR    spec/values/calculation/tan.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/tan.hrx::error/syntax/invalid_arg/input.scss    unknown token
 ERROR    spec/values/lists/brackets.hrx::whitespace/empty/sass/input.sass    component value is expected
 ERROR    spec/values/lists/brackets.hrx::whitespace/multiple/after_lbracket/sass/input.sass    CSS rule is expected

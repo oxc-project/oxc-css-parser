@@ -45,6 +45,14 @@ impl<'a> Parser<'a> {
                 Token::Solidus(..) if precedence == PRECEDENCE_MULTIPLY => {
                     CalcOperator { kind: CalcOperatorKind::Division, span: bump!(self).span }
                 }
+                // Sass modulo (`%`) shares multiplicative precedence; CSS calc has no
+                // such operator, so only accept it in Sass syntaxes.
+                Token::Percent(..)
+                    if precedence == PRECEDENCE_MULTIPLY
+                        && matches!(self.syntax, Syntax::Scss | Syntax::Sass) =>
+                {
+                    CalcOperator { kind: CalcOperatorKind::Modulo, span: bump!(self).span }
+                }
                 Token::Plus(..) if precedence == PRECEDENCE_PLUS => {
                     CalcOperator { kind: CalcOperatorKind::Plus, span: bump!(self).span }
                 }

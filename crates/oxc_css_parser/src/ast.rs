@@ -155,6 +155,8 @@ pub enum CalcOperatorKind {
     Minus,
     Multiply,
     Division,
+    /// Sass modulo (`%`) inside a math function's arguments (`max(1px, 7px % 4)`).
+    Modulo,
 }
 
 #[derive(Debug)]
