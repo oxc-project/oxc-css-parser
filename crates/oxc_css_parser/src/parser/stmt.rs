@@ -529,6 +529,37 @@ impl<'a> Parser<'a> {
                     statements.push(Statement::KeyframeBlock(self.parse()?));
                     is_block_element = true;
                 }
+                Token::LBrace(..)
+                    if !self.state.in_keyframes_at_rule
+                        && matches!(self.syntax, Syntax::Css | Syntax::Scss | Syntax::Less) =>
+                {
+                    // A rule with no selector at all (e.g. a bare `{}`) is invalid
+                    // per the CSS spec, but postcss and browsers parse it leniently
+                    // as a rule with an empty selector. Accept it and record a
+                    // recoverable error instead of hard-failing.
+                    let pos = span.start;
+                    self.recoverable_errors.push(Error {
+                        kind: ErrorKind::EmptySelector,
+                        span: Span { start: pos, end: pos },
+                    });
+                    let empty_selector = ComplexSelector {
+                        children: arena_vec!(self),
+                        span: Span { start: pos, end: pos },
+                    };
+                    let selector = SelectorList {
+                        selectors: arena_vec!(self; empty_selector),
+                        comma_spans: arena_vec!(self),
+                        span: Span { start: pos, end: pos },
+                    };
+                    let block = self.parse::<SimpleBlock>()?;
+                    let rule_span = Span { start: pos, end: block.span.end };
+                    statements.push(Statement::QualifiedRule(QualifiedRule {
+                        selector,
+                        block,
+                        span: rule_span,
+                    }));
+                    is_block_element = true;
+                }
                 Token::RBrace(..) | Token::Eof(..) | Token::Dedent(..) => break,
                 Token::Semicolon(..) | Token::Linebreak(..) => {
                     bump!(self);

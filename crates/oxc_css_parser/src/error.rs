@@ -91,6 +91,7 @@ pub enum ErrorKind {
     UnexpectedSemicolonInSass,
     UnexpectedSimpleBlock,
     TopLevelDeclaration,
+    EmptySelector,
 }
 
 impl Display for ErrorKind {
@@ -205,6 +206,7 @@ impl Display for ErrorKind {
             Self::UnexpectedSemicolonInSass => write!(f, "semicolon in Sass is disallowed"),
             Self::UnexpectedSimpleBlock => write!(f, "simple block is disallowed"),
             Self::TopLevelDeclaration => write!(f, "declaration at top level is disallowed"),
+            Self::EmptySelector => write!(f, "selector is expected before `{{`"),
         }
     }
 }
