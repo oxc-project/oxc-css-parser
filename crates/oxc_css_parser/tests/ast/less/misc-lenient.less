@@ -1,0 +1,5 @@
+@a: { b: 1; };
+.a { a: @a(); }
+prop-at-root: 1;
+.parent /deep/ .child { c: d; }
+.shadow ^ .dom, body ^^ .shadow { display: done; }

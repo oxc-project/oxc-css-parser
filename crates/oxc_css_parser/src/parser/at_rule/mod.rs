@@ -138,9 +138,26 @@ impl<'a> Parse<'a> for AtRule<'a> {
             (Some(prelude), None, end)
         } else if at_rule_name.eq_ignore_ascii_case("charset") {
             // https://drafts.csswg.org/css2/#charset%E2%91%A0
-            let prelude = input.parse::<Str>()?;
-            let end = prelude.span.end;
-            (Some(AtRulePrelude::Charset(prelude)), None, end)
+            // Less may interpolate into it: `@charset "UTF-@{Eight}";`
+            if input.syntax == Syntax::Less && matches!(peek!(input).token, Token::StrTemplate(..))
+            {
+                let prelude = input.parse::<InterpolableStr>()?;
+                let end = prelude.span().end;
+                (
+                    Some(AtRulePrelude::Unknown(arena_box!(
+                        input,
+                        UnknownAtRulePrelude::ComponentValue(ComponentValue::InterpolableStr(
+                            prelude
+                        ))
+                    ))),
+                    None,
+                    end,
+                )
+            } else {
+                let prelude = input.parse::<Str>()?;
+                let end = prelude.span.end;
+                (Some(AtRulePrelude::Charset(prelude)), None, end)
+            }
         } else if at_rule_name.eq_ignore_ascii_case("font-face") {
             let block = input.parse::<SimpleBlock>()?;
             let end = block.span.end;
@@ -151,14 +168,23 @@ impl<'a> Parse<'a> for AtRule<'a> {
             let end = block.span.end;
             (prelude, Some(block), end)
         } else if at_rule_name.eq_ignore_ascii_case("layer") {
-            let prelude = input.try_parse(LayerNames::parse).ok();
+            let mut prelude = input.try_parse(LayerNames::parse).map(AtRulePrelude::Layer).ok();
+            // a Less variable may stand for the name: `@layer @layer-name {`
+            if prelude.is_none()
+                && input.syntax == Syntax::Less
+                && matches!(peek!(input).token, Token::AtKeyword(..))
+            {
+                let raw = input.parse_raw_at_rule_prelude()?;
+                prelude = Some(AtRulePrelude::Unknown(arena_box!(input, raw)));
+            }
+            let prelude = prelude;
             let block = if matches!(peek!(input).token, Token::LBrace(..) | Token::Indent(..)) {
                 Some(input.parse::<SimpleBlock>()?)
             } else {
                 None
             };
             if let Some(block) = &block
-                && prelude.as_ref().is_some_and(|prelude| prelude.names.len() > 1)
+                && matches!(&prelude, Some(AtRulePrelude::Layer(names)) if names.names.len() > 1)
             {
                 input.recoverable_errors.push(Error {
                     kind: ErrorKind::UnexpectedSimpleBlock,
@@ -168,9 +194,9 @@ impl<'a> Parse<'a> for AtRule<'a> {
             let end = block
                 .as_ref()
                 .map(|block| block.span.end)
-                .or_else(|| prelude.as_ref().map(|prelude| prelude.span.end))
+                .or_else(|| prelude.as_ref().map(|prelude| prelude.span().end))
                 .unwrap_or(at_keyword_span.end);
-            (prelude.map(AtRulePrelude::Layer), block, end)
+            (prelude, block, end)
         } else if at_rule_name.eq_ignore_ascii_case("container") {
             let prelude = Some(AtRulePrelude::Container(input.parse()?));
             let block = input.parse::<SimpleBlock>()?;
@@ -185,6 +211,14 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 .or_else(|| prelude.as_ref().map(|prelude| prelude.span().end))
                 .unwrap_or(at_keyword_span.end);
             (prelude, block, end)
+        } else if at_rule_name.eq_ignore_ascii_case("namespace")
+            && input.syntax == Syntax::Less
+            && matches!(peek!(input).token, Token::AtKeyword(..))
+        {
+            // `@namespace @ns "http://...";` — a Less variable prefix
+            let raw = input.parse_raw_at_rule_prelude()?;
+            let end = raw.span().end;
+            (Some(AtRulePrelude::Unknown(arena_box!(input, raw))), None, end)
         } else if at_rule_name.eq_ignore_ascii_case("namespace") {
             let namespace = input.parse::<NamespacePrelude>()?;
             let end = namespace.span.end;
@@ -252,7 +286,20 @@ impl<'a> Parse<'a> for AtRule<'a> {
         } else if at_rule_name.eq_ignore_ascii_case("document")
             || at_rule_name.eq_ignore_ascii_case("-moz-document")
         {
-            let prelude = AtRulePrelude::Document(input.parse()?);
+            let prelude = match input.try_parse(|p| p.parse().map(AtRulePrelude::Document)) {
+                Ok(prelude) => prelude,
+                // e.g. less.js's permissive `@-moz-document @fn("(x)")` — but
+                // an empty prelude (`@document {}`) stays an error.
+                Err(error) => {
+                    if matches!(
+                        peek!(input).token,
+                        Token::LBrace(..) | Token::Indent(..) | Token::Semicolon(..)
+                    ) {
+                        return Err(error);
+                    }
+                    AtRulePrelude::Unknown(arena_box!(input, input.parse_raw_at_rule_prelude()?))
+                }
+            };
             // real-world code also writes a block-less `@document ...;`
             let block = if matches!(peek!(input).token, Token::LBrace(..) | Token::Indent(..)) {
                 Some(input.parse::<SimpleBlock>()?)

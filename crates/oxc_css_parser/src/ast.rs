@@ -196,6 +196,12 @@ pub enum CombinatorKind {
     LaterSibling,
     /// `||`
     Column,
+    /// `/deep/` (deprecated shadow-piercing descendant)
+    Deep,
+    /// `^` (deprecated shadow child)
+    ShadowChild,
+    /// `^^` (deprecated shadow descendant)
+    ShadowDescendant,
 }
 
 #[derive(Debug)]
@@ -237,6 +243,7 @@ pub enum ComponentValue<'a> {
     LessList(LessList<'a>),
     LessMixinCall(Box<'a, LessMixinCall<'a>>),
     LessNamespaceValue(Box<'a, LessNamespaceValue<'a>>),
+    LessVariableCall(LessVariableCall<'a>),
     LessNegativeValue(LessNegativeValue<'a>),
     LessParenthesizedOperation(LessParenthesizedOperation<'a>),
     LessPercentKeyword(LessPercentKeyword),

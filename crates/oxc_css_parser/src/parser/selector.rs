@@ -1319,6 +1319,51 @@ impl<'a> Parser<'a> {
                 kind: CombinatorKind::Column,
                 span: bump!(self).span,
             })),
+            // deprecated shadow-piercing `/deep/` and less.js's arbitrary
+            // slashed combinators (`.container /shadow/ .content`)
+            TokenWithSpan {
+                token: Token::Solidus(..),
+                span,
+            } if !matches!(self.syntax, Syntax::Scss | Syntax::Sass) && {
+                // dart-sass rejects reference combinators, so keep them
+                // CSS/Less-only
+                let rest = &self.source.as_bytes()[span.end..];
+                let ident_len = rest.iter().take_while(|b| b.is_ascii_alphanumeric() || **b == b'-' || **b == b'_').count();
+                ident_len > 0 && rest.get(ident_len) == Some(&b'/')
+            } =>
+            {
+                let start = bump!(self).span.start;
+                bump!(self); // the identifier
+                let end = bump!(self).span.end; // `/`
+                Ok(Some(Combinator {
+                    kind: CombinatorKind::Deep,
+                    span: Span { start, end },
+                }))
+            }
+            // deprecated shadow combinators `^` and `^^` (Less corpora)
+            TokenWithSpan {
+                token: Token::Unknown(..),
+                span,
+            } if self.syntax == Syntax::Less
+                && self.source.as_bytes().get(span.start) == Some(&b'^') =>
+            {
+                let start = bump!(self).span.start;
+                if matches!(&peek!(self).token, Token::Unknown(..))
+                    && peek!(self).span.start == start + 1
+                    && self.source.as_bytes().get(start + 1) == Some(&b'^')
+                {
+                    let end = bump!(self).span.end;
+                    Ok(Some(Combinator {
+                        kind: CombinatorKind::ShadowDescendant,
+                        span: Span { start, end },
+                    }))
+                } else {
+                    Ok(Some(Combinator {
+                        kind: CombinatorKind::ShadowChild,
+                        span: Span { start, end: start + 1 },
+                    }))
+                }
+            }
             _ => Ok(None),
         }
     }
