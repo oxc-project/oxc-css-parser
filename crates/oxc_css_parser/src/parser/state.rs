@@ -14,6 +14,11 @@ pub(super) struct ParserState {
     /// block, so the IE `*color` hack does not leak into feature queries
     /// (`@supports`, `@container style()`, `@import supports()`).
     pub(super) allow_ie_star_hack: bool,
+    /// Inside the body of a CSS custom function (`@function --name(...)`,
+    /// css-mixins spec). The body holds declarations only — no style rules —
+    /// so a top-level `{}` block in a declaration value is unambiguous there
+    /// (`result: {}#&%^*;`) and the CSS Nesting disambiguation is disabled.
+    pub(super) in_css_function_body: bool,
 }
 
 #[derive(Clone, Debug)]

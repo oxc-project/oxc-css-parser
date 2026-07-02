@@ -2451,6 +2451,9 @@ pub enum SupportsInParensKind<'a> {
     Selector(SelectorList<'a>),
     Function(Function<'a>),
     GeneralEnclosed(TokenSeq<'a>),
+    /// Sass only: a lone interpolation as a condition operand,
+    /// e.g. `@supports #{"(a: b)"} { ... }`.
+    Interpolation(InterpolableIdent<'a>),
 }
 
 #[derive(Debug)]

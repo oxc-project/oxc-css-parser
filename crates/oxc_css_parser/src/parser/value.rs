@@ -140,7 +140,8 @@ impl<'a> Parser<'a> {
                             {
                                 // IE `expression(...)` (any vendor prefix):
                                 // contents are script, not CSS values.
-                                self.parse_raw_function(ident).map(ComponentValue::Function)
+                                self.parse_raw_function(InterpolableIdent::Literal(ident))
+                                    .map(ComponentValue::Function)
                             }
                             InterpolableIdent::Literal(ident)
                                 if is_special_typed_or_raw_function(ident.name) =>
@@ -431,19 +432,23 @@ impl<'a> Parser<'a> {
         let name_copy = Ident { name: name.name, raw: name.raw, span: name.span.clone() };
         match self.try_parse(|p| p.parse_function(InterpolableIdent::Literal(name))) {
             Ok(function) => Ok(function),
-            Err(_) => self.parse_raw_function(name_copy),
+            Err(_) => self.parse_raw_function(InterpolableIdent::Literal(name_copy)),
         }
     }
 
     /// Parse `name(<raw contents>)` where the contents are preserved tokens
-    /// balanced to the matching `)` (IE `expression(...)` and friends).
-    fn parse_raw_function(&mut self, name: Ident<'a>) -> PResult<Function<'a>> {
+    /// balanced to the matching `)` (IE `expression(...)`, unknown
+    /// `@supports` functions, and friends).
+    pub(in crate::parser) fn parse_raw_function(
+        &mut self,
+        name: InterpolableIdent<'a>,
+    ) -> PResult<Function<'a>> {
         expect!(self, LParen);
         let mut args = self.vec_with_capacity(4);
         self.parse_raw_function_args_into(&mut args)?;
         let end = expect!(self, RParen).1.end;
-        let span = Span { start: name.span.start, end };
-        Ok(Function { name: FunctionName::Ident(InterpolableIdent::Literal(name)), args, span })
+        let span = Span { start: name.span().start, end };
+        Ok(Function { name: FunctionName::Ident(name), args, span })
     }
 
     /// IE filter syntax `progid:DXImageTransform.Microsoft.f(...)`, optionally
@@ -980,7 +985,14 @@ impl<'a> Parse<'a> for Str<'a> {
 impl<'a> Parse<'a> for Url<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (prefix, prefix_span) = expect!(input, Ident);
-        if !prefix.name().eq_ignore_ascii_case("url") {
+        // `url-prefix(...)` and `domain(...)` (Gecko `@document` matchers)
+        // take the same unquoted-URL contents as `url(...)` — token-level
+        // scanning would mis-lex `//` in `https://` as a comment.
+        let prefix_name = prefix.name();
+        if !prefix_name.eq_ignore_ascii_case("url")
+            && !prefix_name.eq_ignore_ascii_case("url-prefix")
+            && !prefix_name.eq_ignore_ascii_case("domain")
+        {
             return Err(Error { kind: ErrorKind::ExpectUrl, span: prefix_span });
         }
         let prefix_start = prefix_span.start;

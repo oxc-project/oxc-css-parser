@@ -98,22 +98,61 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                         span: Span { start, end },
                     })
                 }),
-            TokenWithSpan { token: Token::Ident(..), .. } => {
-                let function_ident = input.parse::<Ident>()?;
-                if function_ident.name.eq_ignore_ascii_case("selector") {
-                    expect!(input, LParen);
-                    let selector_list = input.parse::<SelectorList>()?;
-                    expect!(input, RParen);
-                    let span = selector_list.span.clone();
-                    Ok(SupportsInParens {
-                        kind: SupportsInParensKind::Selector(selector_list),
-                        span,
-                    })
-                } else {
-                    let function =
-                        input.parse_function(InterpolableIdent::Literal(function_ident))?;
-                    let span = function.span.clone();
-                    Ok(SupportsInParens { kind: SupportsInParensKind::Function(function), span })
+            // Sass: an interpolation may stand for a whole condition operand
+            // (`@supports #{"(a: b)"} and (c: d)`) or splice into a function
+            // name (`@supports a#{"b"}c(d)`).
+            TokenWithSpan { token: Token::Ident(..) | Token::HashLBrace(..), .. } => {
+                let name = input.parse::<InterpolableIdent>()?;
+                let name_end = name.span().end;
+                match name {
+                    InterpolableIdent::Literal(function_ident)
+                        if function_ident.name.eq_ignore_ascii_case("selector") =>
+                    {
+                        expect!(input, LParen);
+                        let selector_list = input.parse::<SelectorList>()?;
+                        expect!(input, RParen);
+                        let span = selector_list.span.clone();
+                        Ok(SupportsInParens {
+                            kind: SupportsInParensKind::Selector(selector_list),
+                            span,
+                        })
+                    }
+                    name => match peek!(input) {
+                        TokenWithSpan { token: Token::LParen(..), span }
+                            if span.start == name_end =>
+                        {
+                            // An unknown function here is `<general-enclosed>`
+                            // (css-conditional): its contents are raw tokens.
+                            let function = input.parse_raw_function(name)?;
+                            let span = function.span.clone();
+                            Ok(SupportsInParens {
+                                kind: SupportsInParensKind::Function(function),
+                                span,
+                            })
+                        }
+                        // Only a pure interpolation may stand alone
+                        // (`#{"(a: b)"}`); a mixed ident like `a#{b}` still
+                        // needs parens or a function call, as in dart-sass.
+                        _ if matches!(
+                            &name,
+                            InterpolableIdent::SassInterpolated(interpolation)
+                                if matches!(
+                                    interpolation.elements.as_slice(),
+                                    [SassInterpolatedIdentElement::Expression(..)]
+                                )
+                        ) =>
+                        {
+                            let span = name.span().clone();
+                            Ok(SupportsInParens {
+                                kind: SupportsInParensKind::Interpolation(name),
+                                span,
+                            })
+                        }
+                        TokenWithSpan { token, span } => Err(Error {
+                            kind: ErrorKind::Unexpected("'('", token.symbol()),
+                            span: span.clone(),
+                        }),
+                    },
                 }
             }
             TokenWithSpan { token, span } => Err(Error {

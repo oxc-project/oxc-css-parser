@@ -1,0 +1,9 @@
+@keyframes $a {
+  0% { b: c; }
+}
+@-moz-keyframes name /* c */ line 429 {
+  from { top: 0; }
+}
+@keyframes kf2 {
+  blah: blee;
+}

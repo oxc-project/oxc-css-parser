@@ -46,7 +46,33 @@ impl<'a> Parse<'a> for AtRule<'a> {
             // emitting vendor-prefixed blocks around `@content`).
             let prelude = match &peek!(input).token {
                 Token::LBrace(..) => None,
-                _ => Some(AtRulePrelude::Keyframes(input.parse()?)),
+                _ => {
+                    // A typed name normally ends the prelude; real-world code
+                    // also carries loose preludes (`@keyframes \$a`,
+                    // `@-moz-keyframes name /* c */ line 429`) — keep those as
+                    // raw tokens like an unknown at-rule's prelude.
+                    let typed = input.try_parse(|p| {
+                        let name = p.parse::<KeyframesName>()?;
+                        match &peek!(p).token {
+                            Token::LBrace(..)
+                            | Token::Indent(..)
+                            | Token::Semicolon(..)
+                            | Token::Dedent(..)
+                            | Token::Linebreak(..)
+                            | Token::Eof(..) => Ok(name),
+                            _ => {
+                                let span = peek!(p).span.clone();
+                                Err(Error { kind: ErrorKind::TryParseError, span })
+                            }
+                        }
+                    });
+                    match typed {
+                        Ok(name) => Some(AtRulePrelude::Keyframes(name)),
+                        Err(_) => input
+                            .parse_unknown_at_rule_prelude()?
+                            .map(|prelude| AtRulePrelude::Unknown(arena_box!(input, prelude))),
+                    }
+                }
             };
             let block = input
                 .with_state(ParserState { in_keyframes_at_rule: true, ..input.state.clone() })
@@ -193,10 +219,15 @@ impl<'a> Parse<'a> for AtRule<'a> {
         } else if at_rule_name.eq_ignore_ascii_case("document")
             || at_rule_name.eq_ignore_ascii_case("-moz-document")
         {
-            let prelude = Some(AtRulePrelude::Document(input.parse()?));
-            let block = input.parse::<SimpleBlock>()?;
-            let end = block.span.end;
-            (prelude, Some(block), end)
+            let prelude = AtRulePrelude::Document(input.parse()?);
+            // real-world code also writes a block-less `@document ...;`
+            let block = if matches!(peek!(input).token, Token::LBrace(..) | Token::Indent(..)) {
+                Some(input.parse::<SimpleBlock>()?)
+            } else {
+                None
+            };
+            let end = block.as_ref().map_or(prelude.span().end, |block| block.span.end);
+            (Some(prelude), block, end)
         } else if at_rule_name.eq_ignore_ascii_case("stylistic")
             || at_rule_name.eq_ignore_ascii_case("historical-forms")
             || at_rule_name.eq_ignore_ascii_case("styleset")
@@ -231,6 +262,20 @@ impl<'a> Parse<'a> for AtRule<'a> {
             let prelude = input.parse::<LessPlugin>()?;
             let end = prelude.span.end;
             (Some(AtRulePrelude::LessPlugin(arena_box!(input, prelude))), None, end)
+        } else if at_rule_name.eq_ignore_ascii_case("function")
+            && matches!(&peek!(input).token, Token::Ident(ident) if ident.raw.starts_with("--"))
+        {
+            // A CSS custom function (css-mixins spec): `@function --name(params)
+            // returns <type> { declarations }`. dart-sass parses this as plain
+            // CSS in every syntax (the `--` name marks it), so the prelude is
+            // kept as raw tokens and the body takes declarations with raw
+            // values.
+            let prelude = input.parse_css_function_prelude()?;
+            let block = input
+                .with_state(ParserState { in_css_function_body: true, ..input.state.clone() })
+                .parse::<SimpleBlock>()?;
+            let end = block.span.end;
+            (Some(AtRulePrelude::Unknown(arena_box!(input, prelude))), Some(block), end)
         } else if matches!(input.syntax, Syntax::Scss | Syntax::Sass) {
             use super::state::{
                 SASS_CTX_ALLOW_DIV, SASS_CTX_ALLOW_KEYFRAME_BLOCK, SASS_CTX_IN_FUNCTION,
@@ -397,6 +442,55 @@ impl<'a> Parse<'a> for AtRule<'a> {
 }
 
 impl<'a> Parser<'a> {
+    /// Raw prelude of a CSS custom function: everything up to the body's `{`,
+    /// balancing pairs so interpolations (`--#{a}`) and parameter parens pass
+    /// through, e.g. `--name(--arg <type>) returns <type>`.
+    fn parse_css_function_prelude(&mut self) -> PResult<UnknownAtRulePrelude<'a>> {
+        let start = self.tokenizer.current_offset();
+        let mut tokens = self.vec();
+        let mut pairs: Vec<crate::util::PairedToken> = Vec::new();
+        loop {
+            match &peek!(self).token {
+                Token::Semicolon(..)
+                | Token::Dedent(..)
+                | Token::Linebreak(..)
+                | Token::Indent(..)
+                | Token::Eof(..) => break,
+                Token::LBrace(..) if pairs.is_empty() => break,
+                Token::LBrace(..) | Token::HashLBrace(..) => {
+                    pairs.push(crate::util::PairedToken::Brace);
+                }
+                Token::RBrace(..) => {
+                    if let Some(crate::util::PairedToken::Brace) = pairs.pop() {
+                    } else {
+                        break;
+                    }
+                }
+                Token::LParen(..) => pairs.push(crate::util::PairedToken::Paren),
+                Token::RParen(..) => {
+                    if let Some(crate::util::PairedToken::Paren) = pairs.pop() {
+                    } else {
+                        break;
+                    }
+                }
+                Token::LBracket(..) => pairs.push(crate::util::PairedToken::Bracket),
+                Token::RBracket(..) => {
+                    if let Some(crate::util::PairedToken::Bracket) = pairs.pop() {
+                    } else {
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            tokens.push(bump!(self));
+        }
+        let span = Span {
+            start: tokens.first().map_or(start, |token| token.span.start),
+            end: tokens.last().map_or(start, |token| token.span.end),
+        };
+        Ok(UnknownAtRulePrelude::TokenSeq(TokenSeq { tokens, span }))
+    }
+
     pub(super) fn parse_unknown_at_rule(
         &mut self,
     ) -> PResult<(Option<UnknownAtRulePrelude<'a>>, Option<SimpleBlock<'a>>, Option<usize>)> {

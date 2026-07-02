@@ -1,0 +1,6 @@
+@FUNCTION --a() {
+  result: {}#&%^*;
+}
+@function --b(--arg) returns <ident> {
+  result: var(--arg);
+}

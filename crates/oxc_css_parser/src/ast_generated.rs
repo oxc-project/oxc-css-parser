@@ -520,7 +520,7 @@ impl_spanned_enum!(SupportsConditionKind<'a> {
 impl_spanned_struct!(SupportsDecl<'a>);
 impl_spanned_struct!(SupportsInParens<'a>);
 impl_spanned_enum!(SupportsInParensKind<'a> {
-    tuple: [SupportsCondition, Feature, Selector, Function, GeneralEnclosed, ],
+    tuple: [SupportsCondition, Feature, Selector, Function, GeneralEnclosed, Interpolation, ],
     unit: [],
 });
 impl_spanned_struct!(SupportsNot<'a>);
@@ -1274,7 +1274,7 @@ impl_span_ignored_eq_struct!(SupportsDecl<'a> { decl, });
 impl_span_ignored_eq_struct!(SupportsInParens<'a> { kind, });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_enum!(SupportsInParensKind<'a> {
-    tuple: [SupportsCondition, Feature, Selector, Function, GeneralEnclosed, ],
+    tuple: [SupportsCondition, Feature, Selector, Function, GeneralEnclosed, Interpolation, ],
     unit: [],
 });
 #[cfg(feature = "span_ignored_eq")]
@@ -1908,6 +1908,7 @@ impl_enum_as_is!(SupportsInParensKind<'a> {
         Selector(SelectorList<'a>) => is_selector, as_selector,
         Function(Function<'a>) => is_function, as_function,
         GeneralEnclosed(TokenSeq<'a>) => is_general_enclosed, as_general_enclosed,
+        Interpolation(InterpolableIdent<'a>) => is_interpolation, as_interpolation,
     ],
     unit: [],
 });

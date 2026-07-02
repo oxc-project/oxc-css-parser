@@ -93,7 +93,10 @@ impl<'a> Parse<'a> for Declaration<'a> {
                 // tokens. Scss/Sass/Less keep the strict grammar: their
                 // dialects assign meaning to these tokens and are expected to
                 // reject exactly what their reference compilers reject.
-                _ if parser.syntax == Syntax::Css => {
+                _ if parser.syntax == Syntax::Css
+                    || (parser.state.in_css_function_body
+                        && matches!(&name, InterpolableIdent::Literal(..))) =>
+                {
                     let typed = parser.try_parse(|p| {
                         let values = p.parse_declaration_value()?;
                         let important = match &peek!(p).token {
@@ -117,11 +120,14 @@ impl<'a> Parse<'a> for Declaration<'a> {
                     match typed {
                         Ok(value_and_important) => value_and_important,
                         Err(error) => {
-                            let values = parser.parse_declaration_value_tokens(true)?;
-                            // Ending at a top-level `{` means this construct is
-                            // really a qualified rule that failed to parse, not
-                            // a declaration — reject with the typed error.
-                            if let Token::LBrace(..) = &peek!(parser).token {
+                            // A CSS custom function body holds declarations
+                            // only, so a top-level `{}` there is part of the
+                            // value; elsewhere it means this construct is
+                            // really a qualified rule (CSS Nesting
+                            // disambiguation) and the declaration is rejected.
+                            let in_fn_body = parser.state.in_css_function_body;
+                            let values = parser.parse_declaration_value_tokens(!in_fn_body)?;
+                            if !in_fn_body && let Token::LBrace(..) = &peek!(parser).token {
                                 return Err(error);
                             }
                             (values, None)
@@ -407,8 +413,15 @@ impl<'a> Parser<'a> {
                     match self.syntax {
                         Syntax::Css => {
                             if self.state.in_keyframes_at_rule {
-                                statements.push(Statement::KeyframeBlock(self.parse()?));
-                                is_block_element = true;
+                                // real-world keyframes bodies also carry plain
+                                // declarations (`@keyframes a { blah: blee; }`)
+                                if let Ok(block) = self.try_parse(KeyframeBlock::parse) {
+                                    statements.push(Statement::KeyframeBlock(block));
+                                    is_block_element = true;
+                                } else {
+                                    let decl = self.parse_style_rule_declaration()?;
+                                    statements.push(Statement::Declaration(decl));
+                                }
                             } else {
                                 let (stmt, is_block) =
                                     self.parse_rule_or_declaration(is_top_level)?;
@@ -425,8 +438,13 @@ impl<'a> Parser<'a> {
                                     sass_var_decl
                                 )));
                             } else if self.state.in_keyframes_at_rule {
-                                statements.push(Statement::KeyframeBlock(self.parse()?));
-                                is_block_element = true;
+                                if let Ok(block) = self.try_parse(KeyframeBlock::parse) {
+                                    statements.push(Statement::KeyframeBlock(block));
+                                    is_block_element = true;
+                                } else {
+                                    let decl = self.parse_style_rule_declaration()?;
+                                    statements.push(Statement::Declaration(decl));
+                                }
                             } else {
                                 let (stmt, is_block) =
                                     self.parse_rule_or_declaration(is_top_level)?;

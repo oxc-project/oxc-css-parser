@@ -28,7 +28,7 @@ ERROR    packages/test-data/tests-unit/extract-and-length/extract-and-length.les
 ERROR    packages/test-data/tests-unit/functions-each/functions-each.less    expect token `;`, but found `{`
 ERROR    packages/test-data/tests-unit/functions/functions.less    expect token `;`, but found `{`
 ERROR    packages/test-data/tests-unit/import/import-inline.css    unterminated string
-ERROR    packages/test-data/tests-unit/import/import-reference.css    expect token `{`, but found `:`
+ERROR    packages/test-data/tests-unit/import/import-reference.css    expect token `:`, but found `<ident>`
 ERROR    packages/test-data/tests-unit/import/import/invalid-css.less    expect token `(`, but found `<ident>`
 ERROR    packages/test-data/tests-unit/layer/layer.less    expect token `;`, but found `<at-keyword>`
 ERROR    packages/test-data/tests-unit/media/media.less    expect token `;`, but found `{`
