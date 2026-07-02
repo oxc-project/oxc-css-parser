@@ -1,0 +1,2 @@
+div :-moz-any(ol p.blah, ul, menu, dir) ul { color: red; }
+::slotted(.c.d, .d.e) { x: y; }

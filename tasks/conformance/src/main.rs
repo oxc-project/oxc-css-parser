@@ -11,8 +11,13 @@
 //! - `<suite>.snap` — the sorted list of files that failed in that suite.
 //!
 //! `success` is a clean parse (zero errors); `failed` is `recovered +
-//! hard_error + panic`. Regenerate the snapshots by re-running, and review
-//! changes via `git diff` — that is how regressions/improvements surface.
+//! hard_error + panic` on files that are expected to parse. Files that the
+//! reference compiler itself rejects — sass-spec HRX tests with a sibling
+//! `error` file, and less.js `tests-error/parse/**` — are *expected* to fail:
+//! a parse error there is correct behavior, so they are counted in a separate
+//! `expected` column and listed in their own snapshot section. Regenerate the
+//! snapshots by re-running, and review changes via `git diff` — that is how
+//! regressions/improvements surface.
 //!
 //! Pinned SHAs keep runs reproducible; bump them deliberately to ingest
 //! upstream changes. Cloned repos live under `tasks/conformance/repos/` (git
@@ -36,7 +41,7 @@ use std::{
     process::Command,
 };
 
-use oxc_css_parser::{Allocator, Parser, Syntax, ast::Stylesheet};
+use oxc_css_parser::{Allocator, ParserBuilder, ParserOptions, Syntax, ast::Stylesheet};
 
 /// An upstream test corpus, pinned to a fixed commit.
 struct Suite {
@@ -50,6 +55,13 @@ struct Suite {
     sparse: &'static [&'static str],
     /// Sub-path (relative to the repo root) scanned for parseable files.
     walk: &'static str,
+    /// Path prefixes (relative to the repo root) whose files may legitimately
+    /// fail to parse — the reference compiler rejects them too, or they are
+    /// encoding-test fixtures with no single valid text decoding.
+    expect_error_under: &'static [&'static str],
+    /// Enable [`ParserOptions::allow_postcss_simple_vars`] — for corpora
+    /// written against the postcss-simple-vars plugin.
+    postcss_simple_vars: bool,
     /// Note shown in the report — e.g. which phase wires up its real harness.
     note: &'static str,
 }
@@ -62,6 +74,8 @@ const SUITES: &[Suite] = &[
         sha: "203ce36bffd617db7f118c551e32794561fb273d",
         sparse: &[],
         walk: "",
+        expect_error_under: &[],
+        postcss_simple_vars: false,
         note: "CSS Syntax L3, JSON input->tree — needs a dedicated adapter",
     },
     Suite {
@@ -70,6 +84,11 @@ const SUITES: &[Suite] = &[
         sha: "1722fb6566acac7b0fc7bfc9aae55a47594b9d03",
         sparse: &["css/css-syntax"],
         walk: "css/css-syntax",
+        // Mixed-encoding fixtures (e.g. a UTF-16 `@charset` prelude followed by
+        // windows-1250 bytes) exist to drive encoding-detection HTML tests; no
+        // single text decoding of them is valid CSS.
+        expect_error_under: &["css/css-syntax/charset/support"],
+        postcss_simple_vars: false,
         note: "Phase 3 — testharness assertions need an HTML/JS harness",
     },
     Suite {
@@ -88,6 +107,8 @@ const SUITES: &[Suite] = &[
             "css-cascade-5",
         ],
         walk: "",
+        expect_error_under: &[],
+        postcss_simple_vars: false,
         note: "Phase 2 — extract examples from Bikeshed (.bs) sources",
     },
     Suite {
@@ -96,6 +117,8 @@ const SUITES: &[Suite] = &[
         sha: "9cce6ee56b9b281df9a81baa4cfc4a931e103333",
         sparse: &["ed/css"],
         walk: "ed/css",
+        expect_error_under: &[],
+        postcss_simple_vars: false,
         note: "Phase 4 — spec-surface coverage data (JSON), not parsed as CSS",
     },
     Suite {
@@ -104,6 +127,8 @@ const SUITES: &[Suite] = &[
         sha: "de1bc546de3678dd1c85e57cb2e9eece0098ddb9",
         sparse: &[],
         walk: "cases",
+        expect_error_under: &[],
+        postcss_simple_vars: true,
         note: "real-world CSS edge cases",
     },
     Suite {
@@ -112,6 +137,8 @@ const SUITES: &[Suite] = &[
         sha: "a2ead9225786d49e91f5cc36755b7713596a2338",
         sparse: &["spec"],
         walk: "spec",
+        expect_error_under: &[],
+        postcss_simple_vars: false,
         note: "canonical Sass/SCSS suite; tests packed in .hrx archives (unpacked)",
     },
     Suite {
@@ -120,6 +147,8 @@ const SUITES: &[Suite] = &[
         sha: "8ae2cc3bfa79f0718ad6fe5f263a1d6819fe9d5c",
         sparse: &["packages/test-data"],
         walk: "packages/test-data",
+        expect_error_under: &["packages/test-data/tests-error/parse"],
+        postcss_simple_vars: false,
         note: "Less reference suite (tests compilation; we parse only)",
     },
 ];
@@ -204,10 +233,11 @@ enum Outcome {
     Panic,
 }
 
-fn parse_outcome(source: &str, syntax: Syntax) -> Outcome {
+fn parse_outcome(source: &str, syntax: Syntax, options: ParserOptions) -> Outcome {
     let caught = panic::catch_unwind(panic::AssertUnwindSafe(|| {
         let allocator = Allocator::default();
-        let mut parser = Parser::new(&allocator, source, syntax);
+        let mut parser =
+            ParserBuilder::new(&allocator, source).syntax(syntax).options(options).build();
         match parser.parse::<Stylesheet>() {
             Ok(_) => match parser.recoverable_errors().first() {
                 None => Outcome::Clean,
@@ -217,6 +247,35 @@ fn parse_outcome(source: &str, syntax: Syntax) -> Outcome {
         }
     }));
     caught.unwrap_or(Outcome::Panic)
+}
+
+/// Decode raw file bytes to text. Real-world corpora include UTF-16 files
+/// (wpt's charset tests, some with no BOM); detect those — by BOM, or by NUL
+/// bytes near the start (no valid CSS text contains NUL) — and decode them,
+/// falling back to UTF-8. Returns `None` for undecodable (binary) content.
+fn decode_text(bytes: &[u8]) -> Option<String> {
+    fn utf16(bytes: &[u8], le: bool) -> Option<String> {
+        let units = bytes.chunks_exact(2).map(|c| {
+            if le { u16::from_le_bytes([c[0], c[1]]) } else { u16::from_be_bytes([c[0], c[1]]) }
+        });
+        char::decode_utf16(units).collect::<Result<String, _>>().ok()
+    }
+    match bytes {
+        [0xFF, 0xFE, rest @ ..] => utf16(rest, true),
+        [0xFE, 0xFF, rest @ ..] => utf16(rest, false),
+        _ => {
+            let head = &bytes[..bytes.len().min(64)];
+            if head.contains(&0) {
+                // Guess byte order from where the NULs sit: ASCII code points
+                // put the NUL in the high byte — first for BE, second for LE.
+                let le = head.iter().step_by(2).filter(|&&b| b == 0).count()
+                    < head.iter().skip(1).step_by(2).filter(|&&b| b == 0).count();
+                utf16(bytes, le)
+            } else {
+                String::from_utf8(bytes.to_vec()).ok()
+            }
+        }
+    }
 }
 
 fn syntax_for(path: &Path) -> Option<Syntax> {
@@ -263,16 +322,23 @@ fn collect_files(dir: &Path, out: &mut Vec<PathBuf>) {
 struct Tally {
     files: u32,
     clean: u32,
+    /// Parse errors on expected-error files (see [`Suite::expect_error_under`]
+    /// and HRX sibling `error` entries) — correct behavior, not failures.
+    expected: u32,
     recovered: u32,
     hard_error: u32,
     panic: u32,
 }
 
 impl Tally {
-    fn record(&mut self, outcome: &Outcome) {
+    fn record(&mut self, outcome: &Outcome, expect_error: bool) {
         self.files += 1;
         match outcome {
             Outcome::Clean => self.clean += 1,
+            // A graceful parse error on an expected-error file is correct
+            // behavior; count it apart so `failed` only tracks files that
+            // should parse. A panic is a crash — never expected.
+            Outcome::Recovered(_) | Outcome::HardError(_) if expect_error => self.expected += 1,
             Outcome::Recovered(_) => self.recovered += 1,
             Outcome::HardError(_) => self.hard_error += 1,
             Outcome::Panic => self.panic += 1,
@@ -282,6 +348,7 @@ impl Tally {
     fn add(&mut self, other: &Tally) {
         self.files += other.files;
         self.clean += other.clean;
+        self.expected += other.expected;
         self.recovered += other.recovered;
         self.hard_error += other.hard_error;
         self.panic += other.panic;
@@ -292,7 +359,7 @@ impl Tally {
         self.clean
     }
 
-    /// Anything that is not a clean parse.
+    /// A non-clean parse of a file that is expected to parse.
     fn failed(&self) -> u32 {
         self.recovered + self.hard_error + self.panic
     }
@@ -339,6 +406,9 @@ struct SuiteReport {
     tally: Tally,
     by_syntax: BySyntax,
     failures: Vec<Failure>,
+    /// Parse errors on expected-error files, snapshotted in their own section:
+    /// they should stay failing, so one flipping to clean shows up in review.
+    expected_failures: Vec<Failure>,
 }
 
 /// Render a path relative to `base` using forward slashes (stable across
@@ -348,43 +418,81 @@ fn rel_path(path: &Path, base: &Path) -> String {
     rel.components().filter_map(|c| c.as_os_str().to_str()).collect::<Vec<_>>().join("/")
 }
 
+/// Whether an HRX entry belongs to a test that expects a compile error: the
+/// reference compiler rejects it, so a parse error is correct behavior. Error
+/// tests carry a sibling `error` (or `error-<impl>`) entry in the same directory.
+fn hrx_expects_error(entries: &[(String, String)], entry: &str) -> bool {
+    let dir = entry.rsplit_once('/').map_or("", |(dir, _)| dir);
+    entries.iter().any(|(name, _)| {
+        let (entry_dir, base) = name.rsplit_once('/').map_or(("", name.as_str()), |(d, b)| (d, b));
+        entry_dir == dir && (base == "error" || base.starts_with("error-"))
+    })
+}
+
 fn run_suite(suite: &Suite) -> SuiteReport {
     let suite_root = repos_dir().join(suite.name);
     let mut files = Vec::new();
     collect_files(&suite_root.join(suite.walk), &mut files);
 
+    let options = ParserOptions {
+        allow_postcss_simple_vars: suite.postcss_simple_vars,
+        ..ParserOptions::default()
+    };
+
     let mut report = SuiteReport::default();
     for path in files {
+        let Ok(bytes) = fs::read(&path) else { continue };
+        let Some(source) = decode_text(&bytes) else { continue };
+        let rel = rel_path(&path, &suite_root);
         if let Some(syntax) = syntax_for(&path) {
-            if let Ok(source) = fs::read_to_string(&path) {
-                process_unit(rel_path(&path, &suite_root), &source, syntax, &mut report);
-            }
-        } else if let Ok(archive) = fs::read_to_string(&path) {
+            let expect_error = suite.expect_error_under.iter().any(|p| rel.starts_with(p));
+            process_unit(rel, &source, syntax, options, expect_error, &mut report);
+        } else {
             // sass-spec packs each test in an `.hrx` archive; parse its entries.
-            let base = rel_path(&path, &suite_root);
-            for (entry, source) in parse_hrx(&archive) {
-                if let Some(syntax) = syntax_for_entry(&entry) {
-                    process_unit(format!("{base}::{entry}"), &source, syntax, &mut report);
+            let entries = parse_hrx(&source);
+            for (entry, entry_source) in &entries {
+                if let Some(syntax) = syntax_for_entry(entry) {
+                    let expect_error = hrx_expects_error(&entries, entry);
+                    process_unit(
+                        format!("{rel}::{entry}"),
+                        entry_source,
+                        syntax,
+                        options,
+                        expect_error,
+                        &mut report,
+                    );
                 }
             }
         }
     }
     report.failures.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
+    report.expected_failures.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
     report
 }
 
 /// Parse one CSS unit and fold its outcome into `report`.
-fn process_unit(rel_path: String, source: &str, syntax: Syntax, report: &mut SuiteReport) {
-    let outcome = parse_outcome(source, syntax);
-    report.tally.record(&outcome);
-    report.by_syntax.get_mut(syntax).record(&outcome);
-    let failure = match outcome {
+fn process_unit(
+    rel_path: String,
+    source: &str,
+    syntax: Syntax,
+    options: ParserOptions,
+    expect_error: bool,
+    report: &mut SuiteReport,
+) {
+    let outcome = parse_outcome(source, syntax, options);
+    report.tally.record(&outcome, expect_error);
+    report.by_syntax.get_mut(syntax).record(&outcome, expect_error);
+    let (failure, is_panic) = match outcome {
         Outcome::Clean => return,
-        Outcome::Recovered(label) => Failure { tag: "RECOVER", rel_path, label },
-        Outcome::HardError(label) => Failure { tag: "ERROR", rel_path, label },
-        Outcome::Panic => Failure { tag: "PANIC", rel_path, label: String::new() },
+        Outcome::Recovered(label) => (Failure { tag: "RECOVER", rel_path, label }, false),
+        Outcome::HardError(label) => (Failure { tag: "ERROR", rel_path, label }, false),
+        Outcome::Panic => (Failure { tag: "PANIC", rel_path, label: String::new() }, true),
     };
-    report.failures.push(failure);
+    if expect_error && !is_panic {
+        report.expected_failures.push(failure);
+    } else {
+        report.failures.push(failure);
+    }
 }
 
 /// A line that delimits sections in an HRX archive.
@@ -440,17 +548,18 @@ fn parse_hrx(text: &str) -> Vec<(String, String)> {
 
 fn header_row(first: &str) -> String {
     format!(
-        "{first:<22} {:>6} {:>8} {:>7} {:>7} {:>6} {:>8} {:>6}",
-        "files", "success", "failed", "clean", "recov", "harderr", "panic"
+        "{first:<22} {:>6} {:>8} {:>7} {:>9} {:>7} {:>6} {:>8} {:>6}",
+        "files", "success", "failed", "expected", "clean", "recov", "harderr", "panic"
     )
 }
 
 fn row(label: &str, t: &Tally) -> String {
     format!(
-        "{label:<22} {:>6} {:>8} {:>7} {:>7} {:>6} {:>8} {:>6}",
+        "{label:<22} {:>6} {:>8} {:>7} {:>9} {:>7} {:>6} {:>8} {:>6}",
         t.files,
         t.success(),
         t.failed(),
+        t.expected,
         t.clean,
         t.recovered,
         t.hard_error,
@@ -458,27 +567,45 @@ fn row(label: &str, t: &Tally) -> String {
     )
 }
 
+fn write_failure_lines(out: &mut String, failures: &[Failure]) {
+    if failures.is_empty() {
+        let _ = writeln!(out, "none");
+    }
+    for failure in failures {
+        if failure.label.is_empty() {
+            let _ = writeln!(out, "{:<8} {}", failure.tag, failure.rel_path);
+        } else {
+            let _ = writeln!(out, "{:<8} {}    {}", failure.tag, failure.rel_path, failure.label);
+        }
+    }
+}
+
 fn write_suite_snapshot(suite: &Suite, report: &SuiteReport) -> io::Result<()> {
     let t = &report.tally;
     let mut out = String::new();
     let _ = writeln!(out, "suite: {}", suite.name);
     let _ = writeln!(out, "sha: {}", suite.sha);
-    let _ = writeln!(out, "files: {}   success: {}   failed: {}", t.files, t.success(), t.failed());
+    let _ = writeln!(
+        out,
+        "files: {}   success: {}   failed: {}   expected: {}",
+        t.files,
+        t.success(),
+        t.failed(),
+        t.expected
+    );
     let _ = writeln!(
         out,
         "clean: {}  recovered: {}  hard_error: {}  panic: {}",
         t.clean, t.recovered, t.hard_error, t.panic
     );
     let _ = writeln!(out, "\nfailures:");
-    if report.failures.is_empty() {
-        let _ = writeln!(out, "none");
-    }
-    for failure in &report.failures {
-        if failure.label.is_empty() {
-            let _ = writeln!(out, "{:<8} {}", failure.tag, failure.rel_path);
-        } else {
-            let _ = writeln!(out, "{:<8} {}    {}", failure.tag, failure.rel_path, failure.label);
-        }
+    write_failure_lines(&mut out, &report.failures);
+    // Expected-error files are meant to keep failing; snapshot them so one
+    // flipping to clean (parser accepting what the reference rejects) shows
+    // up as a diff in this section.
+    if t.expected > 0 {
+        let _ = writeln!(out, "\nexpected failures (error tests, correct behavior):");
+        write_failure_lines(&mut out, &report.expected_failures);
     }
     fs::write(snapshots_dir().join(format!("{}.snap", suite.name)), out)
 }
@@ -490,7 +617,9 @@ fn write_summary_snapshot(
 ) -> io::Result<()> {
     let mut out = String::new();
     let _ = writeln!(out, "# oxc-css-parser conformance — `cargo run -p conformance`");
-    let _ = writeln!(out, "# success = clean parse; failed = recovered + hard_error + panic");
+    let _ = writeln!(out, "# success = clean parse; failed = recovered + hard_error + panic;");
+    let _ =
+        writeln!(out, "# expected = parse errors on error-tests (correct behavior, not failures)");
     let _ = writeln!(out);
     let _ = writeln!(out, "{}", header_row("suite"));
     for (suite, report) in reports {

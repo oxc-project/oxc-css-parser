@@ -79,6 +79,24 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    /// Dedenting to a level between two known ones (`a,\n    b\n  c: d` — the
+    /// continuation sat at 4, the block at 2) pops past the new level, leaving
+    /// the current line deeper than the stack top with no `Indent` emitted.
+    /// When the parser is about to open a block there, it can re-open that
+    /// level so the block's closing `Dedent` is emitted later. Returns whether
+    /// a level was opened.
+    pub(crate) fn reopen_indent_level(&mut self) -> bool {
+        if self.syntax == Syntax::Sass
+            && self.state.paren_depth == 0
+            && self.state.indents.last().copied().unwrap_or_default() < self.state.current_indent
+        {
+            self.state.indents.push(self.state.current_indent);
+            true
+        } else {
+            false
+        }
+    }
+
     #[inline]
     pub fn bump(&mut self) -> PResult<TokenWithSpan<'a>> {
         if let Some(indent) = self.skip_ws_or_comment() { Ok(indent) } else { self.next() }
@@ -114,6 +132,13 @@ impl<'a> Tokenizer<'a> {
                 return self.scan_dimension_or_percentage(number, span);
             }
             Some((start, '{')) => {
+                // In the indented syntax a lone `{` only occurs when an
+                // interpolation resumes inside a string template (its `#` was
+                // consumed by the string scanner); pair it with the `}`
+                // decrement so bracket depth stays balanced.
+                if self.syntax == Syntax::Sass {
+                    self.state.paren_depth += 1;
+                }
                 let token = TokenWithSpan {
                     token: Token::LBrace(LBrace {}),
                     span: Span { start: *start, end: start + 1 },
@@ -254,7 +279,9 @@ impl<'a> Tokenizer<'a> {
         while let Some((i, c)) = self.state.chars.peek() {
             if c.is_ascii_whitespace() {
                 let (i, c) = self.state.chars.next()?;
-                if c == '\n' || c == '\r' && matches!(self.state.chars.peek(), Some((_, '\n'))) {
+                // `\n`, a lone `\r` (old Mac), `\r\n`, and `\f` are all line
+                // boundaries, matching dart-sass.
+                if c == '\n' || c == '\r' || c == '\x0C' {
                     start = Some(i + 1);
                 }
             } else {
@@ -351,9 +378,71 @@ impl<'a> Tokenizer<'a> {
             }
         }
 
+        // In the indented syntax, lines indented deeper than the line the
+        // comment started on continue the comment — but only for a comment
+        // that starts its line (a statement-level comment); one trailing
+        // after code is plain whitespace with no children.
+        let starts_line = || {
+            let bytes = self.source.as_bytes();
+            let mut i = start;
+            while i > 0 && matches!(bytes[i - 1], b' ' | b'\t') {
+                i -= 1;
+            }
+            i == 0 || matches!(bytes[i - 1], b'\n' | b'\r' | b'\x0C')
+        };
+        let end = if self.syntax == Syntax::Sass && self.state.paren_depth == 0 && starts_line() {
+            self.consume_sass_comment_continuation(end)
+        } else {
+            end
+        };
+
         if let Some(comments) = &mut self.comments {
             let content = unsafe { self.source.get_unchecked(start + 2..end) };
             comments.push(Comment { content, kind: CommentKind::Line, span: Span { start, end } });
+        }
+    }
+
+    /// Consume indented-syntax comment continuation lines (any line indented
+    /// deeper than the line the comment started on), returning the new
+    /// comment end offset. The terminating newline is left unconsumed so the
+    /// usual indentation scanning still runs.
+    fn consume_sass_comment_continuation(&mut self, mut end: usize) -> usize {
+        let base = self.state.current_indent;
+        loop {
+            let mut probe = self.state.chars.clone();
+            // step over the line break(s) and measure the next line's indent
+            let mut saw_newline = false;
+            let mut indent: u16 = 0;
+            let mut content_start = None;
+            for (i, c) in probe.by_ref() {
+                match c {
+                    '\n' | '\r' | '\x0C' => {
+                        saw_newline = true;
+                        indent = 0;
+                    }
+                    ' ' | '\t' => indent += 1,
+                    _ => {
+                        content_start = Some(i);
+                        break;
+                    }
+                }
+            }
+            let Some(content_start) = content_start else { return end };
+            if !saw_newline || indent <= base {
+                return end;
+            }
+            // deeper content: the line belongs to the comment — consume it
+            while let Some((i, c)) = self.state.chars.peek() {
+                if matches!(c, '\n' | '\r' | '\x0C') {
+                    if *i >= content_start {
+                        break;
+                    }
+                    self.state.chars.next();
+                } else {
+                    end = i + c.len_utf8();
+                    self.state.chars.next();
+                }
+            }
         }
     }
 
@@ -797,6 +886,8 @@ impl<'a> Tokenizer<'a> {
                     self.scan_escape(/* backslash_consumed */ true)?;
                 }
                 Some((i, ')')) => {
+                    // the matching `(` was consumed as an LParen token
+                    self.state.paren_depth = self.state.paren_depth.saturating_sub(1);
                     end = i;
                     break;
                 }
@@ -812,6 +903,7 @@ impl<'a> Tokenizer<'a> {
                     self.skip_ws();
                     match self.state.chars.next() {
                         Some((_, ')')) => {
+                            self.state.paren_depth = self.state.paren_depth.saturating_sub(1);
                             end = i;
                             break;
                         }
@@ -853,6 +945,7 @@ impl<'a> Tokenizer<'a> {
                 Some((end, ')')) => {
                     debug_assert!(start <= end);
 
+                    self.state.paren_depth = self.state.paren_depth.saturating_sub(1);
                     let raw = unsafe { self.source.get_unchecked(start..end) };
                     let span = Span { start, end };
                     return Ok((UrlTemplate { raw, escaped, tail: true }, span));
@@ -866,6 +959,7 @@ impl<'a> Tokenizer<'a> {
                     self.skip_ws();
                     match self.state.chars.next() {
                         Some((_, ')')) => {
+                            self.state.paren_depth = self.state.paren_depth.saturating_sub(1);
                             return Ok((
                                 UrlTemplate {
                                     raw: unsafe { self.source.get_unchecked(start..end) },
@@ -1136,10 +1230,17 @@ impl<'a> Tokenizer<'a> {
                     span: Span { start, end: start + 1 },
                 }),
             },
-            Some((start, '}')) => Ok(TokenWithSpan {
-                token: Token::RBrace(RBrace {}),
-                span: Span { start, end: start + 1 },
-            }),
+            Some((start, '}')) => {
+                // In the indented syntax `}` only ever closes `#{`; see the
+                // HashLBrace arm below.
+                if self.syntax == Syntax::Sass {
+                    self.state.paren_depth = self.state.paren_depth.saturating_sub(1);
+                }
+                Ok(TokenWithSpan {
+                    token: Token::RBrace(RBrace {}),
+                    span: Span { start, end: start + 1 },
+                })
+            }
             Some((start, '(')) => {
                 self.state.paren_depth += 1;
                 Ok(TokenWithSpan {
@@ -1154,14 +1255,23 @@ impl<'a> Tokenizer<'a> {
                     span: Span { start, end: start + 1 },
                 })
             }
-            Some((start, '[')) => Ok(TokenWithSpan {
-                token: Token::LBracket(LBracket {}),
-                span: Span { start, end: start + 1 },
-            }),
-            Some((start, ']')) => Ok(TokenWithSpan {
-                token: Token::RBracket(RBracket {}),
-                span: Span { start, end: start + 1 },
-            }),
+            Some((start, '[')) => {
+                // Like `(...)`: newlines inside `[...]` are insignificant in
+                // the indented syntax (multi-line attribute selectors and
+                // bracketed lists).
+                self.state.paren_depth += 1;
+                Ok(TokenWithSpan {
+                    token: Token::LBracket(LBracket {}),
+                    span: Span { start, end: start + 1 },
+                })
+            }
+            Some((start, ']')) => {
+                self.state.paren_depth = self.state.paren_depth.saturating_sub(1);
+                Ok(TokenWithSpan {
+                    token: Token::RBracket(RBracket {}),
+                    span: Span { start, end: start + 1 },
+                })
+            }
             Some((start, '/')) => Ok(TokenWithSpan {
                 token: Token::Solidus(Solidus {}),
                 span: Span { start, end: start + 1 },
@@ -1308,8 +1418,8 @@ impl<'a> Tokenizer<'a> {
                         span: Span { start, end: start + 2 },
                     })
                 }
-                _ => Err(Error {
-                    kind: ErrorKind::UnknownToken,
+                _ => Ok(TokenWithSpan {
+                    token: Token::Unknown(Unknown {}),
                     span: Span { start, end: start + 1 },
                 }),
             },
@@ -1321,8 +1431,8 @@ impl<'a> Tokenizer<'a> {
                         span: Span { start, end: start + 2 },
                     })
                 }
-                _ => Err(Error {
-                    kind: ErrorKind::UnknownToken,
+                _ => Ok(TokenWithSpan {
+                    token: Token::Unknown(Unknown {}),
                     span: Span { start, end: start + 1 },
                 }),
             },
@@ -1346,6 +1456,12 @@ impl<'a> Tokenizer<'a> {
             Some((start, '#')) => match self.state.chars.peek() {
                 Some((_, '{')) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
                     self.state.chars.next();
+                    // Newlines inside `#{...}` are insignificant in the
+                    // indented syntax; the matching `}` closes it (see the
+                    // RBrace arm above).
+                    if self.syntax == Syntax::Sass {
+                        self.state.paren_depth += 1;
+                    }
                     Ok(TokenWithSpan {
                         token: Token::HashLBrace(HashLBrace {}),
                         span: Span { start, end: start + 2 },
@@ -1360,15 +1476,18 @@ impl<'a> Tokenizer<'a> {
                 token: Token::Percent(Percent {}),
                 span: Span { start, end: start + 1 },
             }),
-            Some((start, '@')) if self.syntax != Syntax::Css => {
+            Some((start, '@')) => {
                 Ok(TokenWithSpan { token: Token::At(At {}), span: Span { start, end: start + 1 } })
             }
             Some((i, c)) if c.is_ascii_whitespace() => Err(Error {
                 kind: ErrorKind::UnexpectedWhitespace,
                 span: Span { start: i, end: i + 1 },
             }),
-            Some((i, c)) => Err(Error {
-                kind: ErrorKind::UnknownToken,
+            // CSS Syntax: anything else is a <delim-token>, not a tokenizer
+            // error. Typed grammar rules reject it where it doesn't belong;
+            // raw component-value contexts preserve it.
+            Some((i, c)) => Ok(TokenWithSpan {
+                token: Token::Unknown(Unknown {}),
                 span: Span { start: i, end: i + c.len_utf8() },
             }),
             None => {
@@ -1417,4 +1536,16 @@ impl<'a> Tokenizer<'a> {
 #[inline]
 fn is_start_of_ident(c: char) -> bool {
     c.is_ascii_alphabetic() || c == '-' || c == '_' || !c.is_ascii() || c == '\\'
+}
+
+/// Whether an identifier starts at byte offset `at` of `source`, using the
+/// same dash lookahead as the tokenizer's dispatch (`-x` starts one, a lone
+/// `-` doesn't).
+pub(crate) fn ident_starts_at(source: &str, at: usize) -> bool {
+    let mut chars = source.get(at..).unwrap_or_default().chars();
+    match chars.next() {
+        Some('-') => matches!(chars.next(), Some(c) if is_start_of_ident(c) && c != '-'),
+        Some(c) => is_start_of_ident(c),
+        None => false,
+    }
 }

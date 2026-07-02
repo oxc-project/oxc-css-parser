@@ -1,8 +1,11 @@
 suite: wpt
 sha: 1722fb6566acac7b0fc7bfc9aae55a47594b9d03
-files: 5   success: 3   failed: 2
-clean: 3  recovered: 0  hard_error: 2  panic: 0
+files: 7   success: 5   failed: 0   expected: 2
+clean: 5  recovered: 0  hard_error: 0  panic: 0
 
 failures:
-ERROR    css/css-syntax/charset/support/bomless-utf16.css    unknown token
-ERROR    css/css-syntax/charset/support/bomless-utf16be.css    unknown token
+none
+
+expected failures (error tests, correct behavior):
+ERROR    css/css-syntax/charset/support/at-charset-windows-1250-in-utf16.css    expect token `{`, but found `<eof>`
+ERROR    css/css-syntax/charset/support/at-charset-windows-1250-in-utf16be.css    expect token `{`, but found `<eof>`

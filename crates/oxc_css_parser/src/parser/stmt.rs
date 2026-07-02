@@ -10,7 +10,6 @@ use crate::{
     expect, peek,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
-    util::PairedToken,
 };
 
 impl<'a> Parse<'a> for Declaration<'a> {
@@ -60,7 +59,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
         let less_property_merge = if input.syntax == Syntax::Less { input.parse()? } else { None };
 
         let (_, colon_span) = expect!(input, Colon);
-        let value = {
+        let (mut value, mut important) = {
             let mut parser = input.with_state(ParserState {
                 qualified_rule_ctx: Some(QualifiedRuleContext::DeclarationValue),
                 ..input.state
@@ -79,68 +78,89 @@ impl<'a> Parse<'a> for Declaration<'a> {
                     if parser.options.try_parsing_value_in_custom_property
                         && let Ok(values) = parser.try_parse(Parser::parse_declaration_value)
                     {
-                        break 'value values;
+                        break 'value (values, None);
                     }
-
-                    let mut values = parser.vec_with_capacity(3);
-                    let mut pairs = Vec::with_capacity(1);
-                    loop {
-                        match &peek!(parser).token {
-                            Token::Dedent(..) | Token::Linebreak(..) | Token::Eof(..) => break,
-                            Token::Semicolon(..) if pairs.is_empty() => {
-                                break;
-                            }
-                            Token::LParen(..) => {
-                                pairs.push(PairedToken::Paren);
-                            }
-                            Token::RParen(..) => {
-                                if let Some(PairedToken::Paren) = pairs.pop() {
-                                } else {
-                                    break;
-                                }
-                            }
-                            Token::LBracket(..) => {
-                                pairs.push(PairedToken::Bracket);
-                            }
-                            Token::RBracket(..) => {
-                                if let Some(PairedToken::Bracket) = pairs.pop() {
-                                } else {
-                                    break;
-                                }
-                            }
-                            Token::LBrace(..) | Token::HashLBrace(..) => {
-                                pairs.push(PairedToken::Brace);
-                            }
-                            Token::RBrace(..) => {
-                                if let Some(PairedToken::Brace) = pairs.pop() {
-                                } else {
-                                    break;
-                                }
-                            }
-                            // An interpolated string (e.g. `'#{$expr}'` inside
-                            // `filter: progid:...`) must be parsed structurally:
-                            // the tokenizer needs `scan_string_template` to resume
-                            // the string after each `#{...}`, so consuming its
-                            // tokens as a plain stream would mis-lex the rest.
-                            Token::StrTemplate(..) => {
-                                values.push(ComponentValue::InterpolableStr(parser.parse()?));
-                                continue;
-                            }
-                            _ => {}
-                        }
-                        values.push(ComponentValue::TokenWithSpan(bump!(parser)));
-                    }
-                    values
+                    (parser.parse_declaration_value_tokens(false)?, None)
                 }
-                _ => parser.parse_declaration_value()?,
+                // In CSS, a declaration value is any sequence of component
+                // values (CSS Syntax §5): serialized selectors (`b: .c > d`),
+                // map-like blocks (`b: (3: 4)`), or stray delimiters are all
+                // valid preserved tokens even though the typed grammar has no
+                // node for them. Try the typed grammar first; if it fails, or
+                // succeeds without accounting for everything up to the
+                // declaration terminator, re-parse the whole value as raw
+                // tokens. Scss/Sass/Less keep the strict grammar: their
+                // dialects assign meaning to these tokens and are expected to
+                // reject exactly what their reference compilers reject.
+                _ if parser.syntax == Syntax::Css
+                    || (parser.state.in_css_function_body
+                        && matches!(&name, InterpolableIdent::Literal(..))) =>
+                {
+                    let typed = parser.try_parse(|p| {
+                        let values = p.parse_declaration_value()?;
+                        let important = match &peek!(p).token {
+                            Token::Exclamation(..) => Some(p.parse::<ImportantAnnotation>()?),
+                            _ => None,
+                        };
+                        let next = peek!(p);
+                        if at_declaration_value_end(&next.token) {
+                            Ok((values, important))
+                        } else {
+                            Err(Error {
+                                kind: ErrorKind::ExpectComponentValue,
+                                span: next.span.clone(),
+                            })
+                        }
+                    });
+                    match typed {
+                        Ok(value_and_important) => value_and_important,
+                        Err(error) => {
+                            // A CSS custom function body holds declarations
+                            // only, so a top-level `{}` there is part of the
+                            // value; elsewhere it means this construct is
+                            // really a qualified rule (CSS Nesting
+                            // disambiguation) and the declaration is rejected.
+                            let in_fn_body = parser.state.in_css_function_body;
+                            let values = parser.parse_declaration_value_tokens(!in_fn_body)?;
+                            if !in_fn_body && let Token::LBrace(..) = &peek!(parser).token {
+                                return Err(error);
+                            }
+                            (values, None)
+                        }
+                    }
+                }
+                _ => (parser.parse_declaration_value()?, None),
             }
         };
 
-        let important = if let Token::Exclamation(..) = &peek!(input).token {
-            input.parse::<ImportantAnnotation>().map(Some)?
-        } else {
-            None
-        };
+        if important.is_none()
+            && let Token::Exclamation(..) = &peek!(input).token
+        {
+            important = Some(input.parse::<ImportantAnnotation>()?);
+        }
+        // dart-sass allows `!important` mid-value (`fludge: foo bar
+        // !important hux;`): when more value follows, the annotation is just
+        // another component, and only a trailing one is structural.
+        while matches!(input.syntax, Syntax::Scss | Syntax::Sass)
+            && important.is_some()
+            && !at_declaration_value_end(&peek!(input).token)
+        {
+            if let Some(annotation) = important.take() {
+                value.push(ComponentValue::ImportantAnnotation(annotation));
+            }
+            let more = input
+                .with_state(ParserState {
+                    qualified_rule_ctx: Some(QualifiedRuleContext::DeclarationValue),
+                    ..input.state
+                })
+                .parse_declaration_value()?;
+            for component in more {
+                value.push(component);
+            }
+            if let Token::Exclamation(..) = &peek!(input).token {
+                important = Some(input.parse::<ImportantAnnotation>()?);
+            }
+        }
 
         let span = Span {
             start: name_prefix_start.unwrap_or(name.span().start),
@@ -165,9 +185,23 @@ impl<'a> Parse<'a> for Declaration<'a> {
     }
 }
 
+/// End of a declaration's value: the declaration terminator tokens.
+fn at_declaration_value_end(token: &Token) -> bool {
+    matches!(
+        token,
+        Token::Semicolon(..)
+            | Token::RBrace(..)
+            | Token::RParen(..)
+            | Token::Dedent(..)
+            | Token::Linebreak(..)
+            | Token::Eof(..)
+    )
+}
+
 impl<'a> Parse<'a> for ImportantAnnotation<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, span) = expect!(input, Exclamation);
+        input.eat_sass_line_continuation()?;
         let ident: Ident = input.parse::<Ident>()?;
         let span = Span { start: span.start, end: ident.span.end };
         if ident.name.eq_ignore_ascii_case("important") {
@@ -196,8 +230,25 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let is_sass = input.syntax == Syntax::Sass;
         let start = if is_sass {
+            // A continuation line deeper than this block's own level leaves a
+            // pending indent whose `Dedent` arrives before the block opens
+            // (`a,\n    b\n  c: d`); cancel those out first.
+            let drained = input.drain_sass_pending_dedents()?;
             if let Some((_, span)) = eat!(input, Indent) {
                 span.end
+            } else if drained
+                && input.sass_pending_indents == 0
+                && input.tokenizer.reopen_indent_level()
+            {
+                // The block's level sat between two known indents, so its
+                // `Indent` was never emitted; re-open it directly.
+                peek!(input).span.start
+            } else if input.sass_pending_indents > 0 {
+                // The statement's clause consumed this block's `Indent` as a
+                // line continuation (`@each $a in\n  b, c\n  .x\n    ...`);
+                // enter the block "virtually" at that depth.
+                input.sass_pending_indents -= 1;
+                peek!(input).span.start
             } else {
                 let offset = peek!(input).span.start;
                 return Ok(SimpleBlock {
@@ -237,6 +288,50 @@ impl<'a> Parse<'a> for Stylesheet<'a> {
 }
 
 impl<'a> Parser<'a> {
+    /// Consume a declaration value as raw tokens (CSS Syntax "preserved
+    /// tokens"), balancing `()`/`[]`/`{}` pairs, until a top-level `;`, an
+    /// unbalanced closer, or a statement boundary. Used for custom-property
+    /// values and as the fallback for CSS values the typed grammar rejects.
+    ///
+    /// `stop_at_top_level_brace` implements the CSS Nesting disambiguation: a
+    /// `{` at the top level of a normal declaration's value means the whole
+    /// construct is really a qualified rule, so the value must end there.
+    /// Custom properties are exempt (`--foo: {a:b}` is a valid value).
+    pub(super) fn parse_declaration_value_tokens(
+        &mut self,
+        stop_at_top_level_brace: bool,
+    ) -> PResult<oxc_allocator::Vec<'a, ComponentValue<'a>>> {
+        let mut values = self.vec_with_capacity(3);
+        let mut pairs = Vec::with_capacity(1);
+        loop {
+            match &peek!(self).token {
+                Token::Dedent(..) | Token::Linebreak(..) | Token::Eof(..) => break,
+                Token::Semicolon(..) if pairs.is_empty() => {
+                    break;
+                }
+                Token::LBrace(..) if stop_at_top_level_brace && pairs.is_empty() => {
+                    break;
+                }
+                // An interpolated string (e.g. `'#{$expr}'` inside
+                // `filter: progid:...`) must be parsed structurally:
+                // the tokenizer needs `scan_string_template` to resume
+                // the string after each `#{...}`, so consuming its
+                // tokens as a plain stream would mis-lex the rest.
+                Token::StrTemplate(..) => {
+                    values.push(ComponentValue::InterpolableStr(self.parse()?));
+                    continue;
+                }
+                token => {
+                    if !crate::util::track_paired_token(token, &mut pairs) {
+                        break;
+                    }
+                }
+            }
+            values.push(ComponentValue::TokenWithSpan(bump!(self)));
+        }
+        Ok(values)
+    }
+
     pub(super) fn parse_declaration_value(
         &mut self,
     ) -> PResult<oxc_allocator::Vec<'a, ComponentValue<'a>>> {
@@ -265,6 +360,18 @@ impl<'a> Parser<'a> {
             }
         }
         Ok(values)
+    }
+
+    /// In a `@keyframes` body, an ident may start a keyframe block (`from {`)
+    /// or — in real-world code — a plain declaration (`blah: blee;`); dart-sass
+    /// accepts both. Returns the statement and whether it opened a block.
+    fn parse_keyframe_block_or_declaration(&mut self) -> PResult<(Statement<'a>, bool)> {
+        if let Ok(block) = self.try_parse(KeyframeBlock::parse) {
+            Ok((Statement::KeyframeBlock(block), true))
+        } else {
+            let decl = self.parse_style_rule_declaration()?;
+            Ok((Statement::Declaration(decl), false))
+        }
     }
 
     /// Parse a qualified rule, falling back to a declaration when the `foo: bar`
@@ -320,8 +427,10 @@ impl<'a> Parser<'a> {
                     match self.syntax {
                         Syntax::Css => {
                             if self.state.in_keyframes_at_rule {
-                                statements.push(Statement::KeyframeBlock(self.parse()?));
-                                is_block_element = true;
+                                let (stmt, is_block) =
+                                    self.parse_keyframe_block_or_declaration()?;
+                                is_block_element = is_block;
+                                statements.push(stmt);
                             } else {
                                 let (stmt, is_block) =
                                     self.parse_rule_or_declaration(is_top_level)?;
@@ -338,8 +447,10 @@ impl<'a> Parser<'a> {
                                     sass_var_decl
                                 )));
                             } else if self.state.in_keyframes_at_rule {
-                                statements.push(Statement::KeyframeBlock(self.parse()?));
-                                is_block_element = true;
+                                let (stmt, is_block) =
+                                    self.parse_keyframe_block_or_declaration()?;
+                                is_block_element = is_block;
+                                statements.push(stmt);
                             } else {
                                 let (stmt, is_block) =
                                     self.parse_rule_or_declaration(is_top_level)?;
@@ -351,16 +462,11 @@ impl<'a> Parser<'a> {
                             if let Ok(stmt) = self.try_parse(Parser::parse_less_qualified_rule) {
                                 statements.push(stmt);
                                 is_block_element = true;
-                            } else if let Ok(decl) = self.try_parse(|parser| {
-                                if is_top_level {
-                                    Err(Error {
-                                        kind: ErrorKind::TryParseError,
-                                        span: bump!(parser).span,
-                                    })
-                                } else {
-                                    parser.parse()
-                                }
-                            }) {
+                            } else if let Ok(decl) =
+                                // less.js parses root-level declarations and
+                                // only rejects them at eval time.
+                                self.try_parse(Declaration::parse)
+                            {
                                 statements.push(Statement::Declaration(decl));
                             } else if self.state.in_keyframes_at_rule {
                                 statements.push(Statement::KeyframeBlock(self.parse()?));
@@ -532,6 +638,59 @@ impl<'a> Parser<'a> {
                         self.parse()?
                     )));
                 }
+                // Indented-syntax shorthands: `=name` defines a mixin
+                // (`@mixin name`) and `+name` includes one (`@include name`).
+                // A spaced `+ b` stays a sibling-combinator selector: `+` is
+                // an include only when glued to an identifier.
+                Token::Equal(..) if self.syntax == Syntax::Sass => {
+                    let eq_span = bump!(self).span;
+                    self.eat_sass_line_continuation()?;
+                    let prelude = self.parse::<SassMixin>()?;
+                    let block = self
+                        .with_state(ParserState {
+                            sass_ctx: self.state.sass_ctx
+                                | super::state::SASS_CTX_ALLOW_KEYFRAME_BLOCK,
+                            ..self.state.clone()
+                        })
+                        .parse::<SimpleBlock>()?;
+                    let span = Span { start: eq_span.start, end: block.span.end };
+                    statements.push(Statement::AtRule(AtRule {
+                        name: Ident { name: "mixin", raw: "=", span: eq_span },
+                        prelude: Some(AtRulePrelude::SassMixin(arena_box!(self, prelude))),
+                        block: Some(block),
+                        span,
+                    }));
+                    is_block_element = true;
+                }
+                Token::Plus(..)
+                    if self.syntax == Syntax::Sass
+                        && crate::tokenizer::ident_starts_at(self.source, span.end) =>
+                {
+                    let plus_span = bump!(self).span;
+                    let prelude = self.parse::<SassInclude>()?;
+                    let block =
+                        if matches!(peek!(self).token, Token::LBrace(..) | Token::Indent(..)) {
+                            Some(
+                                self.with_state(ParserState {
+                                    sass_ctx: self.state.sass_ctx
+                                        | super::state::SASS_CTX_ALLOW_KEYFRAME_BLOCK,
+                                    ..self.state.clone()
+                                })
+                                .parse::<SimpleBlock>()?,
+                            )
+                        } else {
+                            None
+                        };
+                    let end = block.as_ref().map_or(prelude.span.end, |block| block.span.end);
+                    let span = Span { start: plus_span.start, end };
+                    is_block_element = block.is_some();
+                    statements.push(Statement::AtRule(AtRule {
+                        name: Ident { name: "include", raw: "+", span: plus_span },
+                        prelude: Some(AtRulePrelude::SassInclude(arena_box!(self, prelude))),
+                        block,
+                        span,
+                    }));
+                }
                 Token::GreaterThan(..) | Token::Plus(..) | Token::Tilde(..) | Token::BarBar(..) => {
                     if self.syntax == Syntax::Less {
                         statements.push(self.parse_less_qualified_rule()?);
@@ -597,6 +756,14 @@ impl<'a> Parser<'a> {
                     });
                 }
             };
+            // Drain continuation indents that never became a block (e.g.
+            // `$a\n  : b` — the deeper line belonged to the statement's own
+            // clause, so its matching `Dedent` has no block to close). A
+            // drained `Dedent` is itself a line boundary, so the statement
+            // separator is already satisfied.
+            if self.drain_sass_pending_dedents()? {
+                continue;
+            }
             match &peek!(self).token {
                 Token::RBrace(..) | Token::Eof(..) | Token::Dedent(..) => break,
                 _ => {

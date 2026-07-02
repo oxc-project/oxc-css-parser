@@ -196,6 +196,12 @@ pub enum CombinatorKind {
     LaterSibling,
     /// `||`
     Column,
+    /// `/deep/` (deprecated shadow-piercing descendant)
+    Deep,
+    /// `^` (deprecated shadow child)
+    ShadowChild,
+    /// `^^` (deprecated shadow descendant)
+    ShadowDescendant,
 }
 
 #[derive(Debug)]
@@ -237,6 +243,7 @@ pub enum ComponentValue<'a> {
     LessList(LessList<'a>),
     LessMixinCall(Box<'a, LessMixinCall<'a>>),
     LessNamespaceValue(Box<'a, LessNamespaceValue<'a>>),
+    LessVariableCall(LessVariableCall<'a>),
     LessNegativeValue(LessNegativeValue<'a>),
     LessParenthesizedOperation(LessParenthesizedOperation<'a>),
     LessPercentKeyword(LessPercentKeyword),
@@ -521,6 +528,13 @@ pub struct ImportPrelude<'a> {
     pub layer: Option<ImportPreludeLayer<'a>>,
     pub supports: Option<ImportPreludeSupports<'a>>,
     pub media: Option<MediaQueryList<'a>>,
+    /// Import modifiers that don't fit the `layer()`/`supports()`/media-query
+    /// grammar, kept as raw component values — reference compilers accept an
+    /// arbitrary mix of idents, functions, and parens here, and a comma may
+    /// even chain further imports (`@import "a" b c(d), "e" supports(f: g);`).
+    /// When present, `layer`/`supports`/`media` are `None` and the whole
+    /// post-URL tail lives here.
+    pub modifiers: Option<ComponentValues<'a>>,
     pub span: Span,
 }
 
@@ -1600,6 +1614,7 @@ pub struct PseudoElementSelectorArg<'a> {
 #[cfg_attr(feature = "serialize", serde(untagged))]
 pub enum PseudoElementSelectorArgKind<'a> {
     CompoundSelector(CompoundSelector<'a>),
+    CompoundSelectorList(CompoundSelectorList<'a>),
     Ident(InterpolableIdent<'a>),
     TokenSeq(TokenSeq<'a>),
 }
@@ -2444,6 +2459,9 @@ pub enum SupportsInParensKind<'a> {
     Selector(SelectorList<'a>),
     Function(Function<'a>),
     GeneralEnclosed(TokenSeq<'a>),
+    /// Sass only: a lone interpolation as a condition operand,
+    /// e.g. `@supports #{"(a: b)"} { ... }`.
+    Interpolation(InterpolableIdent<'a>),
 }
 
 #[derive(Debug)]

@@ -13,6 +13,26 @@ use crate::{
 const PRECEDENCE_MULTIPLY: u8 = 2;
 const PRECEDENCE_PLUS: u8 = 1;
 
+/// Strip one leading `-vendor-` prefix (`-moz-calc` -> `calc`); returns the
+/// name unchanged when there is none.
+fn unvendored(name: &str) -> &str {
+    name.strip_prefix('-').and_then(|rest| rest.split_once('-')).map_or(name, |(_, base)| base)
+}
+
+/// dart-sass "special functions" whose contents may be raw text rather than
+/// values, but which are worth a typed parse first (so plain `element(#id)`
+/// or `-webkit-calc(1px + 2px)` keep their structured AST): `element(...)`
+/// and `type(...)`, plus `calc(...)`/`url(...)` under an unrecognized vendor
+/// prefix. (`expression(...)` and `progid:...(...)` are always raw, and an
+/// unvendored `calc`/`url` is parsed as a real calculation/URL.)
+fn is_special_typed_or_raw_function(name: &str) -> bool {
+    let base = unvendored(name);
+    let vendored = base.len() != name.len();
+    base.eq_ignore_ascii_case("element")
+        || (!vendored && (base.eq_ignore_ascii_case("type") || base.eq_ignore_ascii_case("if")))
+        || (vendored && (base.eq_ignore_ascii_case("calc") || base.eq_ignore_ascii_case("url")))
+}
+
 impl<'a> Parser<'a> {
     pub(in crate::parser) fn parse_calc_expr(
         &mut self,
@@ -31,6 +51,33 @@ impl<'a> Parser<'a> {
                 let expr = self.parse_calc_expr(allow_modulo)?;
                 expect!(self, RParen);
                 expr
+            } else if matches!(self.syntax, Syntax::Scss | Syntax::Sass)
+                && matches!(&peek!(self).token, Token::Minus(..) | Token::Plus(..))
+                && {
+                    let span = &peek!(self).span;
+                    self.source.as_bytes().get(span.end) == Some(&b'(')
+                }
+            {
+                // SassScript allows a unary sign glued to a parenthesized
+                // operand inside a calculation (`round(-(1) + 2)`); a spaced
+                // `calc(+ 1px)` stays invalid, as in dart-sass.
+                let op = match &peek!(self).token {
+                    Token::Minus(..) => SassUnaryOperator {
+                        kind: SassUnaryOperatorKind::Minus,
+                        span: bump!(self).span,
+                    },
+                    _ => SassUnaryOperator {
+                        kind: SassUnaryOperatorKind::Plus,
+                        span: bump!(self).span,
+                    },
+                };
+                let expr = self.parse_calc_expr_recursively(PRECEDENCE_MULTIPLY, allow_modulo)?;
+                let span = Span { start: op.span.start, end: expr.span().end };
+                ComponentValue::SassUnaryExpression(SassUnaryExpression {
+                    expr: arena_box!(self, expr),
+                    op,
+                    span,
+                })
             } else if self.syntax == Syntax::Less {
                 if matches!(peek!(self).token, Token::Minus(..)) {
                     ComponentValue::LessNegativeValue(self.parse()?)
@@ -84,20 +131,23 @@ impl<'a> Parser<'a> {
         let token_with_span = peek!(self);
         match &token_with_span.token {
             Token::Ident(token) => {
-                if token.name().eq_ignore_ascii_case("url") {
+                if unvendored(&token.name()).eq_ignore_ascii_case("url") {
                     match self.try_parse(Url::parse) {
                         Ok(url) => return Ok(ComponentValue::Url(arena_box!(self, url))),
                         Err(Error { kind: ErrorKind::TryParseError, .. }) => {}
                         Err(error) => {
-                            return if matches!(self.syntax, Syntax::Scss | Syntax::Sass) {
-                                let (function_name, function_name_span) = expect!(self, Ident);
-                                let function_name = self.ident(function_name, function_name_span);
-                                self.parse_function(InterpolableIdent::Literal(function_name))
-                                    .map(ComponentValue::Function)
-                                    .map_err(|_| error)
-                            } else {
-                                Err(error)
-                            };
+                            // Not a `<url-token>` (quotes, parens, or raw
+                            // whitespace inside). Reference compilers accept
+                            // these as a function call with raw-ish contents
+                            // (`url(fn("s"))`, multi-line data: URIs), so fall
+                            // back to a function parse, keeping the original
+                            // error if even that shape doesn't fit.
+                            let (function_name, function_name_span) = expect!(self, Ident);
+                            let function_name = self.ident(function_name, function_name_span);
+                            return self
+                                .parse_function_typed_or_raw(function_name)
+                                .map(ComponentValue::Function)
+                                .map_err(|_| error);
                         }
                     }
                 }
@@ -112,8 +162,39 @@ impl<'a> Parser<'a> {
                                 self.parse_src_url(ident)
                                     .map(|url| ComponentValue::Url(arena_box!(self, url)))
                             }
+                            InterpolableIdent::Literal(ident)
+                                if unvendored(ident.name).eq_ignore_ascii_case("expression") =>
+                            {
+                                // IE `expression(...)` (any vendor prefix):
+                                // contents are script, not CSS values.
+                                self.parse_raw_function(InterpolableIdent::Literal(ident))
+                                    .map(ComponentValue::Function)
+                            }
+                            InterpolableIdent::Literal(ident)
+                                if is_special_typed_or_raw_function(ident.name) =>
+                            {
+                                self.parse_function_typed_or_raw(ident)
+                                    .map(ComponentValue::Function)
+                            }
                             ident => self.parse_function(ident).map(ComponentValue::Function),
                         };
+                    }
+                    // IE filter syntax `-c-progid:d.e(...)` — everything to
+                    // the matching `)` is raw. (An unprefixed `progid:` at the
+                    // start of a value takes the whole-value raw path in
+                    // `Declaration::parse` instead.)
+                    TokenWithSpan { token: Token::Colon(..), span }
+                        if span.start == ident_end
+                            && matches!(
+                                &ident,
+                                InterpolableIdent::Literal(id)
+                                    if unvendored(id.name).eq_ignore_ascii_case("progid")
+                            ) =>
+                    {
+                        if let InterpolableIdent::Literal(ident) = ident {
+                            return self.parse_progid_function(ident).map(ComponentValue::Function);
+                        }
+                        unreachable!("guard matched a literal ident");
                     }
                     TokenWithSpan { token: Token::Dot(..), span }
                         if matches!(self.syntax, Syntax::Scss | Syntax::Sass)
@@ -325,29 +406,54 @@ impl<'a> Parser<'a> {
                     let allow_modulo = matches!(self.syntax, Syntax::Scss | Syntax::Sass)
                         && (ident.name.eq_ignore_ascii_case("min")
                             || ident.name.eq_ignore_ascii_case("max"));
-                    let mut values = self.vec_with_capacity(1);
-                    loop {
-                        match peek!(self) {
-                            TokenWithSpan { token: Token::RParen(..), .. } => break,
-                            TokenWithSpan { token: Token::Comma(..), .. } => {
-                                values.push(ComponentValue::Delimiter(self.parse()?));
+                    // The calc grammar doesn't cover SassScript uses of these
+                    // names (`abs(\$number: -3)`, `max(1 2 3...)`,
+                    // `round(-(1) + 2)`); Scss/Sass fall back to a strict
+                    // SassScript call — but only there, so invalid calc stays
+                    // invalid. Other syntaxes have no fallback, so they skip
+                    // the rollback snapshot entirely.
+                    if !matches!(self.syntax, Syntax::Scss | Syntax::Sass) {
+                        self.parse_calc_args(allow_modulo)?
+                    } else {
+                        let typed = self.try_parse(|p| {
+                            let values = p.parse_calc_args(allow_modulo)?;
+                            if matches!(&peek!(p).token, Token::RParen(..)) {
+                                Ok(values)
+                            } else {
+                                let span = peek!(p).span.clone();
+                                Err(Error { kind: ErrorKind::TryParseError, span })
                             }
-                            TokenWithSpan { token: Token::DotDotDot(..), .. }
-                                if matches!(self.syntax, Syntax::Scss | Syntax::Sass)
-                                    && values.len() == 1 =>
-                            {
-                                let TokenWithSpan { span: Span { end, .. }, .. } = bump!(self);
-                                let value = values.remove(0);
-                                let span = Span { start: value.span().start, end };
-                                values.push(ComponentValue::SassArbitraryArgument(
-                                    SassArbitraryArgument { value: arena_box!(self, value), span },
-                                ));
-                                break;
+                        });
+                        match typed {
+                            Ok(values) => values,
+                            Err(error) => {
+                                let (args, comma_spans) = self.parse_sass_invocation_args()?;
+                                // Only a keyword argument justifies the fallback
+                                // (`abs(\$number: -3)` is a SassScript call); plain
+                                // expressions the calc grammar rejected
+                                // (`calc(1px % 2px)`, double spreads) stay invalid.
+                                if !args.iter().any(|arg| {
+                                    matches!(arg, ComponentValue::SassKeywordArgument(..))
+                                }) {
+                                    return Err(error);
+                                }
+                                let mut values = self.vec_with_capacity(args.len() * 2);
+                                let mut comma_spans = comma_spans.into_iter();
+                                for (i, arg) in args.into_iter().enumerate() {
+                                    if i > 0
+                                        && let Some(span) = comma_spans.next()
+                                    {
+                                        values.push(ComponentValue::Delimiter(Delimiter {
+                                            kind: DelimiterKind::Comma,
+                                            span,
+                                        }));
+                                    }
+                                    values.push(arg);
+                                }
+                                values
                             }
-                            _ => values.push(self.parse_calc_expr(allow_modulo)?),
                         }
                     }
-                    values
                 }
                 InterpolableIdent::Literal(ident) if ident.name.eq_ignore_ascii_case("element") => {
                     arena_vec!(self; self.parse().map(ComponentValue::IdSelector)?)
@@ -371,6 +477,123 @@ impl<'a> Parser<'a> {
         Ok(Function { name: FunctionName::Ident(name), args, span })
     }
 
+    /// The `calc()`-family argument list: comma-delimited calc expressions,
+    /// with the SassScript spread (`max(1 2 3...)`) wrapping the preceding
+    /// value. Stops before the closing `)`.
+    fn parse_calc_args(
+        &mut self,
+        allow_modulo: bool,
+    ) -> PResult<oxc_allocator::Vec<'a, ComponentValue<'a>>> {
+        let mut values = self.vec_with_capacity(1);
+        loop {
+            match peek!(self) {
+                TokenWithSpan { token: Token::RParen(..), .. } => break,
+                TokenWithSpan { token: Token::Comma(..), .. } => {
+                    values.push(ComponentValue::Delimiter(self.parse()?));
+                }
+                // a spread is SassScript, so only the legacy `min`/`max`
+                // accept it (`clamp(1px 2px 3px...)` errors), and only once
+                TokenWithSpan { token: Token::DotDotDot(..), .. }
+                    if allow_modulo
+                        && matches!(self.syntax, Syntax::Scss | Syntax::Sass)
+                        && !values.is_empty()
+                        && !values
+                            .iter()
+                            .any(|v| matches!(v, ComponentValue::SassArbitraryArgument(..))) =>
+                {
+                    let TokenWithSpan { span: Span { end, .. }, .. } = bump!(self);
+                    let value = values.pop().unwrap();
+                    let span = Span { start: value.span().start, end };
+                    values.push(ComponentValue::SassArbitraryArgument(SassArbitraryArgument {
+                        value: arena_box!(self, value),
+                        span,
+                    }));
+                }
+                _ => values.push(self.parse_calc_expr(allow_modulo)?),
+            }
+        }
+        Ok(values)
+    }
+
+    /// Parse a function with the typed grammar; when its arguments don't fit
+    /// (dart-sass special functions carry raw text: `element(/**/ c)`,
+    /// `-c-calc(@#$)`, `url(fn("s"))`), re-parse the contents as raw tokens.
+    pub(super) fn parse_function_typed_or_raw(&mut self, name: Ident<'a>) -> PResult<Function<'a>> {
+        let name_copy = Ident { name: name.name, raw: name.raw, span: name.span.clone() };
+        match self.try_parse(|p| p.parse_function(InterpolableIdent::Literal(name))) {
+            Ok(function) => Ok(function),
+            Err(_) => self.parse_raw_function(InterpolableIdent::Literal(name_copy)),
+        }
+    }
+
+    /// Parse `name(<raw contents>)` where the contents are preserved tokens
+    /// balanced to the matching `)` (IE `expression(...)`, unknown
+    /// `@supports` functions, and friends).
+    pub(in crate::parser) fn parse_raw_function(
+        &mut self,
+        name: InterpolableIdent<'a>,
+    ) -> PResult<Function<'a>> {
+        expect!(self, LParen);
+        let mut args = self.vec_with_capacity(4);
+        self.parse_raw_function_args_into(&mut args)?;
+        let end = expect!(self, RParen).1.end;
+        let span = Span { start: name.span().start, end };
+        Ok(Function { name: FunctionName::Ident(name), args, span })
+    }
+
+    /// IE filter syntax `progid:DXImageTransform.Microsoft.f(...)`, optionally
+    /// vendor prefixed: the `:dotted.path` prefix and the parenthesized
+    /// contents are all preserved tokens.
+    fn parse_progid_function(&mut self, name: Ident<'a>) -> PResult<Function<'a>> {
+        let mut args = self.vec_with_capacity(4);
+        loop {
+            match &peek!(self).token {
+                Token::LParen(..)
+                | Token::Semicolon(..)
+                | Token::RBrace(..)
+                | Token::RParen(..)
+                | Token::Eof(..)
+                | Token::Indent(..)
+                | Token::Dedent(..)
+                | Token::Linebreak(..) => break,
+                _ => args.push(ComponentValue::TokenWithSpan(bump!(self))),
+            }
+        }
+        expect!(self, LParen);
+        self.parse_raw_function_args_into(&mut args)?;
+        let end = expect!(self, RParen).1.end;
+        let span = Span { start: name.span.start, end };
+        Ok(Function { name: FunctionName::Ident(InterpolableIdent::Literal(name)), args, span })
+    }
+
+    /// Consume function contents as preserved tokens, balancing pairs, until
+    /// the function's own `)`. Semicolons and stray delimiters are legal here
+    /// (`expression(a;b)`, `url(data:...;base64,...)`).
+    fn parse_raw_function_args_into(
+        &mut self,
+        values: &mut oxc_allocator::Vec<'a, ComponentValue<'a>>,
+    ) -> PResult<()> {
+        let mut pairs: Vec<util::PairedToken> = Vec::with_capacity(1);
+        loop {
+            match &peek!(self).token {
+                Token::Eof(..) => break,
+                // Interpolated strings must be parsed structurally so the
+                // tokenizer resumes the string after each `#{...}`.
+                Token::StrTemplate(..) => {
+                    values.push(ComponentValue::InterpolableStr(self.parse()?));
+                    continue;
+                }
+                token => {
+                    if !util::track_paired_token(token, &mut pairs) {
+                        break;
+                    }
+                }
+            }
+            values.push(ComponentValue::TokenWithSpan(bump!(self)));
+        }
+        Ok(())
+    }
+
     pub(super) fn parse_function_args(
         &mut self,
     ) -> PResult<oxc_allocator::Vec<'a, ComponentValue<'a>>> {
@@ -390,6 +613,13 @@ impl<'a> Parser<'a> {
                 }
                 Token::Indent(..) | Token::Dedent(..) | Token::Linebreak(..) => {
                     bump!(self);
+                }
+                // A stray delimiter is a plain token in CSS, but the
+                // preprocessor dialects give it real syntax and their
+                // reference compilers reject it in function arguments.
+                Token::Unknown(..) if self.syntax != Syntax::Css => {
+                    let span = peek!(self).span.clone();
+                    return Err(Error { kind: ErrorKind::UnknownToken, span });
                 }
                 _ => {
                     let value = if let Ok(value) = self.try_parse(ComponentValue::parse) {
@@ -572,18 +802,10 @@ impl<'a> Parser<'a> {
                 .map_err(|_| Error { kind: ErrorKind::InvalidUnicodeRange, span: span.clone() })?;
             UnicodeRange { prefix, start, start_raw: source, end, end_raw: None, span }
         };
-        if unicode_range.end > 0x10ffff {
-            self.recoverable_errors.push(Error {
-                kind: ErrorKind::MaxCodePointExceeded,
-                span: unicode_range.span.clone(),
-            });
-        }
-        if unicode_range.start > unicode_range.end {
-            self.recoverable_errors.push(Error {
-                kind: ErrorKind::UnicodeRangeStartGreaterThanEnd,
-                span: unicode_range.span.clone(),
-            });
-        }
+        // Value-level checks (end > U+10FFFF, start > end) are deliberately
+        // NOT errors: reference compilers pass such ranges through and
+        // browsers clamp/ignore them at used-value time (`U+??????`,
+        // `U+123456`, `U+1A2B3C-10FFFF` all appear in real-world corpora).
         Ok(unicode_range)
     }
 }
@@ -828,7 +1050,15 @@ impl<'a> Parse<'a> for Str<'a> {
 impl<'a> Parse<'a> for Url<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (prefix, prefix_span) = expect!(input, Ident);
-        if !prefix.name().eq_ignore_ascii_case("url") {
+        // `url-prefix(...)` and `domain(...)` (Gecko `@document` matchers)
+        // take the same unquoted-URL contents as `url(...)` — token-level
+        // scanning would mis-lex `//` in `https://` as a comment.
+        let prefix_name = prefix.name();
+        let base_name = unvendored(&prefix_name);
+        if !base_name.eq_ignore_ascii_case("url")
+            && !base_name.eq_ignore_ascii_case("url-prefix")
+            && !base_name.eq_ignore_ascii_case("domain")
+        {
             return Err(Error { kind: ErrorKind::ExpectUrl, span: prefix_span });
         }
         let prefix_start = prefix_span.start;

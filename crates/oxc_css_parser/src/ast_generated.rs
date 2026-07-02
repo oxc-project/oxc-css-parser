@@ -125,7 +125,7 @@ impl_spanned_enum!(ComplexSelectorChild<'a> {
     unit: [],
 });
 impl_spanned_enum!(ComponentValue<'a> {
-    tuple: [BracketBlock, Calc, Delimiter, Dimension, Function, HexColor, IdSelector, ImportantAnnotation, InterpolableIdent, InterpolableStr, LayerName, LessBinaryOperation, LessCondition, LessDetachedRuleset, LessEscapedStr, LessJavaScriptSnippet, LessList, LessMixinCall, LessNamespaceValue, LessNegativeValue, LessParenthesizedOperation, LessPercentKeyword, LessPropertyVariable, LessVariable, LessVariableVariable, Number, Percentage, Placeholder, PostcssSimpleVar, Ratio, SassArbitraryArgument, SassBinaryExpression, SassKeywordArgument, SassList, SassMap, SassQualifiedName, SassNestingDeclaration, SassParenthesizedExpression, SassParentSelector, SassUnaryExpression, SassVariable, TokenWithSpan, UnicodeRange, Url, ],
+    tuple: [BracketBlock, Calc, Delimiter, Dimension, Function, HexColor, IdSelector, ImportantAnnotation, InterpolableIdent, InterpolableStr, LayerName, LessBinaryOperation, LessCondition, LessDetachedRuleset, LessEscapedStr, LessJavaScriptSnippet, LessList, LessMixinCall, LessNamespaceValue, LessVariableCall, LessNegativeValue, LessParenthesizedOperation, LessPercentKeyword, LessPropertyVariable, LessVariable, LessVariableVariable, Number, Percentage, Placeholder, PostcssSimpleVar, Ratio, SassArbitraryArgument, SassBinaryExpression, SassKeywordArgument, SassList, SassMap, SassQualifiedName, SassNestingDeclaration, SassParenthesizedExpression, SassParentSelector, SassUnaryExpression, SassVariable, TokenWithSpan, UnicodeRange, Url, ],
     unit: [],
 });
 impl_spanned_struct!(ComponentValues<'a>);
@@ -374,7 +374,7 @@ impl_spanned_enum!(PseudoClassSelectorArgKind<'a> {
 impl_spanned_struct!(PseudoElementSelector<'a>);
 impl_spanned_struct!(PseudoElementSelectorArg<'a>);
 impl_spanned_enum!(PseudoElementSelectorArgKind<'a> {
-    tuple: [CompoundSelector, Ident, TokenSeq, ],
+    tuple: [CompoundSelector, CompoundSelectorList, Ident, TokenSeq, ],
     unit: [],
 });
 impl_spanned_struct!(PseudoPage<'a>);
@@ -520,7 +520,7 @@ impl_spanned_enum!(SupportsConditionKind<'a> {
 impl_spanned_struct!(SupportsDecl<'a>);
 impl_spanned_struct!(SupportsInParens<'a>);
 impl_spanned_enum!(SupportsInParensKind<'a> {
-    tuple: [SupportsCondition, Feature, Selector, Function, GeneralEnclosed, ],
+    tuple: [SupportsCondition, Feature, Selector, Function, GeneralEnclosed, Interpolation, ],
     unit: [],
 });
 impl_spanned_struct!(SupportsNot<'a>);
@@ -600,7 +600,7 @@ impl_span_ignored_eq_struct!(Combinator { kind, });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_enum!(CombinatorKind {
     tuple: [],
-    unit: [Descendant, NextSibling, Child, LaterSibling, Column, ],
+    unit: [Descendant, NextSibling, Child, LaterSibling, Column, Deep, ShadowChild, ShadowDescendant, ],
 });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_struct!(ComplexSelector<'a> { children, });
@@ -611,7 +611,7 @@ impl_span_ignored_eq_enum!(ComplexSelectorChild<'a> {
 });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_enum!(ComponentValue<'a> {
-    tuple: [BracketBlock, Calc, Delimiter, Dimension, Function, HexColor, IdSelector, ImportantAnnotation, InterpolableIdent, InterpolableStr, LayerName, LessBinaryOperation, LessCondition, LessDetachedRuleset, LessEscapedStr, LessJavaScriptSnippet, LessList, LessMixinCall, LessNamespaceValue, LessNegativeValue, LessParenthesizedOperation, LessPercentKeyword, LessPropertyVariable, LessVariable, LessVariableVariable, Number, Percentage, Placeholder, PostcssSimpleVar, Ratio, SassArbitraryArgument, SassBinaryExpression, SassKeywordArgument, SassList, SassMap, SassQualifiedName, SassNestingDeclaration, SassParenthesizedExpression, SassParentSelector, SassUnaryExpression, SassVariable, TokenWithSpan, UnicodeRange, Url, ],
+    tuple: [BracketBlock, Calc, Delimiter, Dimension, Function, HexColor, IdSelector, ImportantAnnotation, InterpolableIdent, InterpolableStr, LayerName, LessBinaryOperation, LessCondition, LessDetachedRuleset, LessEscapedStr, LessJavaScriptSnippet, LessList, LessMixinCall, LessNamespaceValue, LessVariableCall, LessNegativeValue, LessParenthesizedOperation, LessPercentKeyword, LessPropertyVariable, LessVariable, LessVariableVariable, Number, Percentage, Placeholder, PostcssSimpleVar, Ratio, SassArbitraryArgument, SassBinaryExpression, SassKeywordArgument, SassList, SassMap, SassQualifiedName, SassNestingDeclaration, SassParenthesizedExpression, SassParentSelector, SassUnaryExpression, SassVariable, TokenWithSpan, UnicodeRange, Url, ],
     unit: [],
 });
 #[cfg(feature = "span_ignored_eq")]
@@ -690,7 +690,7 @@ impl_span_ignored_eq_struct!(HexColor<'a> { value, raw, });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_struct!(Ident<'a> { name, raw, });
 #[cfg(feature = "span_ignored_eq")]
-impl_span_ignored_eq_struct!(ImportPrelude<'a> { href, layer, supports, media, });
+impl_span_ignored_eq_struct!(ImportPrelude<'a> { href, layer, supports, media, modifiers, });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_enum!(ImportPreludeHref<'a> {
     tuple: [Str, Url, Function, ],
@@ -1024,7 +1024,7 @@ impl_span_ignored_eq_struct!(PseudoElementSelector<'a> { name, arg, });
 impl_span_ignored_eq_struct!(PseudoElementSelectorArg<'a> { kind, l_paren, r_paren, });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_enum!(PseudoElementSelectorArgKind<'a> {
-    tuple: [CompoundSelector, Ident, TokenSeq, ],
+    tuple: [CompoundSelector, CompoundSelectorList, Ident, TokenSeq, ],
     unit: [],
 });
 #[cfg(feature = "span_ignored_eq")]
@@ -1274,7 +1274,7 @@ impl_span_ignored_eq_struct!(SupportsDecl<'a> { decl, });
 impl_span_ignored_eq_struct!(SupportsInParens<'a> { kind, });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_enum!(SupportsInParensKind<'a> {
-    tuple: [SupportsCondition, Feature, Selector, Function, GeneralEnclosed, ],
+    tuple: [SupportsCondition, Feature, Selector, Function, GeneralEnclosed, Interpolation, ],
     unit: [],
 });
 #[cfg(feature = "span_ignored_eq")]
@@ -1413,6 +1413,7 @@ impl_enum_as_is!(ComponentValue<'a> {
         LessList(LessList<'a>) => is_less_list, as_less_list,
         LessMixinCall(LessMixinCall<'a>) => is_less_mixin_call, as_less_mixin_call,
         LessNamespaceValue(Box<'a, LessNamespaceValue<'a>>) => is_less_namespace_value, as_less_namespace_value,
+        LessVariableCall(LessVariableCall<'a>) => is_less_variable_call, as_less_variable_call,
         LessNegativeValue(LessNegativeValue<'a>) => is_less_negative_value, as_less_negative_value,
         LessParenthesizedOperation(LessParenthesizedOperation<'a>) => is_less_parenthesized_operation, as_less_parenthesized_operation,
         LessPercentKeyword(LessPercentKeyword) => is_less_percent_keyword, as_less_percent_keyword,
@@ -1740,6 +1741,7 @@ impl_enum_as_is!(PseudoClassSelectorArgKind<'a> {
 impl_enum_as_is!(PseudoElementSelectorArgKind<'a> {
     tuple: [
         CompoundSelector(CompoundSelector<'a>) => is_compound_selector, as_compound_selector,
+        CompoundSelectorList(CompoundSelectorList<'a>) => is_compound_selector_list, as_compound_selector_list,
         Ident(InterpolableIdent<'a>) => is_ident, as_ident,
         TokenSeq(TokenSeq<'a>) => is_token_seq, as_token_seq,
     ],
@@ -1908,6 +1910,7 @@ impl_enum_as_is!(SupportsInParensKind<'a> {
         Selector(SelectorList<'a>) => is_selector, as_selector,
         Function(Function<'a>) => is_function, as_function,
         GeneralEnclosed(TokenSeq<'a>) => is_general_enclosed, as_general_enclosed,
+        Interpolation(InterpolableIdent<'a>) => is_interpolation, as_interpolation,
     ],
     unit: [],
 });

@@ -80,6 +80,7 @@ impl<'a> ParserBuilder<'a> {
             state: Default::default(),
             recoverable_errors: vec![],
             cached_token: None,
+            sass_pending_indents: 0,
         }
     }
 }

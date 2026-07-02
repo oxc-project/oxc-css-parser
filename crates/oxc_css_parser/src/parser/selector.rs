@@ -661,6 +661,7 @@ impl<'a> Parse<'a> for CompoundSelectorList<'a> {
         let mut comma_spans = arena_vec!(input);
         while let Some((_, comma_span)) = eat!(input, Comma) {
             comma_spans.push(comma_span);
+            input.eat_sass_line_continuation()?;
             selectors.push(input.parse()?);
         }
 
@@ -940,7 +941,14 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
                     InterpolableIdent::Literal(Ident { name, .. })
                         if name.eq_ignore_ascii_case("-moz-any")
                             || name.eq_ignore_ascii_case("-webkit-any")
-                            || name.eq_ignore_ascii_case("current")
+                            || name.eq_ignore_ascii_case("any") =>
+                    {
+                        // formally compound selectors, but real-world usage
+                        // includes complex ones (`:-moz-any(ol p.blah, ul)`)
+                        input.parse().map(PseudoClassSelectorArgKind::SelectorList)?
+                    }
+                    InterpolableIdent::Literal(Ident { name, .. })
+                        if name.eq_ignore_ascii_case("current")
                             || name.eq_ignore_ascii_case("past")
                             || name.eq_ignore_ascii_case("future") =>
                     {
@@ -1004,10 +1012,16 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
                     }
                     InterpolableIdent::Literal(Ident { name, .. })
                         if name.eq_ignore_ascii_case("cue")
-                            || name.eq_ignore_ascii_case("cue-region")
-                            || name.eq_ignore_ascii_case("slotted") =>
+                            || name.eq_ignore_ascii_case("cue-region") =>
                     {
                         input.parse().map(PseudoElementSelectorArgKind::CompoundSelector)?
+                    }
+                    InterpolableIdent::Literal(Ident { name, .. })
+                        if name.eq_ignore_ascii_case("slotted") =>
+                    {
+                        // formally a single compound selector, but sass extend
+                        // output produces lists (`::slotted(.c.d, .d.e)`)
+                        input.parse().map(PseudoElementSelectorArgKind::CompoundSelectorList)?
                     }
                     _ => input
                         .parse_tokens_in_parens()
@@ -1077,7 +1091,12 @@ impl<'a> Parse<'a> for SelectorList<'a> {
         while let Some((_, comma_span)) = eat!(input, Comma) {
             span.end = comma_span.end;
             comma_spans.push(comma_span);
-            if !is_css
+            // In the indented syntax a deeper line after the comma continues
+            // the selector list (`a,\n    b\n  c: d`); a same-level line or
+            // `{` means the comma was trailing.
+            if input.syntax == Syntax::Sass && matches!(peek!(input).token, Token::Indent(..)) {
+                input.eat_sass_line_continuation()?;
+            } else if !is_css
                 && matches!(
                     peek!(input).token,
                     Token::LBrace(..) | Token::Indent(..) | Token::Linebreak(..)
@@ -1262,6 +1281,7 @@ impl<'a> Parser<'a> {
                     | Token::AtLBraceVar(..)
                     | Token::NumberSign(..)
                     | Token::HashLBrace(..)
+                    | Token::Percent(..) // Sass `%placeholder` descendant
                     | Token::Placeholder(..), // `${a} ${b}` descendant
                 span,
             } if pos < span.start => Ok(Some(Combinator {
@@ -1299,6 +1319,69 @@ impl<'a> Parser<'a> {
                 kind: CombinatorKind::Column,
                 span: bump!(self).span,
             })),
+            // deprecated shadow-piercing `/deep/` and less.js's arbitrary
+            // slashed combinators (`.container /shadow/ .content`) — but not
+            // in Scss/Sass, where dart-sass rejects reference combinators
+            TokenWithSpan { token: Token::Solidus(..), .. }
+                if !matches!(self.syntax, Syntax::Scss | Syntax::Sass) =>
+            {
+                let deep = self.try_parse(|p| {
+                    let start = bump!(p).span; // `/`
+                    let ident_end = match peek!(p) {
+                        TokenWithSpan { token: Token::Ident(..), span }
+                            if span.start == start.end =>
+                        {
+                            bump!(p).span.end
+                        }
+                        TokenWithSpan { span, .. } => {
+                            return Err(Error {
+                                kind: ErrorKind::TryParseError,
+                                span: span.clone(),
+                            });
+                        }
+                    };
+                    match peek!(p) {
+                        TokenWithSpan { token: Token::Solidus(..), span }
+                            if span.start == ident_end =>
+                        {
+                            let end = bump!(p).span.end;
+                            Ok(Span { start: start.start, end })
+                        }
+                        TokenWithSpan { span, .. } => Err(Error {
+                            kind: ErrorKind::TryParseError,
+                            span: span.clone(),
+                        }),
+                    }
+                });
+                match deep {
+                    Ok(span) => Ok(Some(Combinator { kind: CombinatorKind::Deep, span })),
+                    Err(_) => Ok(None),
+                }
+            }
+            // deprecated shadow combinators `^` and `^^` (Less corpora)
+            TokenWithSpan {
+                token: Token::Unknown(..),
+                span,
+            } if self.syntax == Syntax::Less
+                && self.source.as_bytes().get(span.start) == Some(&b'^') =>
+            {
+                let start = bump!(self).span.start;
+                if matches!(&peek!(self).token, Token::Unknown(..))
+                    && peek!(self).span.start == start + 1
+                    && self.source.as_bytes().get(start + 1) == Some(&b'^')
+                {
+                    let end = bump!(self).span.end;
+                    Ok(Some(Combinator {
+                        kind: CombinatorKind::ShadowDescendant,
+                        span: Span { start, end },
+                    }))
+                } else {
+                    Ok(Some(Combinator {
+                        kind: CombinatorKind::ShadowChild,
+                        span: Span { start, end: start + 1 },
+                    }))
+                }
+            }
             _ => Ok(None),
         }
     }

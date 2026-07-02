@@ -1,0 +1,4 @@
+@-moz-document url-prefix(https://sass-lang.com/docs), domain(mozilla.org) {
+  a {b: c}
+}
+@document url(http://www.w3.org/), regexp("https:.*");

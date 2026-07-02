@@ -25,26 +25,23 @@ impl<'a> Parse<'a> for ContainerCondition<'a> {
                 let mut span = first.span.clone();
                 let mut conditions =
                     arena_vec!(input; ContainerConditionKind::QueryInParens(first));
-                if let Token::Ident(ident) = &peek!(input).token {
-                    let name = ident.name();
-                    if name.eq_ignore_ascii_case("and") {
-                        loop {
-                            conditions.push(ContainerConditionKind::And(input.parse()?));
-                            match &peek!(input).token {
-                                Token::Ident(ident) if ident.name().eq_ignore_ascii_case("and") => {
-                                }
-                                _ => break,
-                            }
+                // formally `and`/`or` may not mix without parens and `not`
+                // is leading-only, but real-world code (less.js) chains them
+                // freely: `(a) or (b) and (c)`, `(a) not (b)`.
+                loop {
+                    let kind = match &peek!(input).token {
+                        Token::Ident(ident) if ident.name().eq_ignore_ascii_case("and") => {
+                            ContainerConditionKind::And(input.parse()?)
                         }
-                    } else if name.eq_ignore_ascii_case("or") {
-                        loop {
-                            conditions.push(ContainerConditionKind::Or(input.parse()?));
-                            match &peek!(input).token {
-                                Token::Ident(ident) if ident.name().eq_ignore_ascii_case("or") => {}
-                                _ => break,
-                            }
+                        Token::Ident(ident) if ident.name().eq_ignore_ascii_case("or") => {
+                            ContainerConditionKind::Or(input.parse()?)
                         }
-                    }
+                        Token::Ident(ident) if ident.name().eq_ignore_ascii_case("not") => {
+                            ContainerConditionKind::Not(input.parse()?)
+                        }
+                        _ => break,
+                    };
+                    conditions.push(kind);
                 }
 
                 if let Some(last) = conditions.last() {
