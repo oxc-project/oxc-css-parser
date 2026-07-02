@@ -521,12 +521,12 @@ impl<'a> Parser<'a> {
                     }
                 }
                 // `.3D(...)` — less.js allows digit-led mixin names, which
-                // tokenize as a dimension glued to `(`
+                // arrive as one <dimension-token>; they behave exactly like
+                // `.foo` (`.3D ()`, `.3D;`), so only the leading `.` matters
                 Token::Dot(..) | Token::Hash(..) | Token::Dimension(..)
                     if self.syntax == Syntax::Less
                         && (!matches!(token, Token::Dimension(..))
-                            || (self.source.as_bytes().get(span.start) == Some(&b'.')
-                                && self.source.as_bytes().get(span.end) == Some(&b'('))) =>
+                            || self.source.as_bytes().get(span.start) == Some(&b'.')) =>
                 {
                     let stmt = if let Ok(stmt) = self.try_parse(Parser::parse_less_qualified_rule) {
                         is_block_element = true;

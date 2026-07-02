@@ -1441,7 +1441,13 @@ impl<'a> Parse<'a> for LessMixinCallee<'a> {
         loop {
             let combinator = eat!(input, GreaterThan)
                 .map(|(_, span)| Combinator { kind: CombinatorKind::Child, span });
-            if let Token::Dot(..) | Token::Hash(..) = peek!(input).token {
+            let at_name = {
+                let TokenWithSpan { token, span } = peek!(input);
+                matches!(token, Token::Dot(..) | Token::Hash(..))
+                    || (matches!(token, Token::Dimension(..))
+                        && input.source.as_bytes().get(span.start) == Some(&b'.'))
+            };
+            if at_name {
                 let name = input.parse::<LessMixinName>()?;
                 let name_span = name.span();
                 let span = Span {
