@@ -1,6 +1,6 @@
 use super::Parser;
 use crate::{
-    Parse, arena_vec,
+    Parse,
     ast::*,
     bump, eat,
     error::{Error, PResult},
@@ -16,8 +16,8 @@ impl<'a> Parse<'a> for LayerNames<'a> {
         let first = input.parse::<LayerName>()?;
         let mut span = first.span.clone();
 
-        let mut names = arena_vec!(input; first);
-        let mut comma_spans = arena_vec!(input);
+        let mut names = input.vec1(first);
+        let mut comma_spans = input.vec();
         while let Some((_, comma_span)) = eat!(input, Comma) {
             comma_spans.push(comma_span);
             names.push(input.parse()?);
@@ -37,7 +37,7 @@ impl<'a> Parse<'a> for LayerName<'a> {
         let start = first.span().start;
         let mut end = first.span().end;
 
-        let mut idents = arena_vec!(input; first);
+        let mut idents = input.vec1(first);
         while let TokenWithSpan { token: Token::Dot(..), span } = peek!(input) {
             if span.start == end {
                 let span = bump!(input).span;

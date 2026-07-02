@@ -1,6 +1,6 @@
 use super::{Parser, state::QualifiedRuleContext};
 use crate::{
-    Parse, Syntax, arena_box, arena_vec,
+    Parse, Syntax,
     ast::*,
     bump, eat,
     error::{Error, ErrorKind, PResult},
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
                 let expr = self.parse_calc_expr_recursively(PRECEDENCE_MULTIPLY, allow_modulo)?;
                 let span = Span { start: op.span.start, end: expr.span().end };
                 ComponentValue::SassUnaryExpression(SassUnaryExpression {
-                    expr: arena_box!(self, expr),
+                    expr: self.alloc(expr),
                     op,
                     span,
                 })
@@ -117,9 +117,9 @@ impl<'a> Parser<'a> {
             let right = self.parse_calc_expr_recursively(precedence + 1, allow_modulo)?;
             let span = Span { start: left.span().start, end: right.span().end };
             left = ComponentValue::Calc(Calc {
-                left: arena_box!(self, left),
+                left: self.alloc(left),
                 op: operator,
-                right: arena_box!(self, right),
+                right: self.alloc(right),
                 span,
             });
         }
@@ -133,7 +133,7 @@ impl<'a> Parser<'a> {
             Token::Ident(token) => {
                 if unvendored(&token.name()).eq_ignore_ascii_case("url") {
                     match self.try_parse(Url::parse) {
-                        Ok(url) => return Ok(ComponentValue::Url(arena_box!(self, url))),
+                        Ok(url) => return Ok(ComponentValue::Url(self.alloc(url))),
                         Err(Error { kind: ErrorKind::TryParseError, .. }) => {}
                         Err(error) => {
                             // Not a `<url-token>` (quotes, parens, or raw
@@ -160,7 +160,7 @@ impl<'a> Parser<'a> {
                                 if ident.name.eq_ignore_ascii_case("src") =>
                             {
                                 self.parse_src_url(ident)
-                                    .map(|url| ComponentValue::Url(arena_box!(self, url)))
+                                    .map(|url| ComponentValue::Url(self.alloc(url)))
                             }
                             InterpolableIdent::Literal(ident)
                                 if unvendored(ident.name).eq_ignore_ascii_case("expression") =>
@@ -213,12 +213,12 @@ impl<'a> Parser<'a> {
                                 let (_, Span { end, .. }) = expect!(self, RParen);
                                 let span = Span { start: name.span.start, end };
                                 Ok(ComponentValue::Function(Function {
-                                    name: FunctionName::SassQualifiedName(arena_box!(self, name)),
+                                    name: FunctionName::SassQualifiedName(self.alloc(name)),
                                     args,
                                     span,
                                 }))
                             } else {
-                                Ok(ComponentValue::SassQualifiedName(arena_box!(self, name)))
+                                Ok(ComponentValue::SassQualifiedName(self.alloc(name)))
                             };
                         }
                     }
@@ -373,7 +373,7 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_function(&mut self, name: InterpolableIdent<'a>) -> PResult<Function<'a>> {
         expect!(self, LParen);
         let args = if let Token::RParen(..) = &peek!(self).token {
-            arena_vec!(self)
+            self.vec()
         } else {
             match &name {
                 InterpolableIdent::Literal(ident)
@@ -456,15 +456,14 @@ impl<'a> Parser<'a> {
                     }
                 }
                 InterpolableIdent::Literal(ident) if ident.name.eq_ignore_ascii_case("element") => {
-                    arena_vec!(self; self.parse().map(ComponentValue::IdSelector)?)
+                    let id_selector = self.parse().map(ComponentValue::IdSelector)?;
+                    self.vec1(id_selector)
                 }
                 InterpolableIdent::Literal(Ident { raw: "boolean" | "if", .. })
                     if self.syntax == Syntax::Less =>
                 {
-                    let condition = ComponentValue::LessCondition(arena_box!(
-                        self,
-                        self.parse_less_condition(false)?
-                    ));
+                    let less_condition = self.parse_less_condition(false)?;
+                    let condition = ComponentValue::LessCondition(self.alloc(less_condition));
                     let mut args = self.parse_function_args()?;
                     args.insert(0, condition);
                     args
@@ -505,7 +504,7 @@ impl<'a> Parser<'a> {
                     let value = values.pop().unwrap();
                     let span = Span { start: value.span().start, end };
                     values.push(ComponentValue::SassArbitraryArgument(SassArbitraryArgument {
-                        value: arena_box!(self, value),
+                        value: self.alloc(value),
                         span,
                     }));
                 }
@@ -641,7 +640,7 @@ impl<'a> Parser<'a> {
                         if let Some((_, mut span)) = eat!(self, DotDotDot) {
                             span.start = value.span().start;
                             values.push(ComponentValue::SassArbitraryArgument(
-                                SassArbitraryArgument { value: arena_box!(self, value), span },
+                                SassArbitraryArgument { value: self.alloc(value), span },
                             ));
                         } else if let ComponentValue::SassVariable(sass_var) = value {
                             if let Some((_, colon_span)) = eat!(self, Colon) {
@@ -652,7 +651,7 @@ impl<'a> Parser<'a> {
                                     SassKeywordArgument {
                                         name: sass_var,
                                         colon_span,
-                                        value: arena_box!(self, value),
+                                        value: self.alloc(value),
                                         span,
                                     },
                                 ));
@@ -705,7 +704,7 @@ impl<'a> Parser<'a> {
                 }
                 modifiers
             }
-            _ => arena_vec!(self),
+            _ => self.vec(),
         };
         let end = expect!(self, RParen).1.end;
         let span = Span { start: name.span.start, end };
@@ -938,14 +937,11 @@ impl<'a> Parse<'a> for FunctionName<'a> {
                         bump!(input);
                         let member = input.parse::<Ident>()?;
                         let span = Span { start: ident.span.start, end: member.span.end };
-                        Ok(FunctionName::SassQualifiedName(arena_box!(
-                            input,
-                            SassQualifiedName {
-                                module: ident,
-                                member: SassModuleMemberName::Ident(member),
-                                span,
-                            }
-                        )))
+                        Ok(FunctionName::SassQualifiedName(input.alloc(SassQualifiedName {
+                            module: ident,
+                            member: SassModuleMemberName::Ident(member),
+                            span,
+                        })))
                     }
                     _ => Ok(FunctionName::Ident(InterpolableIdent::Literal(ident))),
                 }
@@ -1095,7 +1091,7 @@ impl<'a> Parse<'a> for Url<'a> {
                     }
                     modifiers
                 }
-                _ => arena_vec!(input),
+                _ => input.vec(),
             };
             let end = expect!(input, RParen).1.end;
             let span = Span { start: prefix_start, end };
@@ -1105,7 +1101,7 @@ impl<'a> Parse<'a> for Url<'a> {
                 start: prefix_start,
                 end: value.span.end + 1, // `)` is consumed, but span excludes it
             };
-            Ok(Url { name, value: Some(UrlValue::Raw(value)), modifiers: arena_vec!(input), span })
+            Ok(Url { name, value: Some(UrlValue::Raw(value)), modifiers: input.vec(), span })
         } else {
             match input.syntax {
                 Syntax::Css => Err(Error { kind: ErrorKind::InvalidUrl, span: bump!(input).span }),
@@ -1118,7 +1114,7 @@ impl<'a> Parse<'a> for Url<'a> {
                     Ok(Url {
                         name,
                         value: Some(UrlValue::SassInterpolated(value)),
-                        modifiers: arena_vec!(input),
+                        modifiers: input.vec(),
                         span,
                     })
                 }
@@ -1126,7 +1122,7 @@ impl<'a> Parse<'a> for Url<'a> {
                     let value = UrlValue::LessEscapedStr(input.parse()?);
                     let (_, Span { end, .. }) = expect!(input, RParen);
                     let span = Span { start: prefix_start, end };
-                    Ok(Url { name, value: Some(value), modifiers: arena_vec!(input), span })
+                    Ok(Url { name, value: Some(value), modifiers: input.vec(), span })
                 }
             }
         }

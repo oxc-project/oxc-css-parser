@@ -1,5 +1,5 @@
 use super::Parser;
-use crate::{Parse, Spanned, arena_vec, ast::*, error::PResult, peek, tokenizer::Token};
+use crate::{Parse, Spanned, ast::*, error::PResult, peek, tokenizer::Token};
 
 // https://drafts.csswg.org/css-fonts/Overview.bs
 impl<'a> Parse<'a> for FontFamilyName<'a> {
@@ -10,7 +10,7 @@ impl<'a> Parse<'a> for FontFamilyName<'a> {
                 let first = input.parse::<InterpolableIdent>()?;
                 let mut span = first.span().clone();
 
-                let mut idents = arena_vec!(input; first);
+                let mut idents = input.vec1(first);
                 while let Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..) =
                     &peek!(input).token
                 {

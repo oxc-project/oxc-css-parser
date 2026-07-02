@@ -94,8 +94,20 @@ impl<'a> Parser<'a> {
     }
 
     #[inline]
+    pub(crate) fn alloc<T>(&self, value: T) -> oxc_allocator::Box<'a, T> {
+        oxc_allocator::Box::new_in(value, &self.allocator)
+    }
+
+    #[inline]
     pub(crate) fn vec<T>(&self) -> ArenaVec<'a, T> {
         ArenaVec::new_in(&self.allocator)
+    }
+
+    #[inline]
+    pub(crate) fn vec1<T>(&self, value: T) -> ArenaVec<'a, T> {
+        let mut vec = self.vec_with_capacity(1);
+        vec.push(value);
+        vec
     }
 
     #[inline]

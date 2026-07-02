@@ -1,6 +1,6 @@
 use super::Parser;
 use crate::{
-    Parse, arena_box, arena_vec,
+    Parse,
     ast::*,
     eat,
     error::{Error, ErrorKind, PResult},
@@ -16,15 +16,14 @@ impl<'a> Parse<'a> for ContainerCondition<'a> {
                 let container_condition_not = input.parse::<ContainerConditionNot>()?;
                 let span = container_condition_not.span.clone();
                 Ok(ContainerCondition {
-                    conditions: arena_vec!(input; ContainerConditionKind::Not(container_condition_not)),
+                    conditions: input.vec1(ContainerConditionKind::Not(container_condition_not)),
                     span,
                 })
             }
             _ => {
                 let first = input.parse::<QueryInParens>()?;
                 let mut span = first.span.clone();
-                let mut conditions =
-                    arena_vec!(input; ContainerConditionKind::QueryInParens(first));
+                let mut conditions = input.vec1(ContainerConditionKind::QueryInParens(first));
                 // formally `and`/`or` may not mix without parens and `not`
                 // is leading-only, but real-world code (less.js) chains them
                 // freely: `(a) or (b) and (c)`, `(a) not (b)`.
@@ -98,7 +97,8 @@ impl<'a> Parse<'a> for QueryInParens<'a> {
             let kind = if let Ok(container_condition) = input.try_parse(ContainerCondition::parse) {
                 QueryInParensKind::ContainerCondition(container_condition)
             } else {
-                QueryInParensKind::SizeFeature(arena_box!(input, input.parse()?))
+                let size_feature = input.parse()?;
+                QueryInParensKind::SizeFeature(input.alloc(size_feature))
             };
             let (_, Span { end, .. }) = expect!(input, RParen);
             Ok(QueryInParens { kind, span: Span { start, end } })
@@ -114,7 +114,7 @@ impl<'a> Parse<'a> for QueryInParens<'a> {
                 // https://drafts.csswg.org/css-conditional-5/#scroll-state-container
                 expect_without_ws_or_comments!(input, LParen);
                 let media = input.parse()?;
-                let kind = QueryInParensKind::ScrollState(arena_box!(input, media));
+                let kind = QueryInParensKind::ScrollState(input.alloc(media));
                 let (_, Span { end, .. }) = expect!(input, RParen);
                 Ok(QueryInParens { kind, span: Span { start: ident_span.start, end } })
             } else {
@@ -131,14 +131,14 @@ impl<'a> Parse<'a> for StyleCondition<'a> {
                 let style_condition_not = input.parse::<StyleConditionNot>()?;
                 let span = style_condition_not.span.clone();
                 Ok(StyleCondition {
-                    conditions: arena_vec!(input; StyleConditionKind::Not(style_condition_not)),
+                    conditions: input.vec1(StyleConditionKind::Not(style_condition_not)),
                     span,
                 })
             }
             _ => {
                 let first = input.parse::<StyleInParens>()?;
                 let mut span = first.span.clone();
-                let mut conditions = arena_vec!(input; StyleConditionKind::StyleInParens(first));
+                let mut conditions = input.vec1(StyleConditionKind::StyleInParens(first));
                 if let Token::Ident(ident) = &peek!(input).token {
                     let name = ident.name();
                     if name.eq_ignore_ascii_case("and") {

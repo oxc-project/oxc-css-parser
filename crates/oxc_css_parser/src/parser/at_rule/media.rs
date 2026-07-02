@@ -1,6 +1,6 @@
 use super::Parser;
 use crate::{
-    Parse, Syntax, arena_box, arena_vec,
+    Parse, Syntax,
     ast::*,
     bump, eat,
     error::{Error, ErrorKind, PResult},
@@ -161,7 +161,7 @@ impl<'a> Parse<'a> for MediaInParensKind<'a> {
                 Err(Error { kind: ErrorKind::ExpectMediaFeatureName, span })
             }
         }) {
-            Ok(MediaInParensKind::MediaFeature(arena_box!(input, media_feature)))
+            Ok(MediaInParensKind::MediaFeature(input.alloc(media_feature)))
         } else {
             // <general-enclosed>: MQ L4 forward-compat catch-all, evaluates false at runtime.
             let tokens = input.parse_tokens_in_parens()?;
@@ -219,7 +219,7 @@ impl<'a> Parse<'a> for MediaQuery<'a> {
                 }
                 Token::Dot(..) | Token::Hash(..) => {
                     let less_namespace_value = input.parse()?;
-                    Ok(MediaQuery::LessNamespaceValue(arena_box!(input, less_namespace_value)))
+                    Ok(MediaQuery::LessNamespaceValue(input.alloc(less_namespace_value)))
                 }
                 _ => input.parse_media_query_with_type_or_function(),
             }
@@ -235,8 +235,8 @@ impl<'a> Parse<'a> for MediaQueryList<'a> {
         let first = input.parse::<MediaQuery>()?;
         let mut span = first.span().clone();
 
-        let mut queries = arena_vec!(input; first);
-        let mut comma_spans = arena_vec!(input);
+        let mut queries = input.vec1(first);
+        let mut comma_spans = input.vec();
         while let Some((_, comma_span)) = eat!(input, Comma) {
             comma_spans.push(comma_span);
             queries.push(input.parse()?);
@@ -311,7 +311,7 @@ impl<'a> Parser<'a> {
             let span = token.span.clone();
             return Ok(MediaInParens {
                 kind: MediaInParensKind::GeneralEnclosed(TokenSeq {
-                    tokens: arena_vec!(self; token),
+                    tokens: self.vec1(token),
                     span: span.clone(),
                 }),
                 span,
@@ -330,7 +330,7 @@ impl<'a> Parser<'a> {
                 let media_not = self.parse::<MediaNot>()?;
                 let span = media_not.span.clone();
                 Ok(MediaCondition {
-                    conditions: arena_vec!(self; MediaConditionKind::Not(media_not)),
+                    conditions: self.vec1(MediaConditionKind::Not(media_not)),
                     span,
                 })
             }
@@ -341,7 +341,7 @@ impl<'a> Parser<'a> {
                     self.parse::<MediaInParens>()?
                 };
                 let mut span = first.span.clone();
-                let mut conditions = arena_vec!(self; MediaConditionKind::MediaInParens(first));
+                let mut conditions = self.vec1(MediaConditionKind::MediaInParens(first));
                 if let Token::Ident(ident) = &peek!(self).token {
                     let name = ident.name();
                     if name.eq_ignore_ascii_case("and") {

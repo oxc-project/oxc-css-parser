@@ -1,6 +1,6 @@
 use super::{Parser, state::ParserState};
 use crate::{
-    Parse, Syntax, arena_box,
+    Parse, Syntax,
     ast::*,
     bump,
     error::{Error, ErrorKind, PResult},
@@ -78,7 +78,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                         })
                     };
                     match raw {
-                        Ok(raw) => Some(AtRulePrelude::Unknown(arena_box!(input, raw))),
+                        Ok(raw) => Some(AtRulePrelude::Unknown(input.alloc(raw))),
                         Err(_) => Some(AtRulePrelude::Media(input.parse()?)),
                     }
                 }
@@ -107,7 +107,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                         Ok(name) => Some(AtRulePrelude::Keyframes(name)),
                         Err(_) => input
                             .parse_unknown_at_rule_prelude()?
-                            .map(|prelude| AtRulePrelude::Unknown(arena_box!(input, prelude))),
+                            .map(|prelude| AtRulePrelude::Unknown(input.alloc(prelude))),
                     }
                 }
             };
@@ -120,11 +120,11 @@ impl<'a> Parse<'a> for AtRule<'a> {
             let (end, prelude) = match input.syntax {
                 Syntax::Css => {
                     let prelude = input.parse::<ImportPrelude>()?;
-                    (prelude.span.end, AtRulePrelude::Import(arena_box!(input, prelude)))
+                    (prelude.span.end, AtRulePrelude::Import(input.alloc(prelude)))
                 }
                 Syntax::Scss | Syntax::Sass => {
                     if let Ok(prelude) = input.try_parse(ImportPrelude::parse) {
-                        (prelude.span.end, AtRulePrelude::Import(arena_box!(input, prelude)))
+                        (prelude.span.end, AtRulePrelude::Import(input.alloc(prelude)))
                     } else {
                         let prelude = input.parse::<SassImportPrelude>()?;
                         (prelude.span.end, AtRulePrelude::SassImport(prelude))
@@ -132,10 +132,10 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 }
                 Syntax::Less => {
                     if let Ok(prelude) = input.try_parse(ImportPrelude::parse) {
-                        (prelude.span.end, AtRulePrelude::Import(arena_box!(input, prelude)))
+                        (prelude.span.end, AtRulePrelude::Import(input.alloc(prelude)))
                     } else {
                         let prelude = input.parse::<LessImportPrelude>()?;
-                        (prelude.span.end, AtRulePrelude::LessImport(arena_box!(input, prelude)))
+                        (prelude.span.end, AtRulePrelude::LessImport(input.alloc(prelude)))
                     }
                 }
             };
@@ -148,11 +148,10 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 let prelude = input.parse::<InterpolableStr>()?;
                 let end = prelude.span().end;
                 (
-                    Some(AtRulePrelude::Unknown(arena_box!(
-                        input,
+                    Some(AtRulePrelude::Unknown(input.alloc(
                         UnknownAtRulePrelude::ComponentValue(ComponentValue::InterpolableStr(
-                            prelude
-                        ))
+                            prelude,
+                        )),
                     ))),
                     None,
                     end,
@@ -180,7 +179,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                         && matches!(peek!(input).token, Token::AtKeyword(..)) =>
                 {
                     let raw = input.parse_raw_at_rule_prelude()?;
-                    Some(AtRulePrelude::Unknown(arena_box!(input, raw)))
+                    Some(AtRulePrelude::Unknown(input.alloc(raw)))
                 }
                 Err(_) => None,
             };
@@ -208,32 +207,32 @@ impl<'a> Parse<'a> for AtRule<'a> {
             // (`@container card (w > 400px), style(--x: y) {`); those — and
             // only those — are kept as raw tokens. A malformed single query
             // still errors.
-            let prelude = match input
-                .try_parse_full_prelude(|p| p.parse().map(AtRulePrelude::Container))
-            {
-                Ok(prelude) => prelude,
-                Err(error) => {
-                    let is_query_list = input
-                        .try_parse(|p| {
-                            p.parse::<ContainerPrelude>()?;
-                            if matches!(peek!(p).token, Token::Comma(..)) {
-                                Ok(())
-                            } else {
-                                let span = peek!(p).span.clone();
-                                Err(Error { kind: ErrorKind::TryParseError, span })
-                            }
-                        })
-                        .is_ok();
-                    // a Less variable may stand for the container name:
-                    // `@container @varfoo (min-width: @threshold) {`
-                    let less_variable_name = input.syntax == Syntax::Less
-                        && matches!(peek!(input).token, Token::AtKeyword(..));
-                    if !is_query_list && !less_variable_name {
-                        return Err(error);
+            let prelude =
+                match input.try_parse_full_prelude(|p| p.parse().map(AtRulePrelude::Container)) {
+                    Ok(prelude) => prelude,
+                    Err(error) => {
+                        let is_query_list = input
+                            .try_parse(|p| {
+                                p.parse::<ContainerPrelude>()?;
+                                if matches!(peek!(p).token, Token::Comma(..)) {
+                                    Ok(())
+                                } else {
+                                    let span = peek!(p).span.clone();
+                                    Err(Error { kind: ErrorKind::TryParseError, span })
+                                }
+                            })
+                            .is_ok();
+                        // a Less variable may stand for the container name:
+                        // `@container @varfoo (min-width: @threshold) {`
+                        let less_variable_name = input.syntax == Syntax::Less
+                            && matches!(peek!(input).token, Token::AtKeyword(..));
+                        if !is_query_list && !less_variable_name {
+                            return Err(error);
+                        }
+                        let prelude = input.parse_raw_at_rule_prelude()?;
+                        AtRulePrelude::Unknown(input.alloc(prelude))
                     }
-                    AtRulePrelude::Unknown(arena_box!(input, input.parse_raw_at_rule_prelude()?))
-                }
-            };
+                };
             let block = input.parse::<SimpleBlock>()?;
             let end = block.span.end;
             (Some(prelude), Some(block), end)
@@ -253,11 +252,11 @@ impl<'a> Parse<'a> for AtRule<'a> {
             // `@namespace @ns "http://...";` — a Less variable prefix
             let raw = input.parse_raw_at_rule_prelude()?;
             let end = raw.span().end;
-            (Some(AtRulePrelude::Unknown(arena_box!(input, raw))), None, end)
+            (Some(AtRulePrelude::Unknown(input.alloc(raw))), None, end)
         } else if at_rule_name.eq_ignore_ascii_case("namespace") {
             let namespace = input.parse::<NamespacePrelude>()?;
             let end = namespace.span.end;
-            (Some(AtRulePrelude::Namespace(arena_box!(input, namespace))), None, end)
+            (Some(AtRulePrelude::Namespace(input.alloc(namespace))), None, end)
         } else if at_rule_name.eq_ignore_ascii_case("color-profile") {
             let prelude = Some(AtRulePrelude::ColorProfile(input.parse()?));
             let block = input.parse::<SimpleBlock>()?;
@@ -282,15 +281,11 @@ impl<'a> Parse<'a> for AtRule<'a> {
         } else if at_rule_name.eq_ignore_ascii_case("custom-media") {
             let custom_media = input.parse::<CustomMedia>()?;
             let end = custom_media.span.end;
-            (Some(AtRulePrelude::CustomMedia(arena_box!(input, custom_media))), None, end)
+            (Some(AtRulePrelude::CustomMedia(input.alloc(custom_media))), None, end)
         } else if at_rule_name.eq_ignore_ascii_case("custom-selector") {
             let custom_selector_prelude = input.parse::<CustomSelectorPrelude>()?;
             let end = custom_selector_prelude.span.end;
-            (
-                Some(AtRulePrelude::CustomSelector(arena_box!(input, custom_selector_prelude))),
-                None,
-                end,
-            )
+            (Some(AtRulePrelude::CustomSelector(input.alloc(custom_selector_prelude))), None, end)
         } else if at_rule_name.eq_ignore_ascii_case("position-try") {
             // https://drafts.csswg.org/css-anchor-position-1/#fallback-rule
             let prelude = Some(AtRulePrelude::PositionTry(input.parse_dashed_ident()?));
@@ -311,7 +306,8 @@ impl<'a> Parse<'a> for AtRule<'a> {
             (prelude, Some(block), end)
         } else if at_rule_name.eq_ignore_ascii_case("scope") {
             let prelude = if let Token::LParen(..) | Token::Ident(..) = peek!(input).token {
-                Some(AtRulePrelude::Scope(arena_box!(input, input.parse()?)))
+                let scope = input.parse()?;
+                Some(AtRulePrelude::Scope(input.alloc(scope)))
             } else {
                 None
             };
@@ -332,7 +328,8 @@ impl<'a> Parse<'a> for AtRule<'a> {
                     ) {
                         return Err(error);
                     }
-                    AtRulePrelude::Unknown(arena_box!(input, input.parse_raw_at_rule_prelude()?))
+                    let prelude = input.parse_raw_at_rule_prelude()?;
+                    AtRulePrelude::Unknown(input.alloc(prelude))
                 }
             };
             // real-world code also writes a block-less `@document ...;`
@@ -376,7 +373,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
         } else if at_rule_name == "plugin" && input.syntax == Syntax::Less {
             let prelude = input.parse::<LessPlugin>()?;
             let end = prelude.span.end;
-            (Some(AtRulePrelude::LessPlugin(arena_box!(input, prelude))), None, end)
+            (Some(AtRulePrelude::LessPlugin(input.alloc(prelude))), None, end)
         } else if at_rule_name.eq_ignore_ascii_case("function")
             && matches!(&peek!(input).token, Token::Ident(ident) if ident.raw.starts_with("--"))
         {
@@ -390,7 +387,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 .with_state(ParserState { in_css_function_body: true, ..input.state.clone() })
                 .parse::<SimpleBlock>()?;
             let end = block.span.end;
-            (Some(AtRulePrelude::Unknown(arena_box!(input, prelude))), Some(block), end)
+            (Some(AtRulePrelude::Unknown(input.alloc(prelude))), Some(block), end)
         } else if matches!(input.syntax, Syntax::Scss | Syntax::Sass) {
             use super::state::{
                 SASS_CTX_ALLOW_DIV, SASS_CTX_ALLOW_KEYFRAME_BLOCK, SASS_CTX_IN_FUNCTION,
@@ -400,20 +397,20 @@ impl<'a> Parse<'a> for AtRule<'a> {
                     let prelude = input.parse()?;
                     let block = input.parse::<SimpleBlock>()?;
                     let end = block.span.end;
-                    (Some(AtRulePrelude::SassEach(arena_box!(input, prelude))), Some(block), end)
+                    (Some(AtRulePrelude::SassEach(input.alloc(prelude))), Some(block), end)
                 }
                 "while" => {
                     input.eat_sass_line_continuation()?;
                     let prelude = input.parse()?;
                     let block = input.parse::<SimpleBlock>()?;
                     let end = block.span.end;
-                    (Some(AtRulePrelude::SassExpr(arena_box!(input, prelude))), Some(block), end)
+                    (Some(AtRulePrelude::SassExpr(input.alloc(prelude))), Some(block), end)
                 }
                 "for" => {
                     let prelude = input.parse()?;
                     let block = input.parse::<SimpleBlock>()?;
                     let end = block.span.end;
-                    (Some(AtRulePrelude::SassFor(arena_box!(input, prelude))), Some(block), end)
+                    (Some(AtRulePrelude::SassFor(input.alloc(prelude))), Some(block), end)
                 }
                 "mixin" => {
                     let prelude = input.parse()?;
@@ -424,7 +421,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                         })
                         .parse::<SimpleBlock>()?;
                     let end = block.span.end;
-                    (Some(AtRulePrelude::SassMixin(arena_box!(input, prelude))), Some(block), end)
+                    (Some(AtRulePrelude::SassMixin(input.alloc(prelude))), Some(block), end)
                 }
                 "include" => {
                     let prelude = input.parse::<SassInclude>()?;
@@ -444,7 +441,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                         };
                     let end =
                         block.as_ref().map(|block| block.span.end).unwrap_or(prelude.span.end);
-                    (Some(AtRulePrelude::SassInclude(arena_box!(input, prelude))), block, end)
+                    (Some(AtRulePrelude::SassInclude(input.alloc(prelude))), block, end)
                 }
                 "content" => {
                     if matches!(peek!(input).token, Token::LParen(..)) {
@@ -458,7 +455,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 "use" => {
                     let prelude = input.parse::<SassUse>()?;
                     let end = prelude.span.end;
-                    (Some(AtRulePrelude::SassUse(arena_box!(input, prelude))), None, end)
+                    (Some(AtRulePrelude::SassUse(input.alloc(prelude))), None, end)
                 }
                 "function" => {
                     let prelude = input.parse::<SassFunction>()?;
@@ -469,11 +466,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                         })
                         .parse::<SimpleBlock>()?;
                     let end = block.span.end;
-                    (
-                        Some(AtRulePrelude::SassFunction(arena_box!(input, prelude))),
-                        Some(block),
-                        end,
-                    )
+                    (Some(AtRulePrelude::SassFunction(input.alloc(prelude))), Some(block), end)
                 }
                 "return" => {
                     input.eat_sass_line_continuation()?;
@@ -490,23 +483,23 @@ impl<'a> Parse<'a> for AtRule<'a> {
                             span: Span { start: at_keyword_span.start, end },
                         });
                     }
-                    (Some(AtRulePrelude::SassExpr(arena_box!(input, expr))), None, end)
+                    (Some(AtRulePrelude::SassExpr(input.alloc(expr))), None, end)
                 }
                 "extend" => {
                     let prelude = input.parse::<SassExtend>()?;
                     let end = prelude.span.end;
-                    (Some(AtRulePrelude::SassExtend(arena_box!(input, prelude))), None, end)
+                    (Some(AtRulePrelude::SassExtend(input.alloc(prelude))), None, end)
                 }
                 "warn" | "error" | "debug" => {
                     input.eat_sass_line_continuation()?;
                     let expr = input.parse_maybe_sass_list(/* allow_comma */ true)?;
                     let end = expr.span().end;
-                    (Some(AtRulePrelude::SassExpr(arena_box!(input, expr))), None, end)
+                    (Some(AtRulePrelude::SassExpr(input.alloc(expr))), None, end)
                 }
                 "forward" => {
                     let prelude = input.parse::<SassForward>()?;
                     let end = prelude.span.end;
-                    (Some(AtRulePrelude::SassForward(arena_box!(input, prelude))), None, end)
+                    (Some(AtRulePrelude::SassForward(input.alloc(prelude))), None, end)
                 }
                 "at-root" => {
                     let prelude = if !matches!(
@@ -535,7 +528,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 _ => {
                     let (prelude, block, end) = input.parse_unknown_at_rule()?;
                     (
-                        prelude.map(|prelude| AtRulePrelude::Unknown(arena_box!(input, prelude))),
+                        prelude.map(|prelude| AtRulePrelude::Unknown(input.alloc(prelude))),
                         block,
                         end.unwrap_or(at_keyword_span.end),
                     )
@@ -544,7 +537,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
         } else {
             let (prelude, block, end) = input.parse_unknown_at_rule()?;
             (
-                prelude.map(|prelude| AtRulePrelude::Unknown(arena_box!(input, prelude))),
+                prelude.map(|prelude| AtRulePrelude::Unknown(input.alloc(prelude))),
                 block,
                 end.unwrap_or(at_keyword_span.end),
             )
