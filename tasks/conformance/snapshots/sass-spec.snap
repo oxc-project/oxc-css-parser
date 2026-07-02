@@ -1,7 +1,7 @@
 suite: sass-spec
 sha: a2ead9225786d49e91f5cc36755b7713596a2338
-files: 26787   success: 26437   failed: 56   expected: 294
-clean: 26437  recovered: 11  hard_error: 45  panic: 0
+files: 26787   success: 26443   failed: 50   expected: 294
+clean: 26443  recovered: 5  hard_error: 45  panic: 0
 
 failures:
 ERROR    spec/core_functions/string/unquote.hrx::meaningful_css_characters/output.css    expect token `}`, but found `<eof>`
@@ -13,12 +13,6 @@ ERROR    spec/css/percent.hrx::declaration/before/input.scss    component value 
 ERROR    spec/css/plain/hacks.hrx::output.css    unexpected whitespace
 ERROR    spec/css/plain/hacks.hrx::plain.css    unexpected whitespace
 ERROR    spec/css/selector/slotted.hrx::output.css    expect token `)`, but found `,`
-RECOVER  spec/css/unicode_range/question_mark.hrx::input.scss    unicode range end value exceeds max allowed code point
-RECOVER  spec/css/unicode_range/question_mark.hrx::output.css    unicode range end value exceeds max allowed code point
-RECOVER  spec/css/unicode_range/range.hrx::input.scss    unicode range start value can't greater than end value
-RECOVER  spec/css/unicode_range/range.hrx::output.css    unicode range start value can't greater than end value
-RECOVER  spec/css/unicode_range/simple.hrx::input.scss    unicode range end value exceeds max allowed code point
-RECOVER  spec/css/unicode_range/simple.hrx::output.css    unicode range end value exceeds max allowed code point
 ERROR    spec/css/unknown_directive/name_interpolation.hrx::input.scss    CSS rule is expected
 RECOVER  spec/directives/at_root/keyframes.hrx::all/input.scss    unknown keyframe selector
 ERROR    spec/expressions/if/css.hrx::alone/argument/input.scss    expect token `<ident>`, but found `@`

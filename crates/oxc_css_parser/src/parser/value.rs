@@ -729,18 +729,10 @@ impl<'a> Parser<'a> {
                 .map_err(|_| Error { kind: ErrorKind::InvalidUnicodeRange, span: span.clone() })?;
             UnicodeRange { prefix, start, start_raw: source, end, end_raw: None, span }
         };
-        if unicode_range.end > 0x10ffff {
-            self.recoverable_errors.push(Error {
-                kind: ErrorKind::MaxCodePointExceeded,
-                span: unicode_range.span.clone(),
-            });
-        }
-        if unicode_range.start > unicode_range.end {
-            self.recoverable_errors.push(Error {
-                kind: ErrorKind::UnicodeRangeStartGreaterThanEnd,
-                span: unicode_range.span.clone(),
-            });
-        }
+        // Value-level checks (end > U+10FFFF, start > end) are deliberately
+        // NOT errors: reference compilers pass such ranges through and
+        // browsers clamp/ignore them at used-value time (`U+??????`,
+        // `U+123456`, `U+1A2B3C-10FFFF` all appear in real-world corpora).
         Ok(unicode_range)
     }
 }

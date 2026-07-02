@@ -1,7 +1,7 @@
 suite: less.js
 sha: 8ae2cc3bfa79f0718ad6fe5f263a1d6819fe9d5c
-files: 459   success: 398   failed: 39   expected: 22
-clean: 398  recovered: 3  hard_error: 36  panic: 0
+files: 459   success: 400   failed: 37   expected: 22
+clean: 400  recovered: 1  hard_error: 36  panic: 0
 
 failures:
 ERROR    packages/test-data/tests-config/at-rules-compressed-evaluation/at-rules-compressed-evaluation.css    expect token `{`, but found `<ident>`
@@ -21,8 +21,6 @@ ERROR    packages/test-data/tests-error/eval/property-in-root3.less    expect to
 ERROR    packages/test-data/tests-unit/at-rules/at-rules.less    expect token `;`, but found `{`
 ERROR    packages/test-data/tests-unit/container/container.css    expect token `{`, but found `<ident>`
 ERROR    packages/test-data/tests-unit/container/container.less    expect token `{`, but found `<ident>`
-RECOVER  packages/test-data/tests-unit/css-3/css-3.css    unicode range end value exceeds max allowed code point
-RECOVER  packages/test-data/tests-unit/css-3/css-3.less    unicode range end value exceeds max allowed code point
 ERROR    packages/test-data/tests-unit/css-guards/css-guards.less    expect token `(`, but found `:`
 ERROR    packages/test-data/tests-unit/extract-and-length/extract-and-length.less    expect token `;`, but found `{`
 ERROR    packages/test-data/tests-unit/functions-each/functions-each.less    expect token `;`, but found `{`
