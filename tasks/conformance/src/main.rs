@@ -92,26 +92,6 @@ const SUITES: &[Suite] = &[
         note: "Phase 3 — testharness assertions need an HTML/JS harness",
     },
     Suite {
-        name: "csswg-drafts",
-        url: "https://github.com/w3c/csswg-drafts.git",
-        sha: "cca93bb94ae073c964ffe076bbe75d6baef90dd6",
-        sparse: &[
-            "css-syntax-3",
-            "selectors-4",
-            "css-color-4",
-            "css-values-4",
-            "mediaqueries-5",
-            "css-conditional-5",
-            "css-ui-4",
-            "scroll-animations-1",
-            "css-cascade-5",
-        ],
-        walk: "",
-        expect_error_under: &[],
-        postcss_simple_vars: false,
-        note: "Phase 2 — extract examples from Bikeshed (.bs) sources",
-    },
-    Suite {
         name: "webref",
         url: "https://github.com/w3c/webref.git",
         sha: "9cce6ee56b9b281df9a81baa4cfc4a931e103333",
@@ -216,7 +196,7 @@ fn ensure_repo(suite: &Suite) -> io::Result<bool> {
 
     // GitHub allows fetching an arbitrary commit by SHA. `--depth 1` skips
     // history; for sparse checkouts we also add `--filter=blob:none` so only the
-    // in-cone blobs are pulled (keeps huge repos like wpt/csswg-drafts small).
+    // in-cone blobs are pulled (keeps huge repos like wpt small).
     // For full checkouts we skip the filter — it would just force a second,
     // flakier round-trip to lazily fetch every blob at checkout time.
     let mut fetch = vec!["fetch", "-q", "--depth", "1"];
@@ -748,7 +728,7 @@ fn run_and_snapshot(selected: &[&Suite], full_run: bool) {
         return;
     }
     for (suite, report) in &reports {
-        // Suites whose CSS is embedded in HTML/.bs/JSON ship no plain files; skip
+        // Suites whose CSS is embedded in HTML/JSON ship no plain files; skip
         // writing an empty failures snapshot for them (they still appear in the summary).
         if report.tally.files == 0 {
             continue;
