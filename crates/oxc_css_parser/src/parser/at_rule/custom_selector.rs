@@ -1,9 +1,9 @@
 use super::Parser;
-use crate::{Parse, ast::*, error::PResult, expect, peek, pos::Span, tokenizer::Token, util};
+use crate::{Parse, ast::*, error::PResult, expect, pos::Span, tokenizer::Token, util};
 
 impl<'a> Parse<'a> for CustomSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let prefix_arg = if matches!(peek!(input).token, Token::DollarVar(..)) {
+        let prefix_arg = if matches!(input.cursor.peek()?.token, Token::DollarVar(..)) {
             Some(input.parse::<CustomSelectorArg>()?)
         } else {
             None
@@ -16,7 +16,7 @@ impl<'a> Parse<'a> for CustomSelector<'a> {
         let name = input.parse::<Ident>()?;
         util::assert_no_ws_or_comment(&colon_span, &name.span)?;
 
-        let args = if matches!(peek!(input).token, Token::LParen(..)) {
+        let args = if matches!(input.cursor.peek()?.token, Token::LParen(..)) {
             Some(input.parse::<CustomSelectorArgs>()?)
         } else {
             None
@@ -52,9 +52,9 @@ impl<'a> Parse<'a> for CustomSelectorArgs<'a> {
 
         let mut args = input.vec();
         let mut comma_spans = input.vec();
-        while !matches!(peek!(input).token, Token::RParen(..)) {
+        while !matches!(input.cursor.peek()?.token, Token::RParen(..)) {
             args.push(input.parse()?);
-            if !matches!(peek!(input).token, Token::RParen(..)) {
+            if !matches!(input.cursor.peek()?.token, Token::RParen(..)) {
                 comma_spans.push(expect!(input, Comma).1);
             }
         }

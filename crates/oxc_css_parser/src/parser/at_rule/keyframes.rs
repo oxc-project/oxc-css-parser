@@ -5,7 +5,6 @@ use crate::{
     eat,
     error::{Error, ErrorKind, PResult},
     parser::state::ParserState,
-    peek,
     pos::{Span, Spanned},
     tokenizer::Token,
     util,
@@ -37,7 +36,7 @@ impl<'a> Parse<'a> for KeyframeBlock<'a> {
 
 impl<'a> Parse<'a> for KeyframeSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &peek!(input).token {
+        match &input.cursor.peek()?.token {
             Token::Percentage(..) => Ok(KeyframeSelector::Percentage(input.parse()?)),
             _ => {
                 let ident = input.parse()?;
@@ -62,7 +61,7 @@ impl<'a> Parse<'a> for KeyframeSelector<'a> {
 // https://drafts.csswg.org/css-animations/#keyframes
 impl<'a> Parse<'a> for KeyframesName<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &peek!(input).token {
+        match &input.cursor.peek()?.token {
             Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..) => {
                 let ident = input.parse()?;
                 match &ident {

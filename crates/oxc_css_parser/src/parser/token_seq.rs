@@ -2,25 +2,23 @@ use super::Parser;
 use crate::{
     Syntax,
     ast::*,
-    bump,
     error::{Error, ErrorKind, PResult},
-    peek,
     pos::Span,
     tokenizer::{Token, TokenWithSpan},
 };
 
 impl<'a> Parser<'a> {
     pub(super) fn parse_tokens_in_parens(&mut self) -> PResult<TokenSeq<'a>> {
-        let start = self.tokenizer.current_offset();
+        let start = self.cursor.tokenizer.current_offset();
         let mut tokens = self.vec_with_capacity(1);
         let mut pairs = Vec::with_capacity(1);
         loop {
-            match &peek!(self).token {
+            match &self.cursor.peek()?.token {
                 // A stray delimiter is a plain token in CSS, but the
                 // preprocessor dialects give it real syntax (`$var`, Less
                 // `^`), and their reference compilers reject it here.
                 Token::Unknown(..) if self.syntax != Syntax::Css => {
-                    let span = peek!(self).span.clone();
+                    let span = self.cursor.peek()?.span.clone();
                     return Err(Error { kind: ErrorKind::UnknownToken, span });
                 }
                 // An interpolated string (`("min-width:#{$foo}")`) must be
@@ -37,14 +35,14 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            tokens.push(bump!(self));
+            tokens.push(self.cursor.bump()?);
         }
         let span = Span {
             start: tokens.first().map(|token| token.span.start).unwrap_or(start),
             end: if let Some(last) = tokens.last() {
                 last.span.end
             } else {
-                peek!(self).span.start
+                self.cursor.peek()?.span.start
             },
         };
         Ok(TokenSeq { tokens, span })
@@ -58,7 +56,7 @@ impl<'a> Parser<'a> {
         &mut self,
         tokens: &mut oxc_allocator::Vec<'a, TokenWithSpan<'a>>,
     ) -> PResult<()> {
-        let head = bump!(self);
+        let head = self.cursor.bump()?;
         let quote = head.span.start;
         let quote = self.source[quote..].chars().next().unwrap_or('"');
         let mut tail = matches!(&head.token, Token::StrTemplate(template) if template.tail);
@@ -66,13 +64,13 @@ impl<'a> Parser<'a> {
         while !tail {
             // Each non-tail part ends at `#{` with the `#` consumed, so the
             // interpolation opens with a bare `{` (like `SassInterpolatedStr`).
-            let lbrace = bump!(self);
+            let lbrace = self.cursor.bump()?;
             debug_assert!(matches!(lbrace.token, Token::LBrace(..)));
             tokens.push(lbrace);
             // the expression's tokens, balanced to the interpolation's `}`
             let mut depth = 0u32;
             loop {
-                match &peek!(self).token {
+                match &self.cursor.peek()?.token {
                     Token::Eof(..) => return Ok(()),
                     Token::StrTemplate(..) => {
                         self.consume_str_template_tokens_into(tokens)?;
@@ -81,16 +79,16 @@ impl<'a> Parser<'a> {
                     Token::LBrace(..) | Token::HashLBrace(..) => depth += 1,
                     Token::RBrace(..) => {
                         if depth == 0 {
-                            tokens.push(bump!(self));
+                            tokens.push(self.cursor.bump()?);
                             break;
                         }
                         depth -= 1;
                     }
                     _ => {}
                 }
-                tokens.push(bump!(self));
+                tokens.push(self.cursor.bump()?);
             }
-            let (template, span) = self.tokenizer.scan_string_template(quote)?;
+            let (template, span) = self.cursor.tokenizer.scan_string_template(quote)?;
             tail = template.tail;
             tokens.push(TokenWithSpan { token: Token::StrTemplate(template), span });
         }

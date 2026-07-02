@@ -3,7 +3,6 @@ use crate::{
     Parse,
     ast::*,
     error::PResult,
-    peek,
     pos::{Span, Spanned},
     tokenizer::Token,
 };
@@ -20,7 +19,7 @@ impl<'a> Parse<'a> for CustomMedia<'a> {
 
 impl<'a> Parse<'a> for CustomMediaValue<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &peek!(input).token {
+        match &input.cursor.peek()?.token {
             Token::Ident(ident) => {
                 let name = ident.name();
                 if name.eq_ignore_ascii_case("true") {

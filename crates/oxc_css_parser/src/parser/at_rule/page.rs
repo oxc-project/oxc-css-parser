@@ -4,7 +4,7 @@ use crate::{
     ast::*,
     eat,
     error::PResult,
-    expect, peek,
+    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
     util,
@@ -18,7 +18,7 @@ impl<'a> Parse<'a> for PageSelector<'a> {
         let start;
         let mut end;
 
-        if let Token::Colon(..) = &peek!(input).token {
+        if let Token::Colon(..) = &input.cursor.peek()?.token {
             let first = input.parse::<PseudoPage>()?;
             start = first.span.start;
             end = first.span.end;
@@ -32,7 +32,7 @@ impl<'a> Parse<'a> for PageSelector<'a> {
         }
 
         loop {
-            match peek!(input) {
+            match input.cursor.peek()? {
                 TokenWithSpan { token: Token::Colon(..), span } if span.start == end => {
                     let item = input.parse::<PseudoPage>()?;
                     end = item.span.end;

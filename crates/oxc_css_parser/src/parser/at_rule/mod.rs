@@ -2,9 +2,8 @@ use super::{Parser, state::ParserState};
 use crate::{
     Parse, Syntax,
     ast::*,
-    bump,
     error::{Error, ErrorKind, PResult},
-    expect, peek,
+    expect,
     pos::{Span, Spanned},
     tokenizer::Token,
 };
@@ -37,7 +36,12 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 .try_parse_full_prelude(|p| MediaQueryList::parse(p).map(AtRulePrelude::Media))
             {
                 Ok(prelude) => Some(prelude),
-                Err(_) if matches!(peek!(input).token, Token::LBrace(..) | Token::Indent(..)) => {
+                Err(_)
+                    if matches!(
+                        input.cursor.peek()?.token,
+                        Token::LBrace(..) | Token::Indent(..)
+                    ) =>
+                {
                     None
                 }
                 // Only interpolation justifies the raw form — dart-sass
@@ -67,14 +71,14 @@ impl<'a> Parse<'a> for AtRule<'a> {
                             if has_substitution {
                                 Ok(raw)
                             } else {
-                                let span = peek!(p).span.clone();
+                                let span = p.cursor.peek()?.span.clone();
                                 Err(Error { kind: ErrorKind::TryParseError, span })
                             }
                         })
                     } else {
                         Err(Error {
                             kind: ErrorKind::TryParseError,
-                            span: peek!(input).span.clone(),
+                            span: input.cursor.peek()?.span.clone(),
                         })
                     };
                     match raw {
@@ -95,7 +99,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
             // A nameless `@keyframes {}` is invalid CSS, but Sass parses it
             // (the name may be produced elsewhere, e.g. a keyframes mixin
             // emitting vendor-prefixed blocks around `@content`).
-            let prelude = match &peek!(input).token {
+            let prelude = match &input.cursor.peek()?.token {
                 Token::LBrace(..) => None,
                 _ => {
                     // A typed name normally ends the prelude; real-world code
@@ -143,7 +147,8 @@ impl<'a> Parse<'a> for AtRule<'a> {
         } else if at_rule_name.eq_ignore_ascii_case("charset") {
             // https://drafts.csswg.org/css2/#charset%E2%91%A0
             // Less may interpolate into it: `@charset "UTF-@{Eight}";`
-            if input.syntax == Syntax::Less && matches!(peek!(input).token, Token::StrTemplate(..))
+            if input.syntax == Syntax::Less
+                && matches!(input.cursor.peek()?.token, Token::StrTemplate(..))
             {
                 let prelude = input.parse::<InterpolableStr>()?;
                 let end = prelude.span().end;
@@ -176,18 +181,19 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 // a Less variable may stand for the name: `@layer @layer-name {`
                 Err(_)
                     if input.syntax == Syntax::Less
-                        && matches!(peek!(input).token, Token::AtKeyword(..)) =>
+                        && matches!(input.cursor.peek()?.token, Token::AtKeyword(..)) =>
                 {
                     let raw = input.parse_raw_at_rule_prelude()?;
                     Some(AtRulePrelude::Unknown(input.alloc(raw)))
                 }
                 Err(_) => None,
             };
-            let block = if matches!(peek!(input).token, Token::LBrace(..) | Token::Indent(..)) {
-                Some(input.parse::<SimpleBlock>()?)
-            } else {
-                None
-            };
+            let block =
+                if matches!(input.cursor.peek()?.token, Token::LBrace(..) | Token::Indent(..)) {
+                    Some(input.parse::<SimpleBlock>()?)
+                } else {
+                    None
+                };
             if let Some(block) = &block
                 && matches!(&prelude, Some(AtRulePrelude::Layer(names)) if names.names.len() > 1)
             {
@@ -214,10 +220,10 @@ impl<'a> Parse<'a> for AtRule<'a> {
                         let is_query_list = input
                             .try_parse(|p| {
                                 p.parse::<ContainerPrelude>()?;
-                                if matches!(peek!(p).token, Token::Comma(..)) {
+                                if matches!(p.cursor.peek()?.token, Token::Comma(..)) {
                                     Ok(())
                                 } else {
-                                    let span = peek!(p).span.clone();
+                                    let span = p.cursor.peek()?.span.clone();
                                     Err(Error { kind: ErrorKind::TryParseError, span })
                                 }
                             })
@@ -225,7 +231,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                         // a Less variable may stand for the container name:
                         // `@container @varfoo (min-width: @threshold) {`
                         let less_variable_name = input.syntax == Syntax::Less
-                            && matches!(peek!(input).token, Token::AtKeyword(..));
+                            && matches!(input.cursor.peek()?.token, Token::AtKeyword(..));
                         if !is_query_list && !less_variable_name {
                             return Err(error);
                         }
@@ -247,7 +253,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
             (prelude, block, end)
         } else if at_rule_name.eq_ignore_ascii_case("namespace")
             && input.syntax == Syntax::Less
-            && matches!(peek!(input).token, Token::AtKeyword(..))
+            && matches!(input.cursor.peek()?.token, Token::AtKeyword(..))
         {
             // `@namespace @ns "http://...";` — a Less variable prefix
             let raw = input.parse_raw_at_rule_prelude()?;
@@ -305,7 +311,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
             let end = block.span.end;
             (prelude, Some(block), end)
         } else if at_rule_name.eq_ignore_ascii_case("scope") {
-            let prelude = if let Token::LParen(..) | Token::Ident(..) = peek!(input).token {
+            let prelude = if let Token::LParen(..) | Token::Ident(..) = input.cursor.peek()?.token {
                 let scope = input.parse()?;
                 Some(AtRulePrelude::Scope(input.alloc(scope)))
             } else {
@@ -323,7 +329,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 // an empty prelude (`@document {}`) stays an error.
                 Err(error) => {
                     if matches!(
-                        peek!(input).token,
+                        input.cursor.peek()?.token,
                         Token::LBrace(..) | Token::Indent(..) | Token::Semicolon(..)
                     ) {
                         return Err(error);
@@ -333,11 +339,12 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 }
             };
             // real-world code also writes a block-less `@document ...;`
-            let block = if matches!(peek!(input).token, Token::LBrace(..) | Token::Indent(..)) {
-                Some(input.parse::<SimpleBlock>()?)
-            } else {
-                None
-            };
+            let block =
+                if matches!(input.cursor.peek()?.token, Token::LBrace(..) | Token::Indent(..)) {
+                    Some(input.parse::<SimpleBlock>()?)
+                } else {
+                    None
+                };
             let end = block.as_ref().map_or(prelude.span().end, |block| block.span.end);
             (Some(prelude), block, end)
         } else if at_rule_name.eq_ignore_ascii_case("stylistic")
@@ -375,7 +382,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
             let end = prelude.span.end;
             (Some(AtRulePrelude::LessPlugin(input.alloc(prelude))), None, end)
         } else if at_rule_name.eq_ignore_ascii_case("function")
-            && matches!(&peek!(input).token, Token::Ident(ident) if ident.raw.starts_with("--"))
+            && matches!(&input.cursor.peek()?.token, Token::Ident(ident) if ident.raw.starts_with("--"))
         {
             // A CSS custom function (css-mixins spec): `@function --name(params)
             // returns <type> { declarations }`. dart-sass parses this as plain
@@ -425,31 +432,32 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 }
                 "include" => {
                     let prelude = input.parse::<SassInclude>()?;
-                    let block =
-                        if matches!(peek!(input).token, Token::LBrace(..) | Token::Indent(..)) {
-                            Some(
-                                input
-                                    .with_state(ParserState {
-                                        sass_ctx: input.state.sass_ctx
-                                            | SASS_CTX_ALLOW_KEYFRAME_BLOCK,
-                                        ..input.state.clone()
-                                    })
-                                    .parse::<SimpleBlock>()?,
-                            )
-                        } else {
-                            None
-                        };
+                    let block = if matches!(
+                        input.cursor.peek()?.token,
+                        Token::LBrace(..) | Token::Indent(..)
+                    ) {
+                        Some(
+                            input
+                                .with_state(ParserState {
+                                    sass_ctx: input.state.sass_ctx | SASS_CTX_ALLOW_KEYFRAME_BLOCK,
+                                    ..input.state.clone()
+                                })
+                                .parse::<SimpleBlock>()?,
+                        )
+                    } else {
+                        None
+                    };
                     let end =
                         block.as_ref().map(|block| block.span.end).unwrap_or(prelude.span.end);
                     (Some(AtRulePrelude::SassInclude(input.alloc(prelude))), block, end)
                 }
                 "content" => {
-                    if matches!(peek!(input).token, Token::LParen(..)) {
+                    if matches!(input.cursor.peek()?.token, Token::LParen(..)) {
                         let prelude = input.parse::<SassContent>()?;
                         let end = prelude.span.end;
                         (Some(AtRulePrelude::SassContent(prelude)), None, end)
                     } else {
-                        (None, None, input.tokenizer.current_offset())
+                        (None, None, input.cursor.tokenizer.current_offset())
                     }
                 }
                 "use" => {
@@ -503,7 +511,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 }
                 "at-root" => {
                     let prelude = if !matches!(
-                        peek!(input).token,
+                        input.cursor.peek()?.token,
                         Token::LBrace(..)
                             | Token::Indent(..)
                             | Token::Linebreak(..)
@@ -564,7 +572,7 @@ impl<'a> Parser<'a> {
     fn try_parse_full_prelude<T>(&mut self, f: impl FnOnce(&mut Self) -> PResult<T>) -> PResult<T> {
         self.try_parse(|p| {
             let value = f(p)?;
-            match &peek!(p).token {
+            match &p.cursor.peek()?.token {
                 Token::LBrace(..)
                 | Token::Indent(..)
                 | Token::Semicolon(..)
@@ -572,7 +580,7 @@ impl<'a> Parser<'a> {
                 | Token::Linebreak(..)
                 | Token::Eof(..) => Ok(value),
                 _ => {
-                    let span = peek!(p).span.clone();
+                    let span = p.cursor.peek()?.span.clone();
                     Err(Error { kind: ErrorKind::TryParseError, span })
                 }
             }
@@ -584,11 +592,11 @@ impl<'a> Parser<'a> {
     /// through — CSS custom function preludes (`--name(--arg) returns <type>`)
     /// and media queries the typed grammar can't express.
     fn parse_raw_at_rule_prelude(&mut self) -> PResult<UnknownAtRulePrelude<'a>> {
-        let start = self.tokenizer.current_offset();
+        let start = self.cursor.tokenizer.current_offset();
         let mut tokens = self.vec();
         let mut pairs: Vec<crate::util::PairedToken> = Vec::new();
         loop {
-            match &peek!(self).token {
+            match &self.cursor.peek()?.token {
                 Token::Semicolon(..)
                 | Token::Dedent(..)
                 | Token::Linebreak(..)
@@ -608,7 +616,7 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            tokens.push(bump!(self));
+            tokens.push(self.cursor.bump()?);
         }
         let span = Span {
             start: tokens.first().map_or(start, |token| token.span.start),
@@ -621,7 +629,7 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> PResult<(Option<UnknownAtRulePrelude<'a>>, Option<SimpleBlock<'a>>, Option<usize>)> {
         let prelude = self.parse_unknown_at_rule_prelude()?;
-        let block = match &peek!(self).token {
+        let block = match &self.cursor.peek()?.token {
             // An unknown at-rule's children parse generically; in Sass that
             // includes keyframe-style `10% { ... }` blocks
             // (`@keyfr#{"ames"} a {...}`). less.js keeps them an error.
@@ -649,7 +657,7 @@ impl<'a> Parser<'a> {
         if let Ok(prelude) = self.try_parse(|parser| {
             let mut tokens = parser.vec();
             loop {
-                match &peek!(parser).token {
+                match &parser.cursor.peek()?.token {
                     Token::LBrace(..)
                     | Token::RBrace(..)
                     | Token::Semicolon(..)
@@ -660,10 +668,10 @@ impl<'a> Parser<'a> {
                     Token::StrTemplate(..) | Token::HashLBrace(..) => {
                         return Err(Error {
                             kind: ErrorKind::TryParseError,
-                            span: bump!(parser).span,
+                            span: parser.cursor.bump()?.span,
                         });
                     }
-                    _ => tokens.push(bump!(parser)),
+                    _ => tokens.push(parser.cursor.bump()?),
                 }
             }
             if let Some((first, last)) = tokens.first().zip(tokens.last()) {

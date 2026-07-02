@@ -3,7 +3,7 @@ use crate::{
     Parse,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect, peek,
+    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
@@ -11,7 +11,7 @@ use crate::{
 // https://drafts.csswg.org/css-conditional-3/#at-supports
 impl<'a> Parse<'a> for SupportsCondition<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &peek!(input).token {
+        match &input.cursor.peek()?.token {
             Token::Ident(token) if token.name().eq_ignore_ascii_case("not") => {
                 let keyword = input.parse::<Ident>()?;
                 let condition = input.parse::<SupportsInParens>()?;
@@ -29,7 +29,7 @@ impl<'a> Parse<'a> for SupportsCondition<'a> {
                 let first = input.parse::<SupportsInParens>()?;
                 let mut span = first.span().clone();
                 let mut conditions = input.vec1(SupportsConditionKind::SupportsInParens(first));
-                while let Token::Ident(ident) = &peek!(input).token {
+                while let Token::Ident(ident) = &input.cursor.peek()?.token {
                     let name = ident.name();
                     if name.eq_ignore_ascii_case("and") {
                         let ident = input.parse::<Ident>()?;
@@ -64,7 +64,7 @@ impl<'a> Parse<'a> for SupportsCondition<'a> {
 
 impl<'a> Parse<'a> for SupportsInParens<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match peek!(input) {
+        match input.cursor.peek()? {
             TokenWithSpan { token: Token::LParen(..), .. } => input
                 .try_parse(|parser| {
                     parser.parse::<SupportsDecl>().map(|supports_decl| {
@@ -118,7 +118,7 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                     }
                     name => {
                         let glued_lparen = matches!(
-                            peek!(input),
+                            input.cursor.peek()?,
                             TokenWithSpan { token: Token::LParen(..), span }
                                 if span.start == name_end
                         );
@@ -149,7 +149,7 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                                 span,
                             })
                         } else {
-                            let TokenWithSpan { token, span } = peek!(input);
+                            let TokenWithSpan { token, span } = input.cursor.peek()?;
                             Err(Error {
                                 kind: ErrorKind::Unexpected("'('", token.symbol()),
                                 span: span.clone(),

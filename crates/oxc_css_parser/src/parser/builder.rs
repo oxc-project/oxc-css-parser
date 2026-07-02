@@ -1,4 +1,4 @@
-use super::Parser;
+use super::{Parser, ParserCursor};
 use crate::{ParserOptions, Syntax, tokenizer::Tokenizer};
 use oxc_allocator::Allocator;
 
@@ -70,16 +70,15 @@ impl<'a> ParserBuilder<'a> {
             source: self.source,
             syntax: self.syntax,
             options,
-            tokenizer: Tokenizer::new(
+            cursor: ParserCursor::new(Tokenizer::new(
                 self.allocator,
                 self.source,
                 self.syntax,
                 options.template_placeholder,
                 self.collect_comments,
-            ),
+            )),
             state: Default::default(),
             recoverable_errors: vec![],
-            cached_token: None,
             sass_pending_indents: 0,
         }
     }

@@ -2,9 +2,8 @@ use super::Parser;
 use crate::{
     Parse, Syntax,
     ast::*,
-    bump,
     error::{Error, ErrorKind, PResult},
-    expect, expect_without_ws_or_comments, peek,
+    expect, expect_without_ws_or_comments,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
@@ -16,19 +15,19 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
         // but an ident glued to `(` is a function href
         // (`@import url("theme.css")`), which the `Url::parse` arm handles.
         let sass_unquoted_path = input.syntax == Syntax::Sass
-            && matches!(peek!(input), TokenWithSpan { token: Token::Ident(..), span }
+            && matches!(input.cursor.peek()?, TokenWithSpan { token: Token::Ident(..), span }
                 if input.source.as_bytes().get(span.end) != Some(&b'('));
-        let href = match &peek!(input).token {
+        let href = match &input.cursor.peek()?.token {
             Token::Str(..) | Token::StrTemplate(..) => input.parse().map(ImportPreludeHref::Str)?,
             Token::Ident(..) if sass_unquoted_path => {
-                let start = peek!(input).span.start;
+                let start = input.cursor.peek()?.span.start;
                 let mut end = start;
                 while matches!(
-                    &peek!(input).token,
+                    &input.cursor.peek()?.token,
                     Token::Ident(..) | Token::Dot(..) | Token::Minus(..) | Token::Solidus(..)
-                ) && peek!(input).span.start == end
+                ) && input.cursor.peek()?.span.start == end
                 {
-                    end = bump!(input).span.end;
+                    end = input.cursor.bump()?.span.end;
                 }
                 let raw = unsafe { input.source.get_unchecked(start..end) };
                 let span = Span { start, end };
@@ -62,7 +61,7 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
             // unknown functions, media-ish parens, further comma-chained
             // imports); keep the whole tail as raw component values.
             Err(_) => {
-                let start = peek!(input).span.start;
+                let start = input.cursor.peek()?.span.start;
                 let values = input.parse_declaration_value_tokens(true)?;
                 // A trailing comma has no import after it — reference
                 // compilers reject that, so don't paper over it.
@@ -108,14 +107,14 @@ impl<'a> ImportPrelude<'a> {
         Option<ImportPreludeSupports<'a>>,
         Option<MediaQueryList<'a>>,
     )> {
-        let layer = match &peek!(input).token {
+        let layer = match &input.cursor.peek()?.token {
             Token::Ident(ident) if ident.name().eq_ignore_ascii_case("layer") => {
                 let ident = input.parse::<Ident>()?;
-                let layer = match peek!(input) {
+                let layer = match input.cursor.peek()? {
                     TokenWithSpan { token: Token::LParen(..), span }
                         if span.start == ident.span.end =>
                     {
-                        bump!(input);
+                        input.cursor.bump()?;
                         let layer_name = input.parse().map(ComponentValue::LayerName)?;
                         let args = input.vec1(layer_name);
                         let end = expect!(input, RParen).1.end;
@@ -152,17 +151,17 @@ impl<'a> ImportPrelude<'a> {
         });
         // `}` ends the at-rule too, so an `@import` nested in a style rule needs no
         // trailing `;` (`a { @import "b.css" }`); it can't start a media query.
-        let media = if at_import_prelude_end(&peek!(input).token) {
+        let media = if at_import_prelude_end(&input.cursor.peek()?.token) {
             None
         } else {
             Some(input.parse::<MediaQueryList>()?)
         };
 
         // Anything left over means this tail isn't the standard grammar.
-        if at_import_prelude_end(&peek!(input).token) {
+        if at_import_prelude_end(&input.cursor.peek()?.token) {
             Ok((layer, supports.ok(), media))
         } else {
-            let span = peek!(input).span.clone();
+            let span = input.cursor.peek()?.span.clone();
             Err(Error { kind: ErrorKind::TryParseError, span })
         }
     }

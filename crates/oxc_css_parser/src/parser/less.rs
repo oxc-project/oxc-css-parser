@@ -5,11 +5,10 @@ use super::{
 use crate::{
     Parse,
     ast::*,
-    bump,
     config::Syntax,
     eat,
     error::{Error, ErrorKind, PResult},
-    expect, expect_without_ws_or_comments, peek,
+    expect, expect_without_ws_or_comments,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
     util,
@@ -34,32 +33,32 @@ impl<'a> Parser<'a> {
         let left =
             self.parse_less_operation(/* allow_mixin_call */ false).map(LessCondition::Value)?;
 
-        let op = match &peek!(self).token {
+        let op = match &self.cursor.peek()?.token {
             Token::GreaterThan(..) => LessBinaryConditionOperator {
                 kind: LessBinaryConditionOperatorKind::GreaterThan,
-                span: bump!(self).span,
+                span: self.cursor.bump()?.span,
             },
             Token::GreaterThanEqual(..) => LessBinaryConditionOperator {
                 kind: LessBinaryConditionOperatorKind::GreaterThanOrEqual,
-                span: bump!(self).span,
+                span: self.cursor.bump()?.span,
             },
             Token::LessThan(..) => LessBinaryConditionOperator {
                 kind: LessBinaryConditionOperatorKind::LessThan,
-                span: bump!(self).span,
+                span: self.cursor.bump()?.span,
             },
             Token::LessThanEqual(..) => LessBinaryConditionOperator {
                 kind: LessBinaryConditionOperatorKind::LessThanOrEqual,
-                span: bump!(self).span,
+                span: self.cursor.bump()?.span,
             },
             Token::Equal(..) => {
-                let eq_span = bump!(self).span;
-                match peek!(self) {
+                let eq_span = self.cursor.bump()?.span;
+                match self.cursor.peek()? {
                     TokenWithSpan { token: Token::GreaterThan(..), span: gt_span }
                         if eq_span.end == gt_span.start =>
                     {
                         LessBinaryConditionOperator {
                             kind: LessBinaryConditionOperatorKind::EqualOrGreaterThan,
-                            span: Span { start: eq_span.start, end: bump!(self).span.end },
+                            span: Span { start: eq_span.start, end: self.cursor.bump()?.span.end },
                         }
                     }
                     TokenWithSpan { token: Token::LessThan(..), span: lt_span }
@@ -67,7 +66,7 @@ impl<'a> Parser<'a> {
                     {
                         LessBinaryConditionOperator {
                             kind: LessBinaryConditionOperatorKind::EqualOrLessThan,
-                            span: Span { start: eq_span.start, end: bump!(self).span.end },
+                            span: Span { start: eq_span.start, end: self.cursor.bump()?.span.end },
                         }
                     }
                     _ => LessBinaryConditionOperator {
@@ -121,7 +120,7 @@ impl<'a> Parser<'a> {
                 })) => match &**inner_condition {
                     LessCondition::Value(ComponentValue::LessBinaryOperation(..))
                         if matches!(
-                            peek!(parser).token,
+                            parser.cursor.peek()?.token,
                             Token::GreaterThan(..)
                                 | Token::GreaterThanEqual(..)
                                 | Token::LessThan(..)
@@ -152,9 +151,9 @@ impl<'a> Parser<'a> {
         precedence: u8,
     ) -> PResult<LessCondition<'a>> {
         let mut left = if precedence >= PRECEDENCE_AND {
-            match &peek!(self).token {
+            match &self.cursor.peek()?.token {
                 Token::LParen(..) => {
-                    let Span { start, .. } = bump!(self).span;
+                    let Span { start, .. } = self.cursor.bump()?.span;
                     let (condition, end) = self.parse_less_guard_paren_condition(needs_parens)?;
                     LessCondition::Parenthesized(LessParenthesizedCondition {
                         condition: self.alloc(condition),
@@ -162,7 +161,7 @@ impl<'a> Parser<'a> {
                     })
                 }
                 Token::Ident(ident) if ident.raw == "not" => {
-                    let Span { start, .. } = bump!(self).span;
+                    let Span { start, .. } = self.cursor.bump()?.span;
                     let (condition, end) = if eat!(self, LParen).is_some() {
                         self.parse_less_guard_paren_condition(needs_parens)?
                     } else {
@@ -179,7 +178,7 @@ impl<'a> Parser<'a> {
                 _ => {
                     if needs_parens {
                         use crate::{token::LParen, tokenizer::TokenSymbol};
-                        let TokenWithSpan { token, span } = bump!(self);
+                        let TokenWithSpan { token, span } = self.cursor.bump()?;
                         return Err(Error {
                             kind: ErrorKind::Unexpected(LParen::symbol(), token.symbol()),
                             span,
@@ -194,17 +193,17 @@ impl<'a> Parser<'a> {
         };
 
         loop {
-            let op = match &peek!(self).token {
+            let op = match &self.cursor.peek()?.token {
                 Token::Ident(token) if token.raw == "and" && precedence == PRECEDENCE_AND => {
                     LessBinaryConditionOperator {
                         kind: LessBinaryConditionOperatorKind::And,
-                        span: bump!(self).span,
+                        span: self.cursor.bump()?.span,
                     }
                 }
                 Token::Ident(token) if token.raw == "or" && precedence == PRECEDENCE_OR => {
                     LessBinaryConditionOperator {
                         kind: LessBinaryConditionOperatorKind::Or,
-                        span: bump!(self).span,
+                        span: self.cursor.bump()?.span,
                     }
                 }
                 _ => break,
@@ -228,7 +227,7 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_less_interpolated_ident(&mut self) -> PResult<InterpolableIdent<'a>> {
         debug_assert_eq!(self.syntax, Syntax::Less);
 
-        let (first, Span { start, mut end }) = match peek!(self) {
+        let (first, Span { start, mut end }) = match self.cursor.peek()? {
             TokenWithSpan { token: Token::Ident(..), .. } => {
                 let (ident, ident_span) = expect!(self, Ident);
                 (
@@ -292,13 +291,13 @@ impl<'a> Parser<'a> {
     ) -> PResult<oxc_allocator::Vec<'a, LessInterpolatedIdentElement<'a>>> {
         let mut elements = self.vec();
         loop {
-            if let Some((token, span)) = self.tokenizer.scan_ident_template()? {
+            if let Some((token, span)) = self.cursor.tokenizer.scan_ident_template()? {
                 *end = span.end;
                 elements.push(LessInterpolatedIdentElement::Static(
                     self.interpolable_ident_static_part(token, span),
                 ));
             } else {
-                match peek!(self) {
+                match self.cursor.peek()? {
                     TokenWithSpan { token: Token::AtLBraceVar(..), span: at_lbrace_var_span }
                         if *end == at_lbrace_var_span.start =>
                     {
@@ -328,7 +327,7 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> PResult<ComponentValue<'a>> {
         let mixin_call = self.parse::<LessMixinCall>()?;
-        if matches!(peek!(self).token, Token::LBracket(..)) {
+        if matches!(self.cursor.peek()?.token, Token::LBracket(..)) {
             let lookups = self.parse::<LessLookups>()?;
             let span = Span { start: mixin_call.span.start, end: lookups.span.end };
             Ok(ComponentValue::LessNamespaceValue(self.alloc(LessNamespaceValue {
@@ -345,10 +344,10 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> PResult<ComponentValue<'a>> {
         let variable = self.parse::<LessVariable>()?;
-        match peek!(self) {
+        match self.cursor.peek()? {
             // a detached-ruleset call in value position: `a: @a();`
             TokenWithSpan { token: Token::LParen(..), span } if variable.span.end == span.start => {
-                bump!(self);
+                self.cursor.bump()?;
                 let (_, Span { end, .. }) = expect!(self, RParen);
                 let span = Span { start: variable.span.start, end };
                 return Ok(ComponentValue::LessVariableCall(LessVariableCall { variable, span }));
@@ -381,7 +380,7 @@ impl<'a> Parser<'a> {
         precedence: u8,
     ) -> PResult<ComponentValue<'a>> {
         let mut left = if precedence >= PRECEDENCE_MULTIPLY {
-            match peek!(self).token {
+            match self.cursor.peek()?.token {
                 Token::LParen(..) => self
                     .parse_less_parenthesized_operation(allow_mixin_call)
                     .map(ComponentValue::LessParenthesizedOperation)?,
@@ -389,9 +388,9 @@ impl<'a> Parser<'a> {
                     // less.js's keyword regex also matches a bare `-`
                     // (`a:hover when (2 = true) {5:-}`); only treat it as one
                     // when a terminator follows immediately
-                    let end = peek!(self).span.end;
+                    let end = self.cursor.peek()?.span.end;
                     if matches!(self.source.as_bytes().get(end), None | Some(b';' | b'}')) {
-                        let span = bump!(self).span;
+                        let span = self.cursor.bump()?.span;
                         ComponentValue::InterpolableIdent(InterpolableIdent::Literal(Ident {
                             name: "-",
                             raw: "-",
@@ -419,13 +418,13 @@ impl<'a> Parser<'a> {
         };
 
         loop {
-            let op = match peek!(self) {
+            let op = match self.cursor.peek()? {
                 TokenWithSpan { token: Token::Asterisk(..), .. }
                     if precedence == PRECEDENCE_MULTIPLY =>
                 {
                     LessOperationOperator {
                         kind: LessOperationOperatorKind::Multiply,
-                        span: bump!(self).span,
+                        span: self.cursor.bump()?.span,
                     }
                 }
                 TokenWithSpan { token: Token::Solidus(..), .. }
@@ -435,14 +434,14 @@ impl<'a> Parser<'a> {
                 {
                     LessOperationOperator {
                         kind: LessOperationOperatorKind::Division,
-                        span: bump!(self).span,
+                        span: self.cursor.bump()?.span,
                     }
                 }
                 TokenWithSpan { token: Token::Dot(..), .. }
                     if precedence == PRECEDENCE_MULTIPLY =>
                 {
                     // `./` is also division
-                    let Span { start, .. } = bump!(self).span;
+                    let Span { start, .. } = self.cursor.bump()?.span;
                     let (_, Span { end, .. }) = expect_without_ws_or_comments!(self, Solidus);
                     LessOperationOperator {
                         kind: LessOperationOperatorKind::Division,
@@ -460,7 +459,7 @@ impl<'a> Parser<'a> {
                 {
                     LessOperationOperator {
                         kind: LessOperationOperatorKind::Plus,
-                        span: bump!(self).span,
+                        span: self.cursor.bump()?.span,
                     }
                 }
                 TokenWithSpan { token: Token::Minus(..), span }
@@ -470,7 +469,7 @@ impl<'a> Parser<'a> {
                 {
                     LessOperationOperator {
                         kind: LessOperationOperatorKind::Minus,
-                        span: bump!(self).span,
+                        span: self.cursor.bump()?.span,
                     }
                 }
                 TokenWithSpan { token: Token::Number(token), span }
@@ -540,14 +539,17 @@ impl<'a> Parser<'a> {
                     };
                     // multiplication binds tighter than the split-off sign:
                     // `(6px-1px*2)` is `6px - (1px * 2)`
-                    while matches!(&peek!(self).token, Token::Asterisk(..) | Token::Solidus(..)) {
+                    while matches!(
+                        &self.cursor.peek()?.token,
+                        Token::Asterisk(..) | Token::Solidus(..)
+                    ) {
                         let mul_op = LessOperationOperator {
-                            kind: if matches!(&peek!(self).token, Token::Asterisk(..)) {
+                            kind: if matches!(&self.cursor.peek()?.token, Token::Asterisk(..)) {
                                 LessOperationOperatorKind::Multiply
                             } else {
                                 LessOperationOperatorKind::Division
                             },
-                            span: bump!(self).span,
+                            span: self.cursor.bump()?.span,
                         };
                         let mul_rhs = self.parse_less_operation_recursively(
                             allow_mixin_call,
@@ -614,13 +616,13 @@ impl<'a> Parser<'a> {
             })
             .parse::<SelectorList>()?;
 
-        match &peek!(self).token {
+        match &self.cursor.peek()?.token {
             Token::Ident(ident) if ident.raw == "when" => {
                 // less.js: "Guards are only currently allowed on a single
                 // selector." — a guard on a selector list is rejected whether
                 // the comma comes before or after the `when`.
                 if selector_list.selectors.len() > 1 {
-                    let span = peek!(self).span.clone();
+                    let span = self.cursor.peek()?.span.clone();
                     return Err(Error {
                         kind: ErrorKind::LessGuardOnMultipleComplexSelectors,
                         span,
@@ -651,7 +653,7 @@ impl<'a> Parser<'a> {
 
         let attempt = self.try_parse(|parser| {
             let hex_color = parser.parse::<HexColor>()?;
-            match peek!(parser) {
+            match parser.cursor.peek()? {
                 TokenWithSpan { token: Token::LParen(..), span } => {
                     Err(Error { kind: ErrorKind::TryParseError, span: span.clone() })
                 }
@@ -680,7 +682,7 @@ impl<'a> Parser<'a> {
 
         let single_value = if allow_comma {
             self.parse_maybe_less_list(false)?
-        } else if let Token::Exclamation(..) = peek!(self).token {
+        } else if let Token::Exclamation(..) = self.cursor.peek()?.token {
             self.parse().map(ComponentValue::ImportantAnnotation)?
         } else {
             self.parse_less_operation(/* allow_mixin_call */ true)?
@@ -691,7 +693,7 @@ impl<'a> Parser<'a> {
         let mut separator = ListSeparatorKind::Unknown;
         let mut end = single_value.span().end;
         loop {
-            match peek!(self).token {
+            match self.cursor.peek()?.token {
                 Token::LBrace(..)
                 | Token::RBrace(..)
                 | Token::RParen(..)
@@ -709,7 +711,7 @@ impl<'a> Parser<'a> {
                         if separator == ListSeparatorKind::Unknown {
                             separator = ListSeparatorKind::Comma;
                         }
-                        let TokenWithSpan { span, .. } = bump!(self);
+                        let TokenWithSpan { span, .. } = self.cursor.bump()?;
                         end = span.end;
                         if let Some(spans) = &mut comma_spans {
                             spans.push(span);
@@ -762,7 +764,7 @@ impl<'a> Parser<'a> {
 
 impl<'a> Parse<'a> for LessConditions<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let when_span = match bump!(input) {
+        let when_span = match input.cursor.bump()? {
             TokenWithSpan { token: Token::Ident(ident), span } if ident.raw == "when" => span,
             TokenWithSpan { span, .. } => {
                 return Err(Error { kind: ErrorKind::ExpectLessKeyword("when"), span });
@@ -777,7 +779,7 @@ impl<'a> Parse<'a> for LessConditions<'a> {
         // A comma may also separate the next guarded selector of the rule
         // (`.a when (..), .b when (..) {`), so only consume it when a
         // condition actually follows.
-        while matches!(peek!(input).token, Token::Comma(..)) {
+        while matches!(input.cursor.peek()?.token, Token::Comma(..)) {
             let Ok((comma_span, condition)) = input.try_parse(|p| {
                 let (_, comma_span) = expect!(p, Comma);
                 let condition = p.parse_less_condition(true)?;
@@ -809,7 +811,7 @@ impl<'a> Parse<'a> for LessEscapedStr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = expect!(input, Tilde);
         let str = {
-            let (str, span) = input.tokenizer.scan_string_only()?;
+            let (str, span) = input.cursor.tokenizer.scan_string_only()?;
             input.str(str, span)
         };
         let span = Span { start, end: str.span().end };
@@ -927,10 +929,10 @@ impl<'a> Parse<'a> for LessImportOptions<'a> {
         while let Token::Ident(crate::token::Ident {
             raw: "less" | "css" | "multiple" | "once" | "inline" | "reference" | "optional",
             ..
-        }) = peek!(input).token
+        }) = input.cursor.peek()?.token
         {
             names.push(input.parse()?);
-            if !matches!(peek!(input).token, Token::RParen(..)) {
+            if !matches!(input.cursor.peek()?.token, Token::RParen(..)) {
                 comma_spans.push(expect!(input, Comma).1);
             }
         }
@@ -947,13 +949,13 @@ impl<'a> Parse<'a> for LessImportPrelude<'a> {
         let options = input.parse::<LessImportOptions>()?;
         let start = options.span.start;
 
-        let href = match &peek!(input).token {
+        let href = match &input.cursor.peek()?.token {
             Token::Str(..) | Token::StrTemplate(..) => input.parse().map(ImportPreludeHref::Str)?,
             _ => input.parse().map(ImportPreludeHref::Url)?,
         };
         let mut end = href.span().end;
 
-        let media = if matches!(peek!(input).token, Token::Semicolon(..)) {
+        let media = if matches!(input.cursor.peek()?.token, Token::Semicolon(..)) {
             None
         } else {
             let media = input.parse::<MediaQueryList>()?;
@@ -978,7 +980,7 @@ impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
         let mut is_parsing_static_part = false;
         loop {
             if is_parsing_static_part {
-                let (token, str_tpl_span) = input.tokenizer.scan_string_template(quote)?;
+                let (token, str_tpl_span) = input.cursor.tokenizer.scan_string_template(quote)?;
                 let tail = token.tail;
                 let end = str_tpl_span.end;
                 elements.push(LessInterpolatedStrElement::Static(
@@ -1045,8 +1047,11 @@ impl<'a> Parse<'a> for LessLookup<'a> {
         debug_assert_eq!(input.syntax, Syntax::Less);
 
         let (_, Span { start, .. }) = expect!(input, LBracket);
-        let name =
-            if let Token::RBracket(..) = peek!(input).token { None } else { Some(input.parse()?) };
+        let name = if let Token::RBracket(..) = input.cursor.peek()?.token {
+            None
+        } else {
+            Some(input.parse()?)
+        };
         let (_, Span { end, .. }) = expect!(input, RBracket);
         Ok(LessLookup { name, span: Span { start, end } })
     }
@@ -1057,18 +1062,18 @@ impl<'a> Parse<'a> for LessLookupName<'a> {
         debug_assert_eq!(input.syntax, Syntax::Less);
 
         let is_dollar = {
-            let TokenWithSpan { token, span } = peek!(input);
+            let TokenWithSpan { token, span } = input.cursor.peek()?;
             matches!(token, Token::Unknown(..))
                 && input.source.as_bytes().get(span.start) == Some(&b'$')
         };
-        match peek!(input).token {
+        match input.cursor.peek()?.token {
             Token::AtKeyword(..) => input.parse().map(LessLookupName::LessVariable),
             Token::At(..) => input.parse().map(LessLookupName::LessVariableVariable),
             Token::DollarVar(..) => input.parse().map(LessLookupName::LessPropertyVariable),
             // `[$@var]` — a property lookup whose name is interpolated from a
             // variable; the lone `$` arrives as an <unknown-token>
             Token::Unknown(..) if is_dollar => {
-                let dollar_span = bump!(input).span;
+                let dollar_span = input.cursor.bump()?.span;
                 let variable = input.parse::<LessVariable>()?;
                 util::assert_no_ws_or_comment(&dollar_span, &variable.span)?;
                 let span = Span { start: dollar_span.start, end: variable.span.end };
@@ -1090,7 +1095,7 @@ impl<'a> Parse<'a> for LessLookups<'a> {
         let mut span = first.span.clone();
 
         let mut lookups = input.vec1(first);
-        while let Token::LBracket(..) = peek!(input).token {
+        while let Token::LBracket(..) = input.cursor.peek()?.token {
             lookups.push(input.parse()?);
         }
 
@@ -1114,9 +1119,9 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
             let mut comma_spans = input.vec();
             let mut semicolon_spans = input.vec();
             loop {
-                match peek!(input).token {
+                match input.cursor.peek()?.token {
                     Token::RParen(..) => {
-                        let TokenWithSpan { span, .. } = bump!(input);
+                        let TokenWithSpan { span, .. } = input.cursor.bump()?;
                         if semicolon_comes_at > 0 {
                             let comma_spans = mem::replace(&mut comma_spans, input.vec());
                             wrap_less_mixin_args_into_less_list(
@@ -1144,7 +1149,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                     Token::Comma(..) => {
                         return Err(Error {
                             kind: ErrorKind::ExpectComponentValue,
-                            span: bump!(input).span,
+                            span: input.cursor.bump()?.span,
                         });
                     }
                     _ => 'maybe: {
@@ -1164,7 +1169,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                             }
                         };
                         if let Some((_, colon_span)) = eat!(input, Colon) {
-                            let value = if matches!(peek!(input).token, Token::LBrace(..)) {
+                            let value = if matches!(input.cursor.peek()?.token, Token::LBrace(..)) {
                                 input.parse().map(ComponentValue::LessDetachedRuleset)?
                             } else {
                                 input.parse_maybe_less_list(
@@ -1200,13 +1205,13 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                     }
                 };
 
-                match peek!(input).token {
+                match input.cursor.peek()?.token {
                     Token::RParen(..) => {}
                     Token::Comma(..) => {
-                        comma_spans.push(bump!(input).span);
+                        comma_spans.push(input.cursor.bump()?.span);
                     }
                     Token::Semicolon(..) => {
-                        let TokenWithSpan { span, .. } = bump!(input);
+                        let TokenWithSpan { span, .. } = input.cursor.bump()?;
                         let comma_spans = mem::replace(&mut comma_spans, input.vec());
                         wrap_less_mixin_args_into_less_list(
                             input.allocator(),
@@ -1219,7 +1224,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                         semicolon_spans.push(span);
                     }
                     _ => {
-                        let TokenWithSpan { token, span } = bump!(input);
+                        let TokenWithSpan { token, span } = input.cursor.bump()?;
                         use crate::{token::RParen, tokenizer::TokenSymbol};
                         return Err(Error {
                             kind: ErrorKind::Unexpected(RParen::symbol(), token.symbol()),
@@ -1245,7 +1250,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
         let important = if !matches!(
             input.state.qualified_rule_ctx,
             Some(QualifiedRuleContext::DeclarationValue)
-        ) && matches!(peek!(input).token, Token::Exclamation(..))
+        ) && matches!(input.cursor.peek()?.token, Token::Exclamation(..))
         {
             input.parse::<ImportantAnnotation>().map(Some)?
         } else {
@@ -1269,13 +1274,13 @@ impl<'a> Parser<'a> {
         let mut comma_spans = self.vec();
         let mut semicolon_spans = self.vec();
         'params: loop {
-            match peek!(self).token {
+            match self.cursor.peek()?.token {
                 Token::RParen(..) => {
-                    rparen_span = bump!(self).span;
+                    rparen_span = self.cursor.bump()?.span;
                     break;
                 }
                 Token::DotDotDot(..) => {
-                    let TokenWithSpan { span, .. } = bump!(self);
+                    let TokenWithSpan { span, .. } = self.cursor.bump()?;
                     params.push(LessMixinParameter::Variadic(LessMixinVariadicParameter {
                         name: None,
                         span,
@@ -1287,7 +1292,7 @@ impl<'a> Parser<'a> {
                 Token::Comma(..) => {
                     return Err(Error {
                         kind: ErrorKind::ExpectComponentValue,
-                        span: bump!(self).span,
+                        span: self.cursor.bump()?.span,
                     });
                 }
                 _ => 'maybe: {
@@ -1316,7 +1321,7 @@ impl<'a> Parser<'a> {
                     };
                     let name_span = name.span();
                     if let Some((_, colon_span)) = eat!(self, Colon) {
-                        let value = if matches!(peek!(self).token, Token::LBrace(..)) {
+                        let value = if matches!(self.cursor.peek()?.token, Token::LBrace(..)) {
                             self.parse().map(ComponentValue::LessDetachedRuleset)?
                         } else {
                             self.with_state(ParserState {
@@ -1358,9 +1363,9 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            match &peek!(self).token {
+            match &self.cursor.peek()?.token {
                 Token::RParen(..) => {
-                    let span = bump!(self).span;
+                    let span = self.cursor.bump()?.span;
                     if semicolon_comes_at > 0 {
                         let comma_spans = mem::replace(&mut comma_spans, self.vec());
                         wrap_less_mixin_params_into_less_list(
@@ -1383,10 +1388,10 @@ impl<'a> Parser<'a> {
                     break;
                 }
                 Token::Comma(..) => {
-                    comma_spans.push(bump!(self).span);
+                    comma_spans.push(self.cursor.bump()?.span);
                 }
                 Token::Semicolon(..) => {
-                    let span = bump!(self).span;
+                    let span = self.cursor.bump()?.span;
                     let comma_spans = mem::replace(&mut comma_spans, self.vec());
                     wrap_less_mixin_params_into_less_list(
                         self.allocator(),
@@ -1420,9 +1425,9 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_less_anonymous_mixin(&mut self) -> PResult<LessAnonymousMixin<'a>> {
         debug_assert_eq!(self.syntax, Syntax::Less);
 
-        let TokenWithSpan { token, span: head_span } = bump!(self);
+        let TokenWithSpan { token, span: head_span } = self.cursor.bump()?;
         if !matches!(token, Token::Dot(..) | Token::NumberSign(..))
-            || peek!(self).span.start != head_span.end
+            || self.cursor.peek()?.span.start != head_span.end
         {
             return Err(Error { kind: ErrorKind::TryParseError, span: head_span });
         }
@@ -1447,7 +1452,7 @@ impl<'a> Parse<'a> for LessMixinCallee<'a> {
             let combinator = eat!(input, GreaterThan)
                 .map(|(_, span)| Combinator { kind: CombinatorKind::Child, span });
             let at_name = {
-                let TokenWithSpan { token, span } = peek!(input);
+                let TokenWithSpan { token, span } = input.cursor.peek()?;
                 matches!(token, Token::Dot(..) | Token::Hash(..))
                     || (matches!(token, Token::Dimension(..))
                         && input.source.as_bytes().get(span.start) == Some(&b'.'))
@@ -1483,7 +1488,7 @@ impl<'a> Parse<'a> for LessMixinDefinition<'a> {
 
         let params = input.parse_less_mixin_parameters()?;
 
-        let guard = match &peek!(input).token {
+        let guard = match &input.cursor.peek()?.token {
             Token::Ident(ident) if ident.raw == "when" => Some(input.parse()?),
             _ => None,
         };
@@ -1503,7 +1508,7 @@ impl<'a> Parse<'a> for LessMixinDefinition<'a> {
 
 impl<'a> Parse<'a> for LessMixinName<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match bump!(input) {
+        match input.cursor.bump()? {
             // `.3D` — a digit-led name arrives as one <dimension-token>
             TokenWithSpan { token: Token::Dimension(..), span }
                 if input.source.as_bytes().get(span.start) == Some(&b'.') =>
@@ -1560,7 +1565,7 @@ impl<'a> Parse<'a> for LessMixinName<'a> {
 
 impl<'a> Parse<'a> for LessMixinParameterName<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        if matches!(peek!(input).token, Token::AtKeyword(..)) {
+        if matches!(input.cursor.peek()?.token, Token::AtKeyword(..)) {
             input.parse().map(LessMixinParameterName::Variable)
         } else {
             input.parse().map(LessMixinParameterName::PropertyVariable)
@@ -1583,7 +1588,7 @@ impl<'a> Parse<'a> for LessNamespaceValue<'a> {
 
 impl<'a> Parse<'a> for LessNamespaceValueCallee<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        if matches!(peek!(input).token, Token::AtKeyword(..)) {
+        if matches!(input.cursor.peek()?.token, Token::AtKeyword(..)) {
             input.parse().map(LessNamespaceValueCallee::LessVariable)
         } else {
             input.parse().map(LessNamespaceValueCallee::LessMixinCall)
@@ -1594,7 +1599,7 @@ impl<'a> Parse<'a> for LessNamespaceValueCallee<'a> {
 impl<'a> Parse<'a> for LessNegativeValue<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, minus_span) = expect!(input, Minus);
-        let value = match peek!(input) {
+        let value = match input.cursor.peek()? {
             TokenWithSpan {
                 token: Token::AtKeyword(..) | Token::At(..) | Token::DollarVar(..),
                 span,
@@ -1660,7 +1665,7 @@ impl<'a> Parse<'a> for LessPlugin<'a> {
 
 impl<'a> Parse<'a> for LessPluginPath<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        if let Token::Str(..) = peek!(input).token {
+        if let Token::Str(..) = input.cursor.peek()?.token {
             input.parse().map(LessPluginPath::Str)
         } else {
             input.parse().map(LessPluginPath::Url)
@@ -1683,14 +1688,14 @@ impl<'a> Parse<'a> for Option<LessPropertyMerge> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Less | Syntax::Css));
 
-        match &peek!(input).token {
+        match &input.cursor.peek()?.token {
             Token::Plus(..) => Ok(Some(LessPropertyMerge {
                 kind: LessPropertyMergeKind::Comma,
-                span: bump!(input).span,
+                span: input.cursor.bump()?.span,
             })),
             Token::PlusUnderscore(..) => Ok(Some(LessPropertyMerge {
                 kind: LessPropertyMergeKind::Space,
-                span: bump!(input).span,
+                span: input.cursor.bump()?.span,
             })),
             _ => Ok(None),
         }
@@ -1734,7 +1739,7 @@ impl<'a> Parse<'a> for LessVariableDeclaration<'a> {
 
         let name = input.parse::<LessVariable>()?;
         let (_, colon_span) = expect!(input, Colon);
-        let value = if matches!(peek!(input).token, Token::LBrace(..)) {
+        let value = if matches!(input.cursor.peek()?.token, Token::LBrace(..)) {
             ComponentValue::LessDetachedRuleset(input.parse()?)
         } else {
             let typed = input.try_parse(|p| {
@@ -1748,10 +1753,10 @@ impl<'a> Parse<'a> for LessVariableDeclaration<'a> {
                 // statement boundary — `@page :first {` is an at-rule, not a
                 // variable named `@page` with the value `first`.
                 if !matches!(
-                    &peek!(p).token,
+                    &p.cursor.peek()?.token,
                     Token::Semicolon(..) | Token::RBrace(..) | Token::Eof(..)
                 ) {
-                    let span = peek!(p).span.clone();
+                    let span = p.cursor.peek()?.span.clone();
                     return Err(Error { kind: ErrorKind::TryParseError, span });
                 }
                 Ok(value)
@@ -1763,11 +1768,11 @@ impl<'a> Parse<'a> for LessVariableDeclaration<'a> {
                     // balanced token run (`@this: () => { ... };`), but only
                     // when explicitly terminated by `;` — otherwise
                     // `@page :first { ... }` would be swallowed too.
-                    let start = peek!(input).span.start;
+                    let start = input.cursor.peek()?.span.start;
                     let values = input
                         .parse_declaration_value_tokens(/* stop_at_top_level_brace */ false)?;
                     let end = values.last().map(|v| v.span().end);
-                    if !matches!(peek!(input).token, Token::Semicolon(..)) {
+                    if !matches!(input.cursor.peek()?.token, Token::Semicolon(..)) {
                         return Err(error);
                     }
                     let Some(end) = end else {
