@@ -164,6 +164,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
 impl<'a> Parse<'a> for ImportantAnnotation<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, span) = expect!(input, Exclamation);
+        input.eat_sass_line_continuation()?;
         let ident: Ident = input.parse::<Ident>()?;
         let span = Span { start: span.start, end: ident.span.end };
         if ident.name.eq_ignore_ascii_case("important") {
@@ -192,8 +193,31 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let is_sass = input.syntax == Syntax::Sass;
         let start = if is_sass {
+            // A continuation line deeper than this block's own level leaves a
+            // pending indent whose `Dedent` arrives before the block opens
+            // (`a,\n    b\n  c: d`); cancel those out first.
+            let mut drained = 0u32;
+            while input.sass_pending_indents > 0 && matches!(peek!(input).token, Token::Dedent(..))
+            {
+                bump!(input);
+                input.sass_pending_indents -= 1;
+                drained += 1;
+            }
             if let Some((_, span)) = eat!(input, Indent) {
                 span.end
+            } else if drained > 0
+                && input.sass_pending_indents == 0
+                && input.tokenizer.reopen_indent_level()
+            {
+                // The block's level sat between two known indents, so its
+                // `Indent` was never emitted; re-open it directly.
+                peek!(input).span.start
+            } else if input.sass_pending_indents > 0 {
+                // The statement's clause consumed this block's `Indent` as a
+                // line continuation (`@each $a in\n  b, c\n  .x\n    ...`);
+                // enter the block "virtually" at that depth.
+                input.sass_pending_indents -= 1;
+                peek!(input).span.start
             } else {
                 let offset = peek!(input).span.start;
                 return Ok(SimpleBlock {
@@ -595,6 +619,61 @@ impl<'a> Parser<'a> {
                         self.parse()?
                     )));
                 }
+                // Indented-syntax shorthands: `=name` defines a mixin
+                // (`@mixin name`) and `+name` includes one (`@include name`).
+                // A spaced `+ b` stays a sibling-combinator selector: `+` is
+                // an include only when glued to an identifier.
+                Token::Equal(..) if self.syntax == Syntax::Sass => {
+                    let eq_span = bump!(self).span;
+                    self.eat_sass_line_continuation()?;
+                    let prelude = self.parse::<SassMixin>()?;
+                    let block = self
+                        .with_state(ParserState {
+                            sass_ctx: self.state.sass_ctx
+                                | super::state::SASS_CTX_ALLOW_KEYFRAME_BLOCK,
+                            ..self.state.clone()
+                        })
+                        .parse::<SimpleBlock>()?;
+                    let span = Span { start: eq_span.start, end: block.span.end };
+                    statements.push(Statement::AtRule(AtRule {
+                        name: Ident { name: "mixin", raw: "=", span: eq_span },
+                        prelude: Some(AtRulePrelude::SassMixin(arena_box!(self, prelude))),
+                        block: Some(block),
+                        span,
+                    }));
+                    is_block_element = true;
+                }
+                Token::Plus(..)
+                    if self.syntax == Syntax::Sass
+                        && self.source.as_bytes().get(span.end).is_some_and(|b| {
+                            b.is_ascii_alphabetic() || *b == b'_' || !b.is_ascii()
+                        }) =>
+                {
+                    let plus_span = bump!(self).span;
+                    let prelude = self.parse::<SassInclude>()?;
+                    let block =
+                        if matches!(peek!(self).token, Token::LBrace(..) | Token::Indent(..)) {
+                            Some(
+                                self.with_state(ParserState {
+                                    sass_ctx: self.state.sass_ctx
+                                        | super::state::SASS_CTX_ALLOW_KEYFRAME_BLOCK,
+                                    ..self.state.clone()
+                                })
+                                .parse::<SimpleBlock>()?,
+                            )
+                        } else {
+                            None
+                        };
+                    let end = block.as_ref().map_or(prelude.span.end, |block| block.span.end);
+                    let span = Span { start: plus_span.start, end };
+                    is_block_element = block.is_some();
+                    statements.push(Statement::AtRule(AtRule {
+                        name: Ident { name: "include", raw: "+", span: plus_span },
+                        prelude: Some(AtRulePrelude::SassInclude(arena_box!(self, prelude))),
+                        block,
+                        span,
+                    }));
+                }
                 Token::GreaterThan(..) | Token::Plus(..) | Token::Tilde(..) | Token::BarBar(..) => {
                     if self.syntax == Syntax::Less {
                         statements.push(self.parse_less_qualified_rule()?);
@@ -660,6 +739,20 @@ impl<'a> Parser<'a> {
                     });
                 }
             };
+            // Drain continuation indents that never became a block (e.g.
+            // `$a\n  : b` — the deeper line belonged to the statement's own
+            // clause, so its matching `Dedent` has no block to close). A
+            // drained `Dedent` is itself a line boundary, so the statement
+            // separator is already satisfied.
+            let mut drained_dedents = false;
+            while self.sass_pending_indents > 0 && matches!(peek!(self).token, Token::Dedent(..)) {
+                bump!(self);
+                self.sass_pending_indents -= 1;
+                drained_dedents = true;
+            }
+            if drained_dedents {
+                continue;
+            }
             match &peek!(self).token {
                 Token::RBrace(..) | Token::Eof(..) | Token::Dedent(..) => break,
                 _ => {

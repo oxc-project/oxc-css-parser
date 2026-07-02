@@ -661,6 +661,7 @@ impl<'a> Parse<'a> for CompoundSelectorList<'a> {
         let mut comma_spans = arena_vec!(input);
         while let Some((_, comma_span)) = eat!(input, Comma) {
             comma_spans.push(comma_span);
+            input.eat_sass_line_continuation()?;
             selectors.push(input.parse()?);
         }
 
@@ -1077,7 +1078,12 @@ impl<'a> Parse<'a> for SelectorList<'a> {
         while let Some((_, comma_span)) = eat!(input, Comma) {
             span.end = comma_span.end;
             comma_spans.push(comma_span);
-            if !is_css
+            // In the indented syntax a deeper line after the comma continues
+            // the selector list (`a,\n    b\n  c: d`); a same-level line or
+            // `{` means the comma was trailing.
+            if input.syntax == Syntax::Sass && matches!(peek!(input).token, Token::Indent(..)) {
+                input.eat_sass_line_continuation()?;
+            } else if !is_css
                 && matches!(
                     peek!(input).token,
                     Token::LBrace(..) | Token::Indent(..) | Token::Linebreak(..)

@@ -30,6 +30,32 @@ type SassParams<'a> = (
 );
 
 impl<'a> Parser<'a> {
+    /// In the indented syntax a statement may continue onto following lines
+    /// at points where the grammar still requires more input (`@for $i`
+    /// newline `from ...`, `$a:` newline `b`, a dangling binary operator).
+    /// Skip the line-structure tokens there. A deeper line's `Indent` is
+    /// remembered in [`Parser::sass_pending_indents`]: the statement's own
+    /// block then starts "virtually" at that depth (see [`SimpleBlock`]), and
+    /// leftovers are drained against `Dedent`s after the statement.
+    pub(super) fn eat_sass_line_continuation(&mut self) -> PResult<()> {
+        if self.syntax != Syntax::Sass {
+            return Ok(());
+        }
+        loop {
+            match &peek!(self).token {
+                Token::Indent(..) => {
+                    bump!(self);
+                    self.sass_pending_indents += 1;
+                }
+                Token::Linebreak(..) => {
+                    bump!(self);
+                }
+                _ => break,
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn parse_maybe_sass_list(
         &mut self,
         allow_comma: bool,
@@ -385,6 +411,8 @@ impl<'a> Parser<'a> {
                 _ => break,
             };
 
+            // `$a == b and` may continue on the next line
+            self.eat_sass_line_continuation()?;
             let right =
                 self.parse_sass_bin_expr_with_min_precedence(precedence + 1, allow_comparison)?;
             // delimiter can't be calculated
@@ -589,6 +617,7 @@ impl<'a> Parser<'a> {
                 let TokenWithSpan { span: with_span, .. } = bump!(self);
                 let start = with_span.start;
                 let end;
+                self.eat_sass_line_continuation()?;
                 let (_, lparen_span) = expect!(self, LParen);
 
                 let mut items =
@@ -752,6 +781,8 @@ impl<'a> Parser<'a> {
             _ => return self.parse_component_value_atom(),
         };
 
+        // `$a: not` may continue on the next line
+        self.eat_sass_line_continuation()?;
         let expr = self.parse_sass_unary_expression()?;
         let span = Span { start: op.span.start, end: expr.span().end };
         Ok(ComponentValue::SassUnaryExpression(SassUnaryExpression {
@@ -812,6 +843,7 @@ impl<'a> Parse<'a> for SassAtRootQuery<'a> {
 
 impl<'a> Parse<'a> for SassConditionalClause<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
+        input.eat_sass_line_continuation()?;
         let condition = input.parse::<ComponentValue>()?;
         let block = input.parse::<SimpleBlock>()?;
         let span = Span { start: condition.span().start, end: block.span.end };
@@ -832,22 +864,29 @@ impl<'a> Parse<'a> for SassEach<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
 
+        input.eat_sass_line_continuation()?;
         let first_binding = input.parse::<SassVariable>()?;
         let start = first_binding.span().start;
 
         let mut bindings = arena_vec!(input; first_binding);
         let mut comma_spans = arena_vec!(input);
-        while let Some((_, comma_span)) = eat!(input, Comma) {
+        loop {
+            // the comma may sit on a continuation line (`@each $a\n  , $b in ...`)
+            input.eat_sass_line_continuation()?;
+            let Some((_, comma_span)) = eat!(input, Comma) else { break };
             comma_spans.push(comma_span);
+            input.eat_sass_line_continuation()?;
             bindings.push(input.parse()?);
         }
         debug_assert_eq!(comma_spans.len() + 1, bindings.len());
 
+        input.eat_sass_line_continuation()?;
         let (keyword_in, keyword_in_span) = expect!(input, Ident);
         if keyword_in.name() != "in" {
             return Err(Error { kind: ErrorKind::ExpectSassKeyword("in"), span: keyword_in_span });
         }
 
+        input.eat_sass_line_continuation()?;
         let expr = input.parse_maybe_sass_list(/* allow_comma */ true)?;
         let span = Span { start, end: expr.span().end };
         Ok(SassEach { bindings, comma_spans, in_span: keyword_in_span, expr, span })
@@ -856,6 +895,7 @@ impl<'a> Parse<'a> for SassEach<'a> {
 
 impl<'a> Parse<'a> for SassExtend<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
+        input.eat_sass_line_continuation()?;
         let selectors = input.parse::<CompoundSelectorList>()?;
         let start = selectors.span.start;
         let mut end = selectors.span.end;
@@ -885,8 +925,10 @@ impl<'a> Parse<'a> for SassFor<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
 
+        input.eat_sass_line_continuation()?;
         let binding = input.parse::<SassVariable>()?;
 
+        input.eat_sass_line_continuation()?;
         let (keyword_from, keyword_from_span) = expect!(input, Ident);
         if keyword_from.name() != "from" {
             return Err(Error {
@@ -895,8 +937,11 @@ impl<'a> Parse<'a> for SassFor<'a> {
             });
         }
 
+        input.eat_sass_line_continuation()?;
         let start = input.parse()?;
+        input.eat_sass_line_continuation()?;
         let boundary = input.parse()?;
+        input.eat_sass_line_continuation()?;
         let end = input.parse::<ComponentValue>()?;
 
         let span = Span { start: binding.span.start, end: end.span().end };
@@ -919,12 +964,14 @@ impl<'a> Parse<'a> for SassForward<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
 
+        input.eat_sass_line_continuation()?;
         let path = input.parse::<InterpolableStr>()?;
         let mut span = path.span().clone();
 
         let prefix = match &peek!(input).token {
             Token::Ident(ident) if ident.name().eq_ignore_ascii_case("as") => {
                 let TokenWithSpan { span: as_span, .. } = bump!(input);
+                input.eat_sass_line_continuation()?;
                 let name = input.parse()?;
                 let (_, Span { end, .. }) = expect_without_ws_or_comments!(input, Asterisk);
                 let span = Span { start: as_span.start, end };
@@ -943,6 +990,7 @@ impl<'a> Parse<'a> for SassForward<'a> {
                 let mut members = arena_vec!(input);
                 let mut comma_spans = arena_vec!(input);
                 loop {
+                    input.eat_sass_line_continuation()?;
                     match &peek!(input).token {
                         Token::Ident(..) => {
                             members.push(input.parse().map(SassForwardMember::Ident)?)
@@ -969,6 +1017,7 @@ impl<'a> Parse<'a> for SassForward<'a> {
                 let mut members = arena_vec!(input);
                 let mut comma_spans = arena_vec!(input);
                 loop {
+                    input.eat_sass_line_continuation()?;
                     match &peek!(input).token {
                         Token::Ident(..) => {
                             members.push(input.parse().map(SassForwardMember::Ident)?)
@@ -1010,9 +1059,11 @@ impl<'a> Parse<'a> for SassFunction<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
 
+        input.eat_sass_line_continuation()?;
         let name = input.parse::<Ident>()?;
         let start = name.span.start;
 
+        input.eat_sass_line_continuation()?;
         let parameters = input.parse::<SassParameters>()?;
 
         let span = Span { start, end: parameters.span.end };
@@ -1031,27 +1082,46 @@ impl<'a> Parse<'a> for SassIfAtRule<'a> {
         let mut else_clause: Option<SimpleBlock> = None;
         let mut else_spans = arena_vec!(input);
 
-        while let Token::AtKeyword(at_keyword) = &peek!(input).token {
-            match &*at_keyword.ident.name() {
-                "else" => {
-                    else_spans.push(bump!(input).span);
-                    match &peek!(input).token {
-                        Token::Ident(ident) if ident.name() == "if" => {
-                            bump!(input);
-                            else_if_clauses.push(input.parse()?);
-                        }
-                        _ => {
-                            else_clause = Some(input.parse()?);
-                            break;
-                        }
+        loop {
+            // In the indented syntax `@else` sits on the line after the
+            // previous clause's block, so a Linebreak may precede it; only
+            // consume that separator when an else/elseif actually follows.
+            let else_keyword = input.try_parse(|p| {
+                if p.syntax == Syntax::Sass {
+                    while eat!(p, Linebreak).is_some() {}
+                }
+                let is_else = match &peek!(p).token {
+                    Token::AtKeyword(at_keyword) => match &*at_keyword.ident.name() {
+                        "else" => Some(true),
+                        // `elseif` is deprecated by Sass
+                        "elseif" => Some(false),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                match is_else {
+                    Some(is_else) => Ok((bump!(p).span, is_else)),
+                    None => {
+                        Err(Error { kind: ErrorKind::TryParseError, span: peek!(p).span.clone() })
                     }
                 }
-                // `elseif` is deprecated by Sass
-                "elseif" => {
-                    else_spans.push(bump!(input).span);
-                    else_if_clauses.push(input.parse()?);
+            });
+            let Ok((else_span, is_else)) = else_keyword else { break };
+            else_spans.push(else_span);
+            if is_else {
+                input.eat_sass_line_continuation()?;
+                match &peek!(input).token {
+                    Token::Ident(ident) if ident.name() == "if" => {
+                        bump!(input);
+                        else_if_clauses.push(input.parse()?);
+                    }
+                    _ => {
+                        else_clause = Some(input.parse()?);
+                        break;
+                    }
                 }
-                _ => break,
+            } else {
+                else_if_clauses.push(input.parse()?);
             }
         }
 
@@ -1092,6 +1162,7 @@ impl<'a> Parse<'a> for SassInclude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
 
+        input.eat_sass_line_continuation()?;
         let name = input.parse::<FunctionName>()?;
         let mut span = name.span().clone();
 
@@ -1131,6 +1202,7 @@ impl<'a> Parse<'a> for SassIncludeContentBlockParams<'a> {
             TokenWithSpan { token: Token::Ident(ident), span: using_span }
                 if ident.name().eq_ignore_ascii_case("using") =>
             {
+                input.eat_sass_line_continuation()?;
                 let params = input.parse::<SassParameters>()?;
                 let span = Span { start: using_span.start, end: params.span.end };
                 Ok(SassIncludeContentBlockParams { using_span, params, span })
@@ -1285,6 +1357,7 @@ impl<'a> Parse<'a> for SassMixin<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
 
+        input.eat_sass_line_continuation()?;
         let name = input.parse::<Ident>()?;
         let start = name.span.start;
         let mut end = name.span.end;
@@ -1347,6 +1420,7 @@ impl<'a> Parse<'a> for SassPlaceholderSelector<'a> {
 
 impl<'a> Parse<'a> for SassUse<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
+        input.eat_sass_line_continuation()?;
         let path = input.parse::<InterpolableStr>()?;
         let mut span = path.span().clone();
 
@@ -1380,6 +1454,7 @@ impl<'a> Parse<'a> for SassUseNamespace<'a> {
                 return Err(Error { kind: ErrorKind::ExpectSassKeyword("as"), span: span.clone() });
             }
         };
+        input.eat_sass_line_continuation()?;
         match bump!(input) {
             TokenWithSpan { token: Token::Asterisk(..), span: asterisk_span } => {
                 let span = Span { start: as_span.start, end: asterisk_span.end };
@@ -1430,7 +1505,9 @@ impl<'a> Parse<'a> for SassVariableDeclaration<'a> {
         };
 
         let name = input.parse::<SassVariable>()?;
+        input.eat_sass_line_continuation()?;
         let (_, colon_span) = expect!(input, Colon);
+        input.eat_sass_line_continuation()?;
         let value = input
             .with_state(ParserState {
                 sass_ctx: input.state.sass_ctx | SASS_CTX_ALLOW_DIV,

@@ -243,6 +243,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                     (Some(AtRulePrelude::SassEach(arena_box!(input, prelude))), Some(block), end)
                 }
                 "while" => {
+                    input.eat_sass_line_continuation()?;
                     let prelude = input.parse()?;
                     let block = input.parse::<SimpleBlock>()?;
                     let end = block.span.end;
@@ -315,6 +316,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                     )
                 }
                 "return" => {
+                    input.eat_sass_line_continuation()?;
                     let expr = input
                         .with_state(ParserState {
                             sass_ctx: input.state.sass_ctx | SASS_CTX_ALLOW_DIV,
@@ -336,6 +338,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                     (Some(AtRulePrelude::SassExtend(arena_box!(input, prelude))), None, end)
                 }
                 "warn" | "error" | "debug" => {
+                    input.eat_sass_line_continuation()?;
                     let expr = input.parse_maybe_sass_list(/* allow_comma */ true)?;
                     let end = expr.span().end;
                     (Some(AtRulePrelude::SassExpr(arena_box!(input, expr))), None, end)
@@ -346,12 +349,18 @@ impl<'a> Parse<'a> for AtRule<'a> {
                     (Some(AtRulePrelude::SassForward(arena_box!(input, prelude))), None, end)
                 }
                 "at-root" => {
-                    let prelude =
-                        if !matches!(peek!(input).token, Token::LBrace(..) | Token::Indent(..)) {
-                            Some(AtRulePrelude::SassAtRoot(input.parse()?))
-                        } else {
-                            None
-                        };
+                    let prelude = if !matches!(
+                        peek!(input).token,
+                        Token::LBrace(..)
+                            | Token::Indent(..)
+                            | Token::Linebreak(..)
+                            | Token::Dedent(..)
+                            | Token::Eof(..)
+                    ) {
+                        Some(AtRulePrelude::SassAtRoot(input.parse()?))
+                    } else {
+                        None
+                    };
                     let block = input.parse::<SimpleBlock>()?;
                     let end = block.span.end;
                     (prelude, Some(block), end)

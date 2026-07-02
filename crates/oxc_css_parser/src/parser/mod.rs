@@ -42,6 +42,12 @@ pub struct Parser<'a> {
     state: ParserState,
     recoverable_errors: Vec<Error>,
     cached_token: Option<TokenWithSpan<'a>>,
+    /// Indented syntax only: `Indent` tokens consumed as mid-statement line
+    /// continuations (`@for $i\n  from 1...`). The statement's own block then
+    /// starts "virtually" at that depth (see [`SimpleBlock`]'s parse), and any
+    /// unconsumed levels are drained against `Dedent` tokens after the
+    /// statement.
+    sass_pending_indents: u32,
 }
 
 impl<'a> Parser<'a> {
@@ -58,6 +64,7 @@ impl<'a> Parser<'a> {
             state: Default::default(),
             recoverable_errors: vec![],
             cached_token: None,
+            sass_pending_indents: 0,
         }
     }
 
@@ -185,12 +192,14 @@ impl<'a> Parser<'a> {
         let comments_count = self.tokenizer.comments_count();
         let recoverable_errors_count = self.recoverable_errors.len();
         let cached_token = self.cached_token.clone();
+        let sass_pending_indents = self.sass_pending_indents;
         let result = f(self);
         if result.is_err() {
             self.tokenizer.state = tokenizer_state;
             self.tokenizer.truncate_comments(comments_count);
             self.recoverable_errors.truncate(recoverable_errors_count);
             self.cached_token = cached_token;
+            self.sass_pending_indents = sass_pending_indents;
         }
         result
     }
