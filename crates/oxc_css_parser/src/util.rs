@@ -42,10 +42,8 @@ pub(crate) fn track_paired_token(
             }
         }
         Token::LBrace(..) | Token::HashLBrace(..) => pairs.push(PairedToken::Brace),
-        Token::RBrace(..) => {
-            if !matches!(pairs.pop(), Some(PairedToken::Brace)) {
-                return false;
-            }
+        Token::RBrace(..) if !matches!(pairs.pop(), Some(PairedToken::Brace)) => {
+            return false;
         }
         _ => {}
     }

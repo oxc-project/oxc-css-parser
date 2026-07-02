@@ -86,10 +86,10 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
         if let Some(media) = &media {
             span.end = media.span.end;
         }
-        if let Some(modifiers) = &modifiers {
-            if modifiers.span.end > modifiers.span.start {
-                span.end = modifiers.span.end;
-            }
+        if let Some(modifiers) = &modifiers
+            && modifiers.span.end > modifiers.span.start
+        {
+            span.end = modifiers.span.end;
         }
 
         Ok(ImportPrelude { href, layer, supports, media, modifiers, span })
