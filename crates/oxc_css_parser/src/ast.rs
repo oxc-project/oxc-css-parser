@@ -521,6 +521,13 @@ pub struct ImportPrelude<'a> {
     pub layer: Option<ImportPreludeLayer<'a>>,
     pub supports: Option<ImportPreludeSupports<'a>>,
     pub media: Option<MediaQueryList<'a>>,
+    /// Import modifiers that don't fit the `layer()`/`supports()`/media-query
+    /// grammar, kept as raw component values — reference compilers accept an
+    /// arbitrary mix of idents, functions, and parens here, and a comma may
+    /// even chain further imports (`@import "a" b c(d), "e" supports(f: g);`).
+    /// When present, `layer`/`supports`/`media` are `None` and the whole
+    /// post-URL tail lives here.
+    pub modifiers: Option<ComponentValues<'a>>,
     pub span: Span,
 }
 

@@ -690,7 +690,7 @@ impl_span_ignored_eq_struct!(HexColor<'a> { value, raw, });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_struct!(Ident<'a> { name, raw, });
 #[cfg(feature = "span_ignored_eq")]
-impl_span_ignored_eq_struct!(ImportPrelude<'a> { href, layer, supports, media, });
+impl_span_ignored_eq_struct!(ImportPrelude<'a> { href, layer, supports, media, modifiers, });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_enum!(ImportPreludeHref<'a> {
     tuple: [Str, Url, Function, ],

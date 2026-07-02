@@ -1,7 +1,7 @@
 suite: sass-spec
 sha: a2ead9225786d49e91f5cc36755b7713596a2338
-files: 26787   success: 26364   failed: 120   expected: 303
-clean: 26364  recovered: 11  hard_error: 109  panic: 0
+files: 26787   success: 26403   failed: 91   expected: 293
+clean: 26403  recovered: 11  hard_error: 80  panic: 0
 
 failures:
 ERROR    spec/core_functions/string/unquote.hrx::meaningful_css_characters/output.css    expect token `}`, but found `<eof>`
@@ -33,28 +33,6 @@ ERROR    spec/css/plain/function.hrx::uppercase/result/characters/output.css    
 ERROR    spec/css/plain/function.hrx::uppercase/result/characters/plain.css    component value is expected
 ERROR    spec/css/plain/hacks.hrx::output.css    unexpected whitespace
 ERROR    spec/css/plain/hacks.hrx::plain.css    unexpected whitespace
-ERROR    spec/css/plain/import/conditions.hrx::multiple/many/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/many/output.css    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_function_then/media/input.scss    expect token `;`, but found `(`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_function_then/media/output.css    expect token `;`, but found `(`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_function_then/supports/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_function_then/supports/output.css    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_function_then/unknown_function/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_function_then/unknown_function/output.css    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_function_then/unknown_ident/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_function_then/unknown_ident/output.css    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_ident_then/media/input.scss    expect token `;`, but found `(`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_ident_then/media/output.css    expect token `;`, but found `(`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_ident_then/supports/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_ident_then/supports/output.css    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_ident_then/unknown_function/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_ident_then/unknown_function/output.css    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_ident_then/unknown_ident/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::multiple/unknown_ident_then/unknown_ident/output.css    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::supports/declaration/followed_by_import_arg/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::unknown/function/argument/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::unknown/function/argument/output.css    expect token `;`, but found `&`
-ERROR    spec/css/plain/import/conditions.hrx::unknown/function/followed_by_import_arg/input.scss    expect token `;`, but found `<ident>`
 ERROR    spec/css/selector/slotted.hrx::output.css    expect token `)`, but found `,`
 ERROR    spec/css/supports/syntax/function.hrx::interpolated_name/full/input.scss    expect token `'('`, but found `#{`
 ERROR    spec/css/supports/syntax/function.hrx::interpolated_name/partial/input.scss    expect token `(`, but found `#{`
@@ -71,7 +49,6 @@ RECOVER  spec/css/unicode_range/simple.hrx::input.scss    unicode range end valu
 RECOVER  spec/css/unicode_range/simple.hrx::output.css    unicode range end value exceeds max allowed code point
 ERROR    spec/css/unknown_directive/name_interpolation.hrx::input.scss    CSS rule is expected
 RECOVER  spec/directives/at_root/keyframes.hrx::all/input.scss    unknown keyframe selector
-ERROR    spec/directives/import/css.hrx::unquoted/input.sass    expect token `<string>`, but found `<ident>`
 ERROR    spec/expressions/if/css.hrx::alone/argument/input.scss    expect token `<ident>`, but found `@`
 ERROR    spec/libsass-closed-issues/issue_1218.hrx::input.scss    expect token `{`, but found `<ident>`
 ERROR    spec/libsass-closed-issues/issue_1233.hrx::input.scss    expect token `{`, but found `<ident>`
@@ -80,20 +57,15 @@ ERROR    spec/libsass-closed-issues/issue_1596.hrx::input.scss    expect token `
 ERROR    spec/libsass-closed-issues/issue_1596.hrx::output.css    expect token `{`, but found `;`
 ERROR    spec/libsass-closed-issues/issue_346.hrx::input.scss    expect token `{`, but found `#{`
 RECOVER  spec/libsass-closed-issues/issue_759.hrx::input.scss    duplicated Sass flag `!default`
-ERROR    spec/libsass-todo-issues/issue_1763.hrx::input.scss    expect token `;`, but found `(`
 ERROR    spec/libsass-todo-issues/issue_221262.hrx::input.scss    CSS rule is expected
 ERROR    spec/libsass-todo-issues/issue_221262.hrx::output.css    CSS rule is expected
 ERROR    spec/libsass-todo-issues/issue_221292.hrx::input.scss    CSS rule is expected
 ERROR    spec/libsass-todo-issues/issue_221292.hrx::output.css    CSS rule is expected
-ERROR    spec/libsass/import.hrx::input.scss    expect token `<string>`, but found `<ident>`
 ERROR    spec/libsass/keyframes.hrx::input.scss    expect token `{`, but found `:`
 ERROR    spec/libsass/keyframes.hrx::output.css    expect token `{`, but found `:`
 ERROR    spec/non_conformant/basic/36_extra_commas_in_selectors.hrx::input.scss    simple selector is expected
 ERROR    spec/non_conformant/basic/50_wrapped_pseudo_selectors.hrx::input.scss    expect token `)`, but found `<ident>`
 ERROR    spec/non_conformant/basic/50_wrapped_pseudo_selectors.hrx::output.css    expect token `)`, but found `<ident>`
-ERROR    spec/non_conformant/errors/import/file/simple.hrx::input.scss    expect token `<string>`, but found `<ident>`
-ERROR    spec/non_conformant/errors/import/miss/simple.hrx::input.scss    expect token `<string>`, but found `<ident>`
-ERROR    spec/non_conformant/errors/import/url/simple.hrx::input.scss    expect token `<string>`, but found `<ident>`
 ERROR    spec/non_conformant/extend-tests/069_test_attribute_unification.hrx::input.scss    expect token `{`, but found `%`
 ERROR    spec/non_conformant/extend-tests/189_test_placeholder_descendant_selector.hrx::input.scss    expect token `{`, but found `%`
 ERROR    spec/non_conformant/extend-tests/190_test_semi_placeholder_selector.hrx::input.scss    expect token `{`, but found `%`
@@ -111,7 +83,6 @@ ERROR    spec/non_conformant/parser/interpolate/28_escaped_single_quotes/01_inli
 ERROR    spec/non_conformant/parser/interpolate/28_escaped_single_quotes/02_variable.hrx::output.css    unterminated string
 ERROR    spec/non_conformant/parser/interpolate/28_escaped_single_quotes/03_inline_double.hrx::output.css    unterminated string
 ERROR    spec/non_conformant/parser/interpolate/28_escaped_single_quotes/04_variable_double.hrx::output.css    unterminated string
-ERROR    spec/non_conformant/sass/import/unquoted.hrx::input.sass    expect token `<string>`, but found `<ident>`
 ERROR    spec/non_conformant/sass/pseudo.hrx::input.sass    CSS rule is expected
 ERROR    spec/non_conformant/scss-tests/044_test_trailing_comma_in_selector.hrx::input.scss    simple selector is expected
 ERROR    spec/non_conformant/scss/important-in-arglist.hrx::input.scss    expect token `;`, but found `<ident>`
@@ -175,7 +146,6 @@ ERROR    spec/css/plain/error/media.hrx::logic/or_after/and/plain.css    expect 
 ERROR    spec/css/plain/error/media.hrx::logic/or_after/type/plain.css    expect token `{`, but found `<ident>`
 ERROR    spec/css/plain/error/media.hrx::logic/or_after/type_and_not/plain.css    expect token `{`, but found `<ident>`
 ERROR    spec/css/plain/error/media.hrx::logic/or_after/type_then_and/plain.css    expect token `{`, but found `<ident>`
-ERROR    spec/css/plain/error/statement/at_rule.hrx::import/multi/plain.css    expect token `<ident>`, but found `,`
 ERROR    spec/css/plain/error/statement/at_rule.hrx::interpolation/plain.css    expect token `:`, but found `}`
 ERROR    spec/css/plain/error/statement/silent_comment.hrx::plain.css    CSS rule is expected
 ERROR    spec/css/plain/error/statement/style_rule.hrx::interpolation/declaration/plain.css    expect token `:`, but found `#`
@@ -183,15 +153,8 @@ ERROR    spec/css/plain/error/statement/style_rule.hrx::interpolation/selector/p
 ERROR    spec/css/plain/error/statement/style_rule.hrx::nested_property/no_value/plain.css    component value is expected
 ERROR    spec/css/plain/error/statement/style_rule.hrx::nested_property/value/plain.css    component value is expected
 ERROR    spec/css/plain/error/statement/style_rule.hrx::placeholder_selector/plain.css    CSS rule is expected
-ERROR    spec/css/plain/import/conditions.hrx::error/wrong_order/media_before_supports/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::error/wrong_order/media_before_unknown_function/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::error/wrong_order/media_before_unknown_ident/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/conditions.hrx::error/wrong_order/url_after_comma/input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/css/plain/import/whitespace.hrx::error/after_identifier/sass/input.sass    expect token `<linebreak>`, but found `<indent>`
 ERROR    spec/css/plain/import/whitespace.hrx::error/after_import/sass/input.sass    expect token `<string>`, but found `<linebreak>`
 ERROR    spec/css/plain/import/whitespace.hrx::error/after_import_indented/sass/input.sass    expect token `<string>`, but found `<indent>`
-ERROR    spec/css/plain/import/whitespace.hrx::error/media/before/sass/input.sass    expect token `<string>`, but found `<ident>`
-ERROR    spec/css/plain/import/whitespace.hrx::error/supports/declaration/followed_by_import_arg/after_comma/sass/input.sass    expect token `<linebreak>`, but found `<ident>`
 ERROR    spec/css/propset.hrx::error/value_after_propset/input.scss    expect token `:`, but found `}`
 ERROR    spec/css/selector/attribute.hrx::error/modifier/digit/input.scss    expect token `]`, but found `<number>`
 ERROR    spec/css/selector/attribute.hrx::error/modifier/no_operator/input.scss    attribute selector matcher is expected
@@ -268,9 +231,7 @@ ERROR    spec/directives/if/error/syntax.hrx::else/partial_if/input.scss    expe
 ERROR    spec/directives/if/whitespace.hrx::error/top_level_else/sass/input.sass    Sass `@else` at-rule is disallowed here
 ERROR    spec/directives/if/whitespace.hrx::error/top_level_else_if/sass/input.sass    Sass `@else` at-rule is disallowed here
 RECOVER  spec/directives/import/error/top_level_declaration.hrx::root/_upstream.scss    declaration at top level is disallowed
-ERROR    spec/directives/import/whitespace.hrx::error/before_comma/sass/input.sass    expect token `<linebreak>`, but found `<indent>`
 ERROR    spec/directives/import/whitespace.hrx::error/before_url/sass/input.sass    expect token `<string>`, but found `<indent>`
-ERROR    spec/directives/import/whitespace.hrx::error/modifier/args/before/sass/input.sass    expect token `<linebreak>`, but found `<indent>`
 ERROR    spec/directives/mixin/whitespace.hrx::error/include/before_using/sass/input.sass    CSS rule is expected
 ERROR    spec/directives/use/error/syntax/as_invalid.hrx::input.scss    `*` or ident for Sass namespace is expected
 ERROR    spec/directives/use/error/syntax/as_nothing.hrx::input.scss    `*` or ident for Sass namespace is expected
