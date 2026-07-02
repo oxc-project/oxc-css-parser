@@ -3,7 +3,7 @@ use super::{
     state::{ParserState, QualifiedRuleContext},
 };
 use crate::{
-    Parse, Syntax, arena_box, arena_vec,
+    Parse, Syntax,
     ast::*,
     bump, eat,
     error::{Error, ErrorKind, PResult},
@@ -291,7 +291,7 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
             } else {
                 let offset = peek!(input).span.start;
                 return Ok(SimpleBlock {
-                    statements: arena_vec!(input),
+                    statements: input.vec(),
                     span: Span { start: offset, end: offset },
                 });
             }
@@ -489,10 +489,9 @@ impl<'a> Parser<'a> {
                             if let Ok(sass_var_decl) =
                                 self.try_parse(SassVariableDeclaration::parse)
                             {
-                                statements.push(Statement::SassVariableDeclaration(arena_box!(
-                                    self,
-                                    sass_var_decl
-                                )));
+                                statements.push(Statement::SassVariableDeclaration(
+                                    self.alloc(sass_var_decl),
+                                ));
                             } else if self.state.in_keyframes_at_rule {
                                 let (stmt, is_block) =
                                     self.parse_keyframe_block_or_declaration()?;
@@ -552,7 +551,7 @@ impl<'a> Parser<'a> {
                         stmt
                     } else if let Ok(mixin_def) = self.try_parse(LessMixinDefinition::parse) {
                         is_block_element = true;
-                        Statement::LessMixinDefinition(arena_box!(self, mixin_def))
+                        Statement::LessMixinDefinition(self.alloc(mixin_def))
                     } else {
                         self.parse().map(Statement::LessMixinCall)?
                     };
@@ -629,8 +628,9 @@ impl<'a> Parser<'a> {
                         let at_keyword_name = at_keyword.ident.name();
                         match &*at_keyword_name {
                             "if" => {
+                                let sass_if_at_rule = self.parse()?;
                                 statements
-                                    .push(Statement::SassIfAtRule(arena_box!(self, self.parse()?)));
+                                    .push(Statement::SassIfAtRule(self.alloc(sass_if_at_rule)));
                                 is_block_element = true;
                             }
                             "else" => {
@@ -654,10 +654,9 @@ impl<'a> Parser<'a> {
                                 less_variable_declaration.value,
                                 ComponentValue::LessDetachedRuleset(..)
                             );
-                            statements.push(Statement::LessVariableDeclaration(arena_box!(
-                                self,
-                                less_variable_declaration
-                            )));
+                            statements.push(Statement::LessVariableDeclaration(
+                                self.alloc(less_variable_declaration),
+                            ));
                         } else if let Ok(variable_call) = self.try_parse(LessVariableCall::parse) {
                             statements.push(Statement::LessVariableCall(variable_call));
                         } else {
@@ -703,16 +702,15 @@ impl<'a> Parser<'a> {
                     is_block_element = true;
                 }
                 Token::DollarVar(..) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
-                    statements
-                        .push(Statement::SassVariableDeclaration(arena_box!(self, self.parse()?)));
+                    let declaration = self.parse()?;
+                    statements.push(Statement::SassVariableDeclaration(self.alloc(declaration)));
                 }
                 Token::DollarVar(..)
                     if self.syntax == Syntax::Css && self.options.allow_postcss_simple_vars =>
                 {
-                    statements.push(Statement::PostcssSimpleVarDeclaration(arena_box!(
-                        self,
-                        self.parse()?
-                    )));
+                    let declaration = self.parse()?;
+                    statements
+                        .push(Statement::PostcssSimpleVarDeclaration(self.alloc(declaration)));
                 }
                 // Indented-syntax shorthands: `=name` defines a mixin
                 // (`@mixin name`) and `+name` includes one (`@include name`).
@@ -732,7 +730,7 @@ impl<'a> Parser<'a> {
                     let span = Span { start: eq_span.start, end: block.span.end };
                     statements.push(Statement::AtRule(AtRule {
                         name: Ident { name: "mixin", raw: "=", span: eq_span },
-                        prelude: Some(AtRulePrelude::SassMixin(arena_box!(self, prelude))),
+                        prelude: Some(AtRulePrelude::SassMixin(self.alloc(prelude))),
                         block: Some(block),
                         span,
                     }));
@@ -762,7 +760,7 @@ impl<'a> Parser<'a> {
                     is_block_element = block.is_some();
                     statements.push(Statement::AtRule(AtRule {
                         name: Ident { name: "include", raw: "+", span: plus_span },
-                        prelude: Some(AtRulePrelude::SassInclude(arena_box!(self, prelude))),
+                        prelude: Some(AtRulePrelude::SassInclude(self.alloc(prelude))),
                         block,
                         span,
                     }));
@@ -785,8 +783,7 @@ impl<'a> Parser<'a> {
                 Token::At(..) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
                     let unknown_sass_at_rule = self.parse::<UnknownSassAtRule>()?;
                     is_block_element = unknown_sass_at_rule.block.is_some();
-                    statements
-                        .push(Statement::UnknownSassAtRule(arena_box!(self, unknown_sass_at_rule)));
+                    statements.push(Statement::UnknownSassAtRule(self.alloc(unknown_sass_at_rule)));
                 }
                 Token::Percentage(..)
                     if self.state.in_keyframes_at_rule
@@ -809,8 +806,8 @@ impl<'a> Parser<'a> {
                     let start = span.start;
                     let block = self.parse::<SimpleBlock>()?;
                     let selector = SelectorList {
-                        selectors: arena_vec!(self),
-                        comma_spans: arena_vec!(self),
+                        selectors: self.vec(),
+                        comma_spans: self.vec(),
                         span: Span { start, end: start },
                     };
                     let span = Span { start, end: block.span.end };

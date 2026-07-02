@@ -1,5 +1,5 @@
 use super::Parser;
-use crate::{Parse, Spanned, arena_vec, ast::*, eat, error::PResult};
+use crate::{Parse, Spanned, ast::*, eat, error::PResult};
 
 // https://developer.mozilla.org/en-US/docs/Web/CSS/@document
 impl<'a> Parse<'a> for DocumentPrelude<'a> {
@@ -7,8 +7,8 @@ impl<'a> Parse<'a> for DocumentPrelude<'a> {
         let first = input.parse::<DocumentPreludeMatcher>()?;
         let mut span = first.span().clone();
 
-        let mut matchers = arena_vec!(input; first);
-        let mut comma_spans = arena_vec!(input);
+        let mut matchers = input.vec1(first);
+        let mut comma_spans = input.vec();
         while let Some((_, comma_span)) = eat!(input, Comma) {
             comma_spans.push(comma_span);
             matchers.push(input.parse()?);

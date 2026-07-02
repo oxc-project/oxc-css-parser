@@ -1,6 +1,6 @@
 use super::Parser;
 use crate::{
-    Parse, Syntax, arena_vec,
+    Parse, Syntax,
     ast::*,
     bump,
     error::{Error, ErrorKind, PResult},
@@ -116,7 +116,8 @@ impl<'a> ImportPrelude<'a> {
                         if span.start == ident.span.end =>
                     {
                         bump!(input);
-                        let args = arena_vec!(input; input.parse().map(ComponentValue::LayerName)?);
+                        let layer_name = input.parse().map(ComponentValue::LayerName)?;
+                        let args = input.vec1(layer_name);
                         let end = expect!(input, RParen).1.end;
                         let span = Span { start: ident.span.start, end };
                         ImportPreludeLayer::WithName(Function {

@@ -3,7 +3,7 @@ use super::{
     state::{ParserState, SASS_CTX_ALLOW_DIV, SASS_CTX_IN_PARENS},
 };
 use crate::{
-    Parse, arena_box, arena_vec,
+    Parse,
     ast::*,
     bump,
     config::Syntax,
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
             self.parse_sass_bin_expr(/* allow_comparison */ true)?
         };
 
-        let mut elements = arena_vec!(self);
+        let mut elements = self.vec();
         let mut comma_spans: Option<oxc_allocator::Vec<'a, Span>> = None;
         let mut separator = ListSeparatorKind::Unknown;
         let mut end = single_value.span().end;
@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
                         if let Some(spans) = &mut comma_spans {
                             spans.push(span);
                         } else {
-                            comma_spans = Some(arena_vec!(self; span));
+                            comma_spans = Some(self.vec1(span));
                         }
                     }
                 }
@@ -212,9 +212,9 @@ impl<'a> Parser<'a> {
                                 .map(|value| ComponentValue::Number(Number { value, raw, span }))?
                         };
                         left = ComponentValue::SassBinaryExpression(SassBinaryExpression {
-                            left: arena_box!(self, left),
+                            left: self.alloc(left),
                             op,
-                            right: arena_box!(self, right),
+                            right: self.alloc(right),
                             span,
                         });
                         continue;
@@ -255,9 +255,9 @@ impl<'a> Parser<'a> {
                             .map(ComponentValue::Dimension)?
                         };
                         left = ComponentValue::SassBinaryExpression(SassBinaryExpression {
-                            left: arena_box!(self, left),
+                            left: self.alloc(left),
                             op,
-                            right: arena_box!(self, right),
+                            right: self.alloc(right),
                             span,
                         });
                         continue;
@@ -318,12 +318,12 @@ impl<'a> Parser<'a> {
                         Ok((op_span, right)) => {
                             let span = Span { start: left.span().start, end: right.span().end };
                             left = ComponentValue::SassBinaryExpression(SassBinaryExpression {
-                                left: arena_box!(self, left),
+                                left: self.alloc(left),
                                 op: SassBinaryOperator {
                                     kind: SassBinaryOperatorKind::Modulo,
                                     span: op_span,
                                 },
-                                right: arena_box!(self, right),
+                                right: self.alloc(right),
                                 span,
                             });
                             continue;
@@ -455,9 +455,9 @@ impl<'a> Parser<'a> {
 
             let span = Span { start: left.span().start, end: right.span().end };
             left = ComponentValue::SassBinaryExpression(SassBinaryExpression {
-                left: arena_box!(self, left),
+                left: self.alloc(left),
                 op: operator,
-                right: arena_box!(self, right),
+                right: self.alloc(right),
                 span,
             });
         }
@@ -546,7 +546,7 @@ impl<'a> Parser<'a> {
         &mut self,
         end: &mut usize,
     ) -> PResult<oxc_allocator::Vec<'a, SassInterpolatedIdentElement<'a>>> {
-        let mut elements = arena_vec!(self);
+        let mut elements = self.vec();
         loop {
             if let Some((token, span)) = self.tokenizer.scan_ident_template()? {
                 *end = span.end;
@@ -583,7 +583,7 @@ impl<'a> Parser<'a> {
         debug_assert!(matches!(self.syntax, Syntax::Scss | Syntax::Sass));
 
         let mut values = self.vec_with_capacity(4);
-        let mut comma_spans = arena_vec!(self);
+        let mut comma_spans = self.vec();
         while !matches!(peek!(self).token, Token::RParen(..) | Token::Eof(..)) {
             match peek!(self).token {
                 Token::Comma(..) => {
@@ -597,7 +597,7 @@ impl<'a> Parser<'a> {
                     if let Some((_, span)) = eat!(self, DotDotDot) {
                         let span = Span { start: value.span().start, end: span.end };
                         values.push(ComponentValue::SassArbitraryArgument(SassArbitraryArgument {
-                            value: arena_box!(self, value),
+                            value: self.alloc(value),
                             span,
                         }));
                     } else if let ComponentValue::SassVariable(sass_var) = value {
@@ -607,7 +607,7 @@ impl<'a> Parser<'a> {
                             values.push(ComponentValue::SassKeywordArgument(SassKeywordArgument {
                                 name: sass_var,
                                 colon_span,
-                                value: arena_box!(self, value),
+                                value: self.alloc(value),
                                 span,
                             }));
                         } else {
@@ -638,9 +638,9 @@ impl<'a> Parser<'a> {
                 self.eat_sass_line_continuation()?;
                 let (_, lparen_span) = expect!(self, LParen);
 
-                let mut items =
-                    arena_vec!(self; self.parse_sass_module_config_item(allow_overridable)?);
-                let mut comma_spans = arena_vec!(self);
+                let item = self.parse_sass_module_config_item(allow_overridable)?;
+                let mut items = self.vec1(item);
+                let mut comma_spans = self.vec();
                 if let Some((_, span)) = eat!(self, RParen) {
                     end = span.end;
                 } else {
@@ -686,7 +686,7 @@ impl<'a> Parser<'a> {
             self.parse_sass_flags()
                 .map(|(flags, end)| (flags, end.unwrap_or_else(|| value.span().end)))?
         } else {
-            (arena_vec!(self), value.span().end)
+            (self.vec(), value.span().end)
         };
 
         let span = Span { start: variable.span.start, end };
@@ -695,9 +695,9 @@ impl<'a> Parser<'a> {
 
     /// This method will consume `)` token.
     fn parse_sass_params(&mut self) -> PResult<SassParams<'a>> {
-        let mut parameters = arena_vec!(self);
+        let mut parameters = self.vec();
         let mut arbitrary_parameter = None;
-        let mut comma_spans = arena_vec!(self);
+        let mut comma_spans = self.vec();
         let end;
         loop {
             if let Some((_, span)) = eat!(self, RParen) {
@@ -810,7 +810,7 @@ impl<'a> Parser<'a> {
         let expr = self.parse_sass_unary_expression()?;
         let span = Span { start: op.span.start, end: expr.span().end };
         Ok(ComponentValue::SassUnaryExpression(SassUnaryExpression {
-            expr: arena_box!(self, expr),
+            expr: self.alloc(expr),
             op,
             span,
         }))
@@ -892,8 +892,8 @@ impl<'a> Parse<'a> for SassEach<'a> {
         let first_binding = input.parse::<SassVariable>()?;
         let start = first_binding.span().start;
 
-        let mut bindings = arena_vec!(input; first_binding);
-        let mut comma_spans = arena_vec!(input);
+        let mut bindings = input.vec1(first_binding);
+        let mut comma_spans = input.vec();
         loop {
             // the comma may sit on a continuation line (`@each $a\n  , $b in ...`)
             input.eat_sass_line_continuation()?;
@@ -1011,8 +1011,8 @@ impl<'a> Parse<'a> for SassForward<'a> {
             let name = keyword.name();
             if name.eq_ignore_ascii_case("hide") {
                 let keyword_span = bump!(input).span;
-                let mut members = arena_vec!(input);
-                let mut comma_spans = arena_vec!(input);
+                let mut members = input.vec();
+                let mut comma_spans = input.vec();
                 loop {
                     input.eat_sass_line_continuation()?;
                     match &peek!(input).token {
@@ -1038,8 +1038,8 @@ impl<'a> Parse<'a> for SassForward<'a> {
                 })
             } else if name.eq_ignore_ascii_case("show") {
                 let keyword_span = bump!(input).span;
-                let mut members = arena_vec!(input);
-                let mut comma_spans = arena_vec!(input);
+                let mut members = input.vec();
+                let mut comma_spans = input.vec();
                 loop {
                     input.eat_sass_line_continuation()?;
                     match &peek!(input).token {
@@ -1104,7 +1104,7 @@ impl<'a> Parse<'a> for SassIfAtRule<'a> {
         let if_clause = input.parse::<SassConditionalClause>()?;
         let mut else_if_clauses: oxc_allocator::Vec<'a, SassConditionalClause<'a>> = input.vec();
         let mut else_clause: Option<SimpleBlock> = None;
-        let mut else_spans = arena_vec!(input);
+        let mut else_spans = input.vec();
 
         loop {
             // In the indented syntax `@else` sits on the line after the
@@ -1173,8 +1173,8 @@ impl<'a> Parse<'a> for SassImportPrelude<'a> {
         let first = input.parse::<Str>()?;
         let mut span = first.span.clone();
 
-        let mut paths = arena_vec!(input; first);
-        let mut comma_spans = arena_vec!(input);
+        let mut paths = input.vec1(first);
+        let mut comma_spans = input.vec();
         while let Some((_, comma_span)) = eat!(input, Comma) {
             comma_spans.push(comma_span);
             paths.push(input.parse()?);
@@ -1251,7 +1251,7 @@ impl<'a> Parse<'a> for SassInterpolatedStr<'a> {
         debug_assert!(quote == '\'' || quote == '"');
         let mut span = first_span.clone();
         let first = input.interpolable_str_static_part(first, first_span);
-        let mut elements = arena_vec!(input; SassInterpolatedStrElement::Static(first));
+        let mut elements = input.vec1(SassInterpolatedStrElement::Static(first));
 
         let mut is_parsing_static_part = false;
         loop {
@@ -1296,7 +1296,7 @@ impl<'a> Parse<'a> for SassInterpolatedUrl<'a> {
         };
         let mut span = first_span.clone();
         let first = input.interpolable_url_static_part(first, first_span);
-        let mut elements = arena_vec!(input; SassInterpolatedUrlElement::Static(first));
+        let mut elements = input.vec1(SassInterpolatedUrlElement::Static(first));
 
         let mut is_parsing_static_part = false;
         loop {
@@ -1344,8 +1344,8 @@ impl<'a> Parse<'a> for SassMap<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let start = expect!(input, LParen).1.start;
 
-        let mut items = arena_vec!(input);
-        let mut comma_spans = arena_vec!(input);
+        let mut items = input.vec();
+        let mut comma_spans = input.vec();
         loop {
             match peek!(input).token {
                 Token::RParen(..) => break,
@@ -1431,7 +1431,7 @@ impl<'a> Parse<'a> for SassParenthesizedExpression<'a> {
                 ..input.state.clone()
             })
             .parse_maybe_sass_list(/* allow_comma */ true)?;
-        let expr = arena_box!(input, expr);
+        let expr = input.alloc(expr);
         let end = expect!(input, RParen).1.end;
         Ok(SassParenthesizedExpression { expr, span: Span { start, end } })
     }

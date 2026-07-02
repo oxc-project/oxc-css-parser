@@ -1,6 +1,6 @@
 use super::Parser;
 use crate::{
-    Parse, Syntax, arena_vec,
+    Parse, Syntax,
     ast::*,
     bump, eat,
     error::{Error, ErrorKind, PResult},
@@ -457,7 +457,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
                 // tokens up to the closing `]`.
                 TokenWithSpan { span, .. } if input.syntax == Syntax::Css => {
                     let start = span.start;
-                    let mut tokens = arena_vec!(input);
+                    let mut tokens = input.vec();
                     while !matches!(peek!(input).token, Token::RBracket(..) | Token::Eof(..)) {
                         tokens.push(bump!(input));
                     }
@@ -672,8 +672,8 @@ impl<'a> Parse<'a> for CompoundSelectorList<'a> {
         let first = input.parse::<CompoundSelector>()?;
         let mut span = first.span.clone();
 
-        let mut selectors = arena_vec!(input; first);
-        let mut comma_spans = arena_vec!(input);
+        let mut selectors = input.vec1(first);
+        let mut comma_spans = input.vec();
         while let Some((_, comma_span)) = eat!(input, Comma) {
             comma_spans.push(comma_span);
             input.eat_sass_line_continuation()?;
@@ -759,8 +759,8 @@ impl<'a> Parse<'a> for LanguageRangeList<'a> {
         let first = input.parse::<LanguageRange>()?;
         let mut span = first.span().clone();
 
-        let mut ranges = arena_vec!(input; first);
-        let mut comma_spans = arena_vec!(input);
+        let mut ranges = input.vec1(first);
+        let mut comma_spans = input.vec();
         while let Some((_, comma_span)) = eat!(input, Comma) {
             comma_spans.push(comma_span);
             ranges.push(input.parse()?);
@@ -1077,8 +1077,8 @@ impl<'a> Parse<'a> for RelativeSelectorList<'a> {
         let first = input.parse::<RelativeSelector>()?;
         let mut span = first.span.clone();
 
-        let mut selectors = arena_vec!(input; first);
-        let mut comma_spans = arena_vec!(input);
+        let mut selectors = input.vec1(first);
+        let mut comma_spans = input.vec();
         while let Some((_, comma_span)) = eat!(input, Comma) {
             comma_spans.push(comma_span);
             selectors.push(input.parse()?);
@@ -1100,7 +1100,7 @@ impl<'a> Parse<'a> for SelectorList<'a> {
 
         let mut selectors = input.vec_with_capacity(2);
         selectors.push(first);
-        let mut comma_spans = arena_vec!(input);
+        let mut comma_spans = input.vec();
 
         let is_css = input.syntax == Syntax::Css;
         while let Some((_, comma_span)) = eat!(input, Comma) {

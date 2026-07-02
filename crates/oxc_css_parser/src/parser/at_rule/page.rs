@@ -1,6 +1,6 @@
 use super::Parser;
 use crate::{
-    Parse, arena_vec,
+    Parse,
     ast::*,
     eat,
     error::PResult,
@@ -14,7 +14,7 @@ use crate::{
 impl<'a> Parse<'a> for PageSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let mut name = None;
-        let mut pseudo = arena_vec!(input);
+        let mut pseudo = input.vec();
         let start;
         let mut end;
 
@@ -51,8 +51,8 @@ impl<'a> Parse<'a> for PageSelectorList<'a> {
         let first = input.parse::<PageSelector>()?;
         let mut span = first.span.clone();
 
-        let mut selectors = arena_vec!(input; first);
-        let mut comma_spans = arena_vec!(input);
+        let mut selectors = input.vec1(first);
+        let mut comma_spans = input.vec();
         while let Some((_, comma_span)) = eat!(input, Comma) {
             comma_spans.push(comma_span);
             selectors.push(input.parse()?);

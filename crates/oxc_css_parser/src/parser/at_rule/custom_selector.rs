@@ -1,7 +1,5 @@
 use super::Parser;
-use crate::{
-    Parse, arena_vec, ast::*, error::PResult, expect, peek, pos::Span, tokenizer::Token, util,
-};
+use crate::{Parse, ast::*, error::PResult, expect, peek, pos::Span, tokenizer::Token, util};
 
 impl<'a> Parse<'a> for CustomSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
@@ -52,8 +50,8 @@ impl<'a> Parse<'a> for CustomSelectorArgs<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = expect!(input, LParen);
 
-        let mut args = arena_vec!(input);
-        let mut comma_spans = arena_vec!(input);
+        let mut args = input.vec();
+        let mut comma_spans = input.vec();
         while !matches!(peek!(input).token, Token::RParen(..)) {
             args.push(input.parse()?);
             if !matches!(peek!(input).token, Token::RParen(..)) {

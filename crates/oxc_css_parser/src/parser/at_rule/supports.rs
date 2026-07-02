@@ -1,6 +1,6 @@
 use super::Parser;
 use crate::{
-    Parse, arena_box, arena_vec,
+    Parse,
     ast::*,
     error::{Error, ErrorKind, PResult},
     expect, peek,
@@ -17,7 +17,7 @@ impl<'a> Parse<'a> for SupportsCondition<'a> {
                 let condition = input.parse::<SupportsInParens>()?;
                 let span = Span { start: keyword.span.start, end: condition.span().end };
                 Ok(SupportsCondition {
-                    conditions: arena_vec!(input; SupportsConditionKind::Not(SupportsNot {
+                    conditions: input.vec1(SupportsConditionKind::Not(SupportsNot {
                         keyword,
                         condition,
                         span: span.clone(),
@@ -28,8 +28,7 @@ impl<'a> Parse<'a> for SupportsCondition<'a> {
             _ => {
                 let first = input.parse::<SupportsInParens>()?;
                 let mut span = first.span().clone();
-                let mut conditions =
-                    arena_vec!(input; SupportsConditionKind::SupportsInParens(first));
+                let mut conditions = input.vec1(SupportsConditionKind::SupportsInParens(first));
                 while let Token::Ident(ident) = &peek!(input).token {
                     let name = ident.name();
                     if name.eq_ignore_ascii_case("and") {
@@ -71,7 +70,7 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                     parser.parse::<SupportsDecl>().map(|supports_decl| {
                         let span = supports_decl.span.clone();
                         SupportsInParens {
-                            kind: SupportsInParensKind::Feature(arena_box!(parser, supports_decl)),
+                            kind: SupportsInParensKind::Feature(parser.alloc(supports_decl)),
                             span,
                         }
                     })

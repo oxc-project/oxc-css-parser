@@ -3,7 +3,7 @@ use super::{
     state::{LESS_CTX_ALLOW_DIV, LESS_CTX_ALLOW_KEYFRAME_BLOCK, ParserState, QualifiedRuleContext},
 };
 use crate::{
-    Parse, arena_box, arena_vec,
+    Parse,
     ast::*,
     bump,
     config::Syntax,
@@ -84,9 +84,9 @@ impl<'a> Parser<'a> {
 
         let span = Span { start: left.span().start, end: right.span().end };
         Ok(LessCondition::Binary(LessBinaryCondition {
-            left: arena_box!(self, left),
+            left: self.alloc(left),
             op,
-            right: arena_box!(self, right),
+            right: self.alloc(right),
             span,
         }))
     }
@@ -157,7 +157,7 @@ impl<'a> Parser<'a> {
                     let Span { start, .. } = bump!(self).span;
                     let (condition, end) = self.parse_less_guard_paren_condition(needs_parens)?;
                     LessCondition::Parenthesized(LessParenthesizedCondition {
-                        condition: arena_box!(self, condition),
+                        condition: self.alloc(condition),
                         span: Span { start, end },
                     })
                 }
@@ -172,7 +172,7 @@ impl<'a> Parser<'a> {
                         (condition, end)
                     };
                     LessCondition::Negated(LessNegatedCondition {
-                        condition: arena_box!(self, condition),
+                        condition: self.alloc(condition),
                         span: Span { start, end },
                     })
                 }
@@ -215,9 +215,9 @@ impl<'a> Parser<'a> {
 
             let span = Span { start: left.span().start, end: right.span().end };
             left = LessCondition::Binary(LessBinaryCondition {
-                left: arena_box!(self, left),
+                left: self.alloc(left),
                 op,
-                right: arena_box!(self, right),
+                right: self.alloc(right),
                 span,
             });
         }
@@ -290,7 +290,7 @@ impl<'a> Parser<'a> {
         &mut self,
         end: &mut usize,
     ) -> PResult<oxc_allocator::Vec<'a, LessInterpolatedIdentElement<'a>>> {
-        let mut elements = arena_vec!(self);
+        let mut elements = self.vec();
         loop {
             if let Some((token, span)) = self.tokenizer.scan_ident_template()? {
                 *end = span.end;
@@ -331,16 +331,13 @@ impl<'a> Parser<'a> {
         if matches!(peek!(self).token, Token::LBracket(..)) {
             let lookups = self.parse::<LessLookups>()?;
             let span = Span { start: mixin_call.span.start, end: lookups.span.end };
-            Ok(ComponentValue::LessNamespaceValue(arena_box!(
-                self,
-                LessNamespaceValue {
-                    callee: LessNamespaceValueCallee::LessMixinCall(mixin_call),
-                    lookups,
-                    span,
-                }
-            )))
+            Ok(ComponentValue::LessNamespaceValue(self.alloc(LessNamespaceValue {
+                callee: LessNamespaceValueCallee::LessMixinCall(mixin_call),
+                lookups,
+                span,
+            })))
         } else {
-            Ok(ComponentValue::LessMixinCall(arena_box!(self, mixin_call)))
+            Ok(ComponentValue::LessMixinCall(self.alloc(mixin_call)))
         }
     }
 
@@ -361,14 +358,11 @@ impl<'a> Parser<'a> {
             {
                 let lookups = self.parse::<LessLookups>()?;
                 let span = Span { start: variable.span.start, end: lookups.span.end };
-                Ok(ComponentValue::LessNamespaceValue(arena_box!(
-                    self,
-                    LessNamespaceValue {
-                        callee: LessNamespaceValueCallee::LessVariable(variable),
-                        lookups,
-                        span,
-                    }
-                )))
+                Ok(ComponentValue::LessNamespaceValue(self.alloc(LessNamespaceValue {
+                    callee: LessNamespaceValueCallee::LessVariable(variable),
+                    lookups,
+                    span,
+                })))
             }
             _ => Ok(ComponentValue::LessVariable(variable)),
         }
@@ -505,9 +499,9 @@ impl<'a> Parser<'a> {
                             .map(|value| ComponentValue::Number(Number { value, raw, span }))?
                     };
                     left = ComponentValue::LessBinaryOperation(LessBinaryOperation {
-                        left: arena_box!(self, left),
+                        left: self.alloc(left),
                         op,
-                        right: arena_box!(self, right),
+                        right: self.alloc(right),
                         span,
                     });
                     continue;
@@ -561,17 +555,17 @@ impl<'a> Parser<'a> {
                         )?;
                         let span = Span { start: right.span().start, end: mul_rhs.span().end };
                         right = ComponentValue::LessBinaryOperation(LessBinaryOperation {
-                            left: arena_box!(self, right),
+                            left: self.alloc(right),
                             op: mul_op,
-                            right: arena_box!(self, mul_rhs),
+                            right: self.alloc(mul_rhs),
                             span,
                         });
                     }
                     let span = Span { start: left.span().start, end: right.span().end };
                     left = ComponentValue::LessBinaryOperation(LessBinaryOperation {
-                        left: arena_box!(self, left),
+                        left: self.alloc(left),
                         op,
-                        right: arena_box!(self, right),
+                        right: self.alloc(right),
                         span,
                     });
                     continue;
@@ -582,9 +576,9 @@ impl<'a> Parser<'a> {
             let right = self.parse_less_operation_recursively(allow_mixin_call, precedence + 1)?;
             let span = Span { start: left.span().start, end: right.span().end };
             left = ComponentValue::LessBinaryOperation(LessBinaryOperation {
-                left: arena_box!(self, left),
+                left: self.alloc(left),
                 op,
-                right: arena_box!(self, right),
+                right: self.alloc(right),
                 span,
             });
         }
@@ -605,7 +599,7 @@ impl<'a> Parser<'a> {
             .parse_less_operation(allow_mixin_call)?;
         let (_, Span { end, .. }) = expect!(self, RParen);
         Ok(LessParenthesizedOperation {
-            operation: arena_box!(self, operation),
+            operation: self.alloc(operation),
             span: Span { start, end },
         })
     }
@@ -692,7 +686,7 @@ impl<'a> Parser<'a> {
             self.parse_less_operation(/* allow_mixin_call */ true)?
         };
 
-        let mut elements = arena_vec!(self);
+        let mut elements = self.vec();
         let mut comma_spans: Option<oxc_allocator::Vec<'a, Span>> = None;
         let mut separator = ListSeparatorKind::Unknown;
         let mut end = single_value.span().end;
@@ -720,7 +714,7 @@ impl<'a> Parser<'a> {
                         if let Some(spans) = &mut comma_spans {
                             spans.push(span);
                         } else {
-                            comma_spans = Some(arena_vec!(self; span));
+                            comma_spans = Some(self.vec1(span));
                         }
                     }
                 }
@@ -778,8 +772,8 @@ impl<'a> Parse<'a> for LessConditions<'a> {
         let first = input.parse_less_condition(true)?;
         let mut span = first.span().clone();
 
-        let mut conditions = arena_vec!(input; first);
-        let mut comma_spans = arena_vec!(input);
+        let mut conditions = input.vec1(first);
+        let mut comma_spans = input.vec();
         // A comma may also separate the next guarded selector of the rule
         // (`.a when (..), .b when (..) {`), so only consume it when a
         // condition actually follows.
@@ -871,8 +865,8 @@ impl<'a> Parse<'a> for LessExtendList<'a> {
         let first = input.parse::<LessExtend>()?;
         let mut span = first.span.clone();
 
-        let mut elements = arena_vec!(input; first);
-        let mut comma_spans = arena_vec!(input);
+        let mut elements = input.vec1(first);
+        let mut comma_spans = input.vec();
         while let Some((_, comma_span)) = eat!(input, Comma) {
             comma_spans.push(comma_span);
             elements.push(input.parse()?);
@@ -929,7 +923,7 @@ impl<'a> Parse<'a> for LessImportOptions<'a> {
         let (_, Span { start, .. }) = expect!(input, LParen);
 
         let mut names = input.vec_with_capacity(1);
-        let mut comma_spans = arena_vec!(input);
+        let mut comma_spans = input.vec();
         while let Token::Ident(crate::token::Ident {
             raw: "less" | "css" | "multiple" | "once" | "inline" | "reference" | "optional",
             ..
@@ -977,12 +971,9 @@ impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
         let quote = first.raw.chars().next().unwrap();
         debug_assert!(quote == '\'' || quote == '"');
         let mut span = first_span.clone();
-        let mut elements = arena_vec!(
-            input;
-            LessInterpolatedStrElement::Static(
-                input.interpolable_str_static_part(first, first_span)
-            )
-        );
+        let mut elements = input.vec1(LessInterpolatedStrElement::Static(
+            input.interpolable_str_static_part(first, first_span),
+        ));
 
         let mut is_parsing_static_part = false;
         loop {
@@ -1098,7 +1089,7 @@ impl<'a> Parse<'a> for LessLookups<'a> {
         let first = input.parse::<LessLookup>()?;
         let mut span = first.span.clone();
 
-        let mut lookups = arena_vec!(input; first);
+        let mut lookups = input.vec1(first);
         while let Token::LBracket(..) = peek!(input).token {
             lookups.push(input.parse()?);
         }
@@ -1119,15 +1110,15 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
         let mut end = callee.span.end;
         let args = if let Some((_, lparen_span)) = eat!(input, LParen) {
             let mut semicolon_comes_at = 0;
-            let mut args = arena_vec!(input);
-            let mut comma_spans = arena_vec!(input);
-            let mut semicolon_spans = arena_vec!(input);
+            let mut args = input.vec();
+            let mut comma_spans = input.vec();
+            let mut semicolon_spans = input.vec();
             loop {
                 match peek!(input).token {
                     Token::RParen(..) => {
                         let TokenWithSpan { span, .. } = bump!(input);
                         if semicolon_comes_at > 0 {
-                            let comma_spans = mem::replace(&mut comma_spans, arena_vec!(input));
+                            let comma_spans = mem::replace(&mut comma_spans, input.vec());
                             wrap_less_mixin_args_into_less_list(
                                 input.allocator(),
                                 &mut args,
@@ -1216,7 +1207,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                     }
                     Token::Semicolon(..) => {
                         let TokenWithSpan { span, .. } = bump!(input);
-                        let comma_spans = mem::replace(&mut comma_spans, arena_vec!(input));
+                        let comma_spans = mem::replace(&mut comma_spans, input.vec());
                         wrap_less_mixin_args_into_less_list(
                             input.allocator(),
                             &mut args,
@@ -1274,9 +1265,9 @@ impl<'a> Parser<'a> {
         let (_, lparen_span) = expect!(self, LParen);
         let rparen_span;
         let mut semicolon_comes_at = 0;
-        let mut params = arena_vec!(self);
-        let mut comma_spans = arena_vec!(self);
-        let mut semicolon_spans = arena_vec!(self);
+        let mut params = self.vec();
+        let mut comma_spans = self.vec();
+        let mut semicolon_spans = self.vec();
         'params: loop {
             match peek!(self).token {
                 Token::RParen(..) => {
@@ -1371,7 +1362,7 @@ impl<'a> Parser<'a> {
                 Token::RParen(..) => {
                     let span = bump!(self).span;
                     if semicolon_comes_at > 0 {
-                        let comma_spans = mem::replace(&mut comma_spans, arena_vec!(self));
+                        let comma_spans = mem::replace(&mut comma_spans, self.vec());
                         wrap_less_mixin_params_into_less_list(
                             self.allocator(),
                             &mut params,
@@ -1396,7 +1387,7 @@ impl<'a> Parser<'a> {
                 }
                 Token::Semicolon(..) => {
                     let span = bump!(self).span;
-                    let comma_spans = mem::replace(&mut comma_spans, arena_vec!(self));
+                    let comma_spans = mem::replace(&mut comma_spans, self.vec());
                     wrap_less_mixin_params_into_less_list(
                         self.allocator(),
                         &mut params,
@@ -1447,10 +1438,11 @@ impl<'a> Parse<'a> for LessMixinCallee<'a> {
         let first_name = input.parse::<LessMixinName>()?;
         let mut span = first_name.span().clone();
 
-        let mut children = arena_vec!(
-            input;
-            LessMixinCalleeChild { name: first_name, combinator: None, span: span.clone() }
-        );
+        let mut children = input.vec1(LessMixinCalleeChild {
+            name: first_name,
+            combinator: None,
+            span: span.clone(),
+        });
         loop {
             let combinator = eat!(input, GreaterThan)
                 .map(|(_, span)| Combinator { kind: CombinatorKind::Child, span });
@@ -1608,13 +1600,13 @@ impl<'a> Parse<'a> for LessNegativeValue<'a> {
                 span,
             } if minus_span.end == span.start => {
                 let value = input.parse_component_value_atom()?;
-                arena_box!(input, value)
+                input.alloc(value)
             }
             TokenWithSpan { token: Token::LParen(..), span } if minus_span.end == span.start => {
                 let value = ComponentValue::LessParenthesizedOperation(
                     input.parse_less_parenthesized_operation(/* allow_mixin_call */ true)?,
                 );
-                arena_box!(input, value)
+                input.alloc(value)
             }
             TokenWithSpan { token, span } => {
                 use crate::{
