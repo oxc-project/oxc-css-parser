@@ -354,7 +354,7 @@ impl<'a> Parser<'a> {
                 bump!(self);
                 let (_, Span { end, .. }) = expect!(self, RParen);
                 let span = Span { start: variable.span.start, end };
-                return Ok(ComponentValue::LessVariableCall(LessVariableCall { variable, span }));
+                Ok(ComponentValue::LessVariableCall(LessVariableCall { variable, span }))
             }
             TokenWithSpan { token: Token::LBracket(..), span }
                 if variable.span.end == span.start =>
