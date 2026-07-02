@@ -1,6 +1,6 @@
 suite: csswg-drafts
 sha: cca93bb94ae073c964ffe076bbe75d6baef90dd6
-files: 9   success: 8   failed: 1
+files: 9   success: 8   failed: 1   expected: 0
 clean: 8  recovered: 0  hard_error: 1  panic: 0
 
 failures:

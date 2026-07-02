@@ -1,7 +1,7 @@
 suite: less.js
 sha: 8ae2cc3bfa79f0718ad6fe5f263a1d6819fe9d5c
-files: 459   success: 385   failed: 74
-clean: 385  recovered: 3  hard_error: 71  panic: 0
+files: 459   success: 385   failed: 52   expected: 22
+clean: 385  recovered: 3  hard_error: 49  panic: 0
 
 failures:
 ERROR    packages/test-data/tests-config/at-rules-compressed-evaluation/at-rules-compressed-evaluation.css    expect token `{`, but found `<ident>`
@@ -26,28 +26,6 @@ ERROR    packages/test-data/tests-error/eval/mixin-not-defined-2.less    expect 
 ERROR    packages/test-data/tests-error/eval/multiple-guards-on-css-selectors.less    expect token `;`, but found `<ident>`
 RECOVER  packages/test-data/tests-error/eval/multiple-guards-on-css-selectors2.less    Less guards are only allowed on a single complex selector
 ERROR    packages/test-data/tests-error/eval/property-in-root3.less    expect token `(`, but found `:`
-ERROR    packages/test-data/tests-error/parse/at-rules-unmatching-block.less    CSS rule is expected
-ERROR    packages/test-data/tests-error/parse/bad-variable-declaration1.less    CSS rule is expected
-ERROR    packages/test-data/tests-error/parse/custom-property-unmatched-block-1.less    CSS rule is expected
-ERROR    packages/test-data/tests-error/parse/custom-property-unmatched-block-2.less    expect token `<eof>`, but found `}`
-ERROR    packages/test-data/tests-error/parse/custom-property-unmatched-block-3.less    expect token `;`, but found `{`
-ERROR    packages/test-data/tests-error/parse/detached-ruleset-6.less    expect token `;`, but found `{`
-ERROR    packages/test-data/tests-error/parse/import-malformed.less    expect token `(`, but found `<ident>`
-ERROR    packages/test-data/tests-error/parse/mixed-mixin-definition-args-1.less    expect token `;`, but found `{`
-ERROR    packages/test-data/tests-error/parse/mixed-mixin-definition-args-2.less    expect token `;`, but found `{`
-ERROR    packages/test-data/tests-error/parse/mixins-guards-cond-expected.less    expect token `;`, but found `<ident>`
-ERROR    packages/test-data/tests-error/parse/parens-error-1.less    expect token `;`, but found `{`
-ERROR    packages/test-data/tests-error/parse/parens-error-2.less    expect token `;`, but found `{`
-ERROR    packages/test-data/tests-error/parse/parens-error-3.less    expect token `;`, but found `{`
-ERROR    packages/test-data/tests-error/parse/parse-error-curly-bracket.less    expect token `<eof>`, but found `}`
-ERROR    packages/test-data/tests-error/parse/parse-error-media-no-block-1.less    expect token `{`, but found `)`
-ERROR    packages/test-data/tests-error/parse/parse-error-media-no-block-2.less    expect token `{`, but found `<eof>`
-ERROR    packages/test-data/tests-error/parse/parse-error-media-no-block-3.less    expect token `}`, but found `<eof>`
-ERROR    packages/test-data/tests-error/parse/parse-error-missing-bracket.less    expect token `(`, but found `{`
-ERROR    packages/test-data/tests-error/parse/parse-error-missing-parens.less    expect token `{`, but found `(`
-ERROR    packages/test-data/tests-error/parse/parse-error-with-import.less    expect token `(`, but found `;`
-ERROR    packages/test-data/tests-error/parse/property-asterisk-only-name.less    expect token `(`, but found `{`
-ERROR    packages/test-data/tests-error/parse/single-character.less    expect token `(`, but found `<eof>`
 ERROR    packages/test-data/tests-unit/at-rules/at-rules.less    expect token `;`, but found `{`
 ERROR    packages/test-data/tests-unit/container/container.css    expect token `{`, but found `<ident>`
 ERROR    packages/test-data/tests-unit/container/container.less    expect token `{`, but found `<ident>`
@@ -78,3 +56,27 @@ ERROR    packages/test-data/tests-unit/urls/actual.css    invalid URL
 ERROR    packages/test-data/tests-unit/urls/urls.css    invalid URL
 ERROR    packages/test-data/tests-unit/urls/urls.less    expect token `;`, but found `{`
 ERROR    packages/test-data/tests-unit/variables-in-at-rules/variables-in-at-rules.less    expect token `<string>`, but found `<string template>`
+
+expected failures (error tests, correct behavior):
+ERROR    packages/test-data/tests-error/parse/at-rules-unmatching-block.less    CSS rule is expected
+ERROR    packages/test-data/tests-error/parse/bad-variable-declaration1.less    CSS rule is expected
+ERROR    packages/test-data/tests-error/parse/custom-property-unmatched-block-1.less    CSS rule is expected
+ERROR    packages/test-data/tests-error/parse/custom-property-unmatched-block-2.less    expect token `<eof>`, but found `}`
+ERROR    packages/test-data/tests-error/parse/custom-property-unmatched-block-3.less    expect token `;`, but found `{`
+ERROR    packages/test-data/tests-error/parse/detached-ruleset-6.less    expect token `;`, but found `{`
+ERROR    packages/test-data/tests-error/parse/import-malformed.less    expect token `(`, but found `<ident>`
+ERROR    packages/test-data/tests-error/parse/mixed-mixin-definition-args-1.less    expect token `;`, but found `{`
+ERROR    packages/test-data/tests-error/parse/mixed-mixin-definition-args-2.less    expect token `;`, but found `{`
+ERROR    packages/test-data/tests-error/parse/mixins-guards-cond-expected.less    expect token `;`, but found `<ident>`
+ERROR    packages/test-data/tests-error/parse/parens-error-1.less    expect token `;`, but found `{`
+ERROR    packages/test-data/tests-error/parse/parens-error-2.less    expect token `;`, but found `{`
+ERROR    packages/test-data/tests-error/parse/parens-error-3.less    expect token `;`, but found `{`
+ERROR    packages/test-data/tests-error/parse/parse-error-curly-bracket.less    expect token `<eof>`, but found `}`
+ERROR    packages/test-data/tests-error/parse/parse-error-media-no-block-1.less    expect token `{`, but found `)`
+ERROR    packages/test-data/tests-error/parse/parse-error-media-no-block-2.less    expect token `{`, but found `<eof>`
+ERROR    packages/test-data/tests-error/parse/parse-error-media-no-block-3.less    expect token `}`, but found `<eof>`
+ERROR    packages/test-data/tests-error/parse/parse-error-missing-bracket.less    expect token `(`, but found `{`
+ERROR    packages/test-data/tests-error/parse/parse-error-missing-parens.less    expect token `{`, but found `(`
+ERROR    packages/test-data/tests-error/parse/parse-error-with-import.less    expect token `(`, but found `;`
+ERROR    packages/test-data/tests-error/parse/property-asterisk-only-name.less    expect token `(`, but found `{`
+ERROR    packages/test-data/tests-error/parse/single-character.less    expect token `(`, but found `<eof>`

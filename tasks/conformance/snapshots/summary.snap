@@ -1,20 +1,21 @@
 # oxc-css-parser conformance — `cargo run -p conformance`
-# success = clean parse; failed = recovered + hard_error + panic
+# success = clean parse; failed = recovered + hard_error + panic;
+# expected = parse errors on error-tests (correct behavior, not failures)
 
-suite                   files  success  failed   clean  recov  harderr  panic
-css-parsing-tests           0        0       0       0      0        0      0
-wpt                         5        3       2       3      0        2      0
-csswg-drafts                9        8       1       8      0        1      0
-webref                      0        0       0       0      0        0      0
-postcss-parser-tests       30       25       5      25      1        4      0
-sass-spec               26785    25515    1270   25515     27     1243      0
-less.js                   459      385      74     385      3       71      0
+suite                   files  success  failed  expected   clean  recov  harderr  panic
+css-parsing-tests           0        0       0         0       0      0        0      0
+wpt                         7        5       0         2       5      0        0      0
+csswg-drafts                9        8       1         0       8      0        1      0
+webref                      0        0       0         0       0      0        0      0
+postcss-parser-tests       30       25       5         0      25      1        4      0
+sass-spec               26787    25517     939       331   25517     12      927      0
+less.js                   459      385      52        22     385      3       49      0
 ------------------------------------------------------------------------
-total                   27288    25936    1352   25936     31     1321      0
+total                   27292    25940     997       355   25940     16      981      0
 
 # by syntax
-syntax                  files  success  failed   clean  recov  harderr  panic
-css                     11795    10964     831   10964      5      826      0
-scss                    14748    14415     333   14415     22      311      0
-sass                      439      303     136     303      2      134      0
-less                      306      254      52     254      2       50      0
+syntax                  files  success  failed  expected   clean  recov  harderr  panic
+css                     11797    10966     784        47   10966      5      779      0
+scss                    14750    14417      97       236   14417      8       89      0
+sass                      439      303      86        50     303      1       85      0
+less                      306      254      30        22     254      2       28      0
