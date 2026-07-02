@@ -1,10 +1,10 @@
 use super::Parser;
-use crate::{Parse, Spanned, ast::*, error::PResult, peek, tokenizer::Token};
+use crate::{Parse, Spanned, ast::*, error::PResult, tokenizer::Token};
 
 // https://www.w3.org/TR/css-namespaces-3/#syntax
 impl<'a> Parse<'a> for NamespacePrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let prefix = match &peek!(input).token {
+        let prefix = match &input.cursor.peek()?.token {
             Token::Ident(ident) => {
                 if ident.name().eq_ignore_ascii_case("url") {
                     None
@@ -17,7 +17,7 @@ impl<'a> Parse<'a> for NamespacePrelude<'a> {
             }
             _ => None,
         };
-        let uri = match &peek!(input).token {
+        let uri = match &input.cursor.peek()?.token {
             Token::Str(..) | Token::StrTemplate(..) => {
                 input.parse().map(NamespacePreludeUri::Str)?
             }

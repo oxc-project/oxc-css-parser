@@ -2,9 +2,8 @@ use super::Parser;
 use crate::{
     Parse,
     ast::*,
-    bump, eat,
+    eat,
     error::{Error, PResult},
-    peek,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
     util,
@@ -38,9 +37,9 @@ impl<'a> Parse<'a> for LayerName<'a> {
         let mut end = first.span().end;
 
         let mut idents = input.vec1(first);
-        while let TokenWithSpan { token: Token::Dot(..), span } = peek!(input) {
+        while let TokenWithSpan { token: Token::Dot(..), span } = input.cursor.peek()? {
             if span.start == end {
-                let span = bump!(input).span;
+                let span = input.cursor.bump()?.span;
                 let ident = input.parse::<InterpolableIdent>()?;
                 util::assert_no_ws_or_comment(&span, ident.span())?;
                 end = ident.span().end;

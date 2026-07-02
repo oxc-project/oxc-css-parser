@@ -4,7 +4,7 @@ use crate::{
     ast::*,
     config::Syntax,
     error::PResult,
-    expect, peek,
+    expect,
     pos::{Span, Spanned},
     tokenizer::Token,
 };
@@ -28,7 +28,7 @@ impl<'a> Parse<'a> for PostcssSimpleVarDeclaration<'a> {
         // postcss-simple-vars is textual substitution; `!important` is just part
         // of the value, not a structural declaration modifier (unlike CSS's
         // `Declaration.important`). Keep it in the value stream.
-        if let Token::Exclamation(..) = &peek!(input).token {
+        if let Token::Exclamation(..) = &input.cursor.peek()?.token {
             let important = input.parse::<ImportantAnnotation>()?;
             value.push(ComponentValue::ImportantAnnotation(important));
         }

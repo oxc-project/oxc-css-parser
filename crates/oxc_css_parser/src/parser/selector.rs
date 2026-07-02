@@ -2,9 +2,9 @@ use super::Parser;
 use crate::{
     Parse, Syntax,
     ast::*,
-    bump, eat,
+    eat,
     error::{Error, ErrorKind, PResult},
-    expect, expect_without_ws_or_comments, peek,
+    expect, expect_without_ws_or_comments,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan, token},
     util,
@@ -13,18 +13,18 @@ use crate::{
 // https://www.w3.org/TR/css-syntax-3/#the-anb-type
 impl<'a> Parse<'a> for AnPlusB {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match peek!(input) {
+        match input.cursor.peek()? {
             TokenWithSpan { token: Token::Dimension(..), .. } => {
                 let (token::Dimension { value, unit }, span) = expect!(input, Dimension);
                 let value_span = Span { start: span.start, end: span.start + value.raw.len() };
                 let unit_name = unit.name();
                 if unit_name.eq_ignore_ascii_case("n") {
-                    match &peek!(input).token {
+                    match &input.cursor.peek()?.token {
                         // syntax: <n-dimension> ['+' | '-'] <signless-integer>
                         // examples: '1n + 1', '1n - 1', '1n+ 1'
                         sign @ Token::Plus(..) | sign @ Token::Minus(..) => {
                             let sign = if let Token::Plus(..) = sign { 1 } else { -1 };
-                            bump!(input);
+                            input.cursor.bump()?;
                             let (number, number_span) = expect_unsigned_int(input)?;
                             let span = Span { start: span.start, end: number_span.end };
                             Ok(AnPlusB {
@@ -97,16 +97,16 @@ impl<'a> Parse<'a> for AnPlusB {
             }
 
             TokenWithSpan { token: Token::Plus(..), .. } => {
-                let plus_span = bump!(input).span;
+                let plus_span = input.cursor.bump()?.span;
                 let (ident, ident_span) = expect_without_ws_or_comments!(input, Ident);
                 let ident_name = ident.name();
                 if ident_name.eq_ignore_ascii_case("n") {
-                    match &peek!(input).token {
+                    match &input.cursor.peek()?.token {
                         // syntax: +n ['+' | '-'] <signless-integer>
                         // examples: '+n + 1', '+n - 1', '+n+ 1'
                         sign @ Token::Plus(..) | sign @ Token::Minus(..) => {
                             let sign = if let Token::Plus(..) = sign { 1 } else { -1 };
-                            bump!(input);
+                            input.cursor.bump()?;
                             let (number, number_span) = expect_unsigned_int(input)?;
                             let span = Span { start: plus_span.start, end: number_span.end };
                             Ok(AnPlusB {
@@ -180,12 +180,12 @@ impl<'a> Parse<'a> for AnPlusB {
                 let (ident, ident_span) = expect!(input, Ident);
                 let ident_name = ident.name();
                 if ident_name.eq_ignore_ascii_case("n") {
-                    match &peek!(input).token {
+                    match &input.cursor.peek()?.token {
                         // syntax: n ['+' | '-'] <signless-integer>
                         // examples: 'n + 1', 'n - 1', 'n+ 1'
                         sign @ Token::Plus(..) | sign @ Token::Minus(..) => {
                             let sign = if let Token::Plus(..) = sign { 1 } else { -1 };
-                            bump!(input);
+                            input.cursor.bump()?;
                             let (number, number_span) = expect_unsigned_int(input)?;
                             let span = Span { start: ident_span.start, end: number_span.end };
                             Ok(AnPlusB {
@@ -240,12 +240,12 @@ impl<'a> Parse<'a> for AnPlusB {
                     })?;
                     Ok(AnPlusB { a: 1, b: -b, span: ident_span })
                 } else if ident_name.eq_ignore_ascii_case("-n") {
-                    match &peek!(input).token {
+                    match &input.cursor.peek()?.token {
                         // syntax: -n ['+' | '-'] <signless-integer>
                         // examples: '-n + 1', '-n - 1', '-n+ 1'
                         sign @ Token::Plus(..) | sign @ Token::Minus(..) => {
                             let sign = if let Token::Plus(..) = sign { 1 } else { -1 };
-                            bump!(input);
+                            input.cursor.bump()?;
                             let (number, number_span) = expect_unsigned_int(input)?;
                             let span = Span { start: ident_span.start, end: number_span.end };
                             Ok(AnPlusB {
@@ -315,7 +315,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let start = expect!(input, LBracket).1.start;
 
-        let name = match peek!(input) {
+        let name = match input.cursor.peek()? {
             TokenWithSpan {
                 token: Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..),
                 ..
@@ -342,7 +342,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
                 }
             }
             TokenWithSpan { token: Token::Asterisk(..), .. } => {
-                let asterisk_span = bump!(input).span;
+                let asterisk_span = input.cursor.bump()?.span;
                 let bar_token_span = expect!(input, Bar).1;
                 let name = input.parse::<InterpolableIdent>()?;
 
@@ -360,7 +360,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
                 }
             }
             TokenWithSpan { token: Token::Bar(..), .. } => {
-                let bar_token_span = bump!(input).span;
+                let bar_token_span = input.cursor.bump()?.span;
                 let name = input.parse::<InterpolableIdent>()?;
 
                 let start = bar_token_span.start;
@@ -379,32 +379,32 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
             }
         };
 
-        let matcher = match peek!(input) {
+        let matcher = match input.cursor.peek()? {
             TokenWithSpan { token: Token::RBracket(..), .. } => None,
             TokenWithSpan { token: Token::Equal(..), .. } => Some(AttributeSelectorMatcher {
                 kind: AttributeSelectorMatcherKind::Exact,
-                span: bump!(input).span,
+                span: input.cursor.bump()?.span,
             }),
             TokenWithSpan { token: Token::TildeEqual(..), .. } => Some(AttributeSelectorMatcher {
                 kind: AttributeSelectorMatcherKind::MatchWord,
-                span: bump!(input).span,
+                span: input.cursor.bump()?.span,
             }),
             TokenWithSpan { token: Token::BarEqual(..), .. } => Some(AttributeSelectorMatcher {
                 kind: AttributeSelectorMatcherKind::ExactOrPrefixThenHyphen,
-                span: bump!(input).span,
+                span: input.cursor.bump()?.span,
             }),
             TokenWithSpan { token: Token::CaretEqual(..), .. } => Some(AttributeSelectorMatcher {
                 kind: AttributeSelectorMatcherKind::Prefix,
-                span: bump!(input).span,
+                span: input.cursor.bump()?.span,
             }),
             TokenWithSpan { token: Token::DollarEqual(..), .. } => Some(AttributeSelectorMatcher {
                 kind: AttributeSelectorMatcherKind::Suffix,
-                span: bump!(input).span,
+                span: input.cursor.bump()?.span,
             }),
             TokenWithSpan { token: Token::AsteriskEqual(..), .. } => {
                 Some(AttributeSelectorMatcher {
                     kind: AttributeSelectorMatcherKind::Substring,
-                    span: bump!(input).span,
+                    span: input.cursor.bump()?.span,
                 })
             }
             TokenWithSpan { span, .. } => {
@@ -416,7 +416,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
         };
 
         let value = if matcher.is_some() {
-            match peek!(input) {
+            match input.cursor.peek()? {
                 TokenWithSpan {
                     token:
                         Token::Ident(..)
@@ -458,8 +458,11 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
                 TokenWithSpan { span, .. } if input.syntax == Syntax::Css => {
                     let start = span.start;
                     let mut tokens = input.vec();
-                    while !matches!(peek!(input).token, Token::RBracket(..) | Token::Eof(..)) {
-                        tokens.push(bump!(input));
+                    while !matches!(
+                        input.cursor.peek()?.token,
+                        Token::RBracket(..) | Token::Eof(..)
+                    ) {
+                        tokens.push(input.cursor.bump()?);
                     }
                     let end = tokens.last().map_or(start, |t| t.span.end);
                     Some(AttributeSelectorValue::TokenSeq(TokenSeq {
@@ -479,7 +482,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
         };
 
         let modifier = if value.is_some() {
-            match &peek!(input).token {
+            match &input.cursor.peek()?.token {
                 Token::Ident(..) | Token::HashLBrace(..) => {
                     let ident = input.parse::<InterpolableIdent>()?;
                     let span = ident.span().clone();
@@ -501,14 +504,14 @@ impl<'a> Parse<'a> for ClassSelector<'a> {
         let (_, dot_span) = expect!(input, Dot);
         let start = dot_span.start;
         let end;
-        // Detect an adjacent placeholder without `peek!`: `peek!` skips
+        // Detect an adjacent placeholder without `peek()`: `peek()` skips
         // whitespace and caches a token, which would both break the no-ws rule
         // (the name must immediately follow the dot) and trip the empty-cache
         // assertion in the `expect_without_ws_or_comments!` fallback. `scan_placeholder`
         // returns `None` (leaving the tokenizer untouched) unless a placeholder
         // begins exactly here, so the fallback paths run with an empty cache.
         let placeholder = if input.options.template_placeholder.is_some() {
-            input.tokenizer.scan_placeholder()
+            input.cursor.tokenizer.scan_placeholder()
         } else {
             None
         };
@@ -540,15 +543,16 @@ impl<'a> Parse<'a> for ComplexSelector<'a> {
         let (span, first, mut is_previous_combinator) = if let Token::GreaterThan(..)
         | Token::Plus(..)
         | Token::Tilde(..)
-        | Token::BarBar(..) = peek!(input).token
+        | Token::BarBar(..) =
+            input.cursor.peek()?.token
         {
-            let end = input.tokenizer.current_offset();
+            let end = input.cursor.tokenizer.current_offset();
             if let Some(combinator) = input.parse_combinator(end)? {
                 (combinator.span.clone(), ComplexSelectorChild::Combinator(combinator), true)
             } else {
                 return Err(Error {
                     kind: ErrorKind::ExpectSimpleSelector,
-                    span: bump!(input).span,
+                    span: input.cursor.bump()?.span,
                 });
             }
         } else {
@@ -564,7 +568,7 @@ impl<'a> Parse<'a> for ComplexSelector<'a> {
         children.push(first);
         let is_less = input.syntax == Syntax::Less;
         while !matches!(
-            peek!(input).token,
+            input.cursor.peek()?.token,
             Token::LBrace(..) | Token::Indent(..) | Token::Linebreak(..)
         ) {
             if is_previous_combinator {
@@ -574,7 +578,7 @@ impl<'a> Parse<'a> for ComplexSelector<'a> {
                 // compound selector. CSS keeps the strict alternation.
                 if matches!(input.syntax, Syntax::Scss | Syntax::Sass) {
                     if matches!(
-                        peek!(input).token,
+                        input.cursor.peek()?.token,
                         Token::GreaterThan(..)
                             | Token::Plus(..)
                             | Token::Tilde(..)
@@ -585,7 +589,7 @@ impl<'a> Parse<'a> for ComplexSelector<'a> {
                         children.push(ComplexSelectorChild::Combinator(combinator));
                         continue;
                     } else if matches!(
-                        peek!(input).token,
+                        input.cursor.peek()?.token,
                         Token::RParen(..) | Token::Comma(..) | Token::RBrace(..) | Token::Eof(..)
                     ) {
                         break;
@@ -596,7 +600,7 @@ impl<'a> Parse<'a> for ComplexSelector<'a> {
                 children.push(ComplexSelectorChild::CompoundSelector(compound_selector));
             } else if let Some(combinator) = input.parse_combinator(end)? {
                 if is_less && combinator.kind == CombinatorKind::Descendant {
-                    match &peek!(input).token {
+                    match &input.cursor.peek()?.token {
                         Token::Ident(ident) if ident.raw == "when" => break,
                         _ => {}
                     }
@@ -623,7 +627,7 @@ impl<'a> Parse<'a> for CompoundSelector<'a> {
         children.push(first);
         loop {
             use token::*;
-            match peek!(input) {
+            match input.cursor.peek()? {
                 TokenWithSpan {
                     token:
                         Token::Dot(..)
@@ -691,7 +695,7 @@ impl<'a> Parse<'a> for CompoundSelectorList<'a> {
 
 impl<'a> Parse<'a> for IdSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match bump!(input) {
+        match input.cursor.bump()? {
             TokenWithSpan { token: Token::Hash(token), span } => {
                 let first_span = Span { start: span.start + 1, end: span.end };
                 let raw = token.raw;
@@ -708,7 +712,7 @@ impl<'a> Parse<'a> for IdSelector<'a> {
                     raw
                 };
                 let first = Ident { name: value, raw: token.raw, span: first_span };
-                let name = match peek!(input) {
+                let name = match input.cursor.peek()? {
                     TokenWithSpan { token: Token::HashLBrace(..), span }
                         if matches!(input.syntax, Syntax::Scss | Syntax::Sass)
                             && first.span.end == span.start =>
@@ -747,7 +751,7 @@ impl<'a> Parse<'a> for IdSelector<'a> {
 
 impl<'a> Parse<'a> for LanguageRange<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &peek!(input).token {
+        match &input.cursor.peek()?.token {
             Token::Str(..) | Token::StrTemplate(..) => input.parse().map(LanguageRange::Str),
             _ => input.parse().map(LanguageRange::Ident),
         }
@@ -779,7 +783,7 @@ impl<'a> Parse<'a> for NestingSelector<'a> {
         let (_, mut span) = expect!(input, Ampersand);
         let suffix = match input.syntax {
             Syntax::Css => {
-                if let Some((ident, ident_span)) = input.tokenizer.scan_ident_template()? {
+                if let Some((ident, ident_span)) = input.cursor.tokenizer.scan_ident_template()? {
                     span.end = ident_span.end;
                     Some(InterpolableIdent::Literal(input.ident(ident, ident_span)))
                 } else {
@@ -820,7 +824,7 @@ impl<'a> Parse<'a> for Nth<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let index = input.parse::<NthIndex>()?;
         let mut span = index.span().clone();
-        let matcher = match &peek!(input).token {
+        let matcher = match &input.cursor.peek()?.token {
             Token::Ident(ident) if ident.name().eq_ignore_ascii_case("of") => {
                 let matcher = input.parse::<NthMatcher>()?;
                 span.end = matcher.span.end;
@@ -835,7 +839,7 @@ impl<'a> Parse<'a> for Nth<'a> {
 
 impl<'a> Parse<'a> for NthIndex<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &peek!(input).token {
+        match &input.cursor.peek()?.token {
             Token::Ident(ident) => {
                 let name = ident.name();
                 if name.eq_ignore_ascii_case("odd") {
@@ -866,7 +870,7 @@ impl<'a> Parse<'a> for NthMatcher<'a> {
             return Err(Error { kind: ErrorKind::ExpectNthOf, span });
         }
 
-        let selector = if matches!(&peek!(input).token, Token::RParen(..)) {
+        let selector = if matches!(&input.cursor.peek()?.token, Token::RParen(..)) {
             None
         } else {
             let selector = input.parse::<SelectorList>()?;
@@ -887,10 +891,10 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
 
         let mut end = name_span.end;
 
-        let arg = match peek!(input) {
+        let arg = match input.cursor.peek()? {
             TokenWithSpan { token: Token::LParen(..), span: l_paren } if l_paren.start == end => {
                 let l_paren = l_paren.clone();
-                bump!(input);
+                input.cursor.bump()?;
                 let kind = match &name {
                     InterpolableIdent::Literal(Ident { name, .. })
                         if name.eq_ignore_ascii_case("nth-child")
@@ -1015,10 +1019,10 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
             name
         };
 
-        let arg = match peek!(input) {
+        let arg = match input.cursor.peek()? {
             TokenWithSpan { token: Token::LParen(..), span: l_paren } if l_paren.start == end => {
                 let l_paren = l_paren.clone();
-                bump!(input);
+                input.cursor.bump()?;
                 let kind = match &name {
                     InterpolableIdent::Literal(Ident { name, .. })
                         if name.eq_ignore_ascii_case("part") =>
@@ -1058,7 +1062,7 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
 
 impl<'a> Parse<'a> for RelativeSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let pos = input.tokenizer.current_offset();
+        let pos = input.cursor.tokenizer.current_offset();
         let combinator = match input.parse_combinator(pos)? {
             Some(Combinator { kind: CombinatorKind::Descendant, .. }) => None,
             combinator => combinator,
@@ -1117,11 +1121,13 @@ impl<'a> Parse<'a> for SelectorList<'a> {
             // In the indented syntax a deeper line after the comma continues
             // the selector list (`a,\n    b\n  c: d`); a same-level line or
             // `{` means the comma was trailing.
-            if input.syntax == Syntax::Sass && matches!(peek!(input).token, Token::Indent(..)) {
+            if input.syntax == Syntax::Sass
+                && matches!(input.cursor.peek()?.token, Token::Indent(..))
+            {
                 input.eat_sass_line_continuation()?;
             } else if !is_css
                 && matches!(
-                    peek!(input).token,
+                    input.cursor.peek()?.token,
                     Token::LBrace(..) | Token::Indent(..) | Token::Linebreak(..)
                 )
             {
@@ -1148,7 +1154,7 @@ impl<'a> Parse<'a> for SelectorList<'a> {
 // https://www.w3.org/TR/selectors-4/#ref-for-typedef-simple-selector
 impl<'a> Parse<'a> for SimpleSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match peek!(input) {
+        match input.cursor.peek()? {
             TokenWithSpan { token: Token::Dot(..), .. } => input.parse().map(SimpleSelector::Class),
             TokenWithSpan { token: Token::Hash(..) | Token::NumberSign(..), .. } => {
                 input.parse().map(SimpleSelector::Id)
@@ -1202,16 +1208,16 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
             Asterisk(Span),
         }
 
-        let ident_or_asterisk = match &peek!(input).token {
+        let ident_or_asterisk = match &input.cursor.peek()?.token {
             Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..) => {
                 input.parse().map(IdentOrAsterisk::Ident).map(Some)?
             }
-            Token::Asterisk(..) => Some(IdentOrAsterisk::Asterisk(bump!(input).span)),
+            Token::Asterisk(..) => Some(IdentOrAsterisk::Asterisk(input.cursor.bump()?.span)),
             Token::Bar(..) => None,
             _ => unreachable!(),
         };
 
-        match peek!(input) {
+        match input.cursor.peek()? {
             TokenWithSpan { token: Token::Bar(..), span }
                 if ident_or_asterisk
                     .as_ref()
@@ -1225,7 +1231,7 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
                     })
                     .unwrap_or(true) =>
             {
-                let bar_token_span = bump!(input).span;
+                let bar_token_span = input.cursor.bump()?.span;
 
                 let prefix = match ident_or_asterisk {
                     Some(IdentOrAsterisk::Ident(ident)) => {
@@ -1246,7 +1252,7 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
                     None => NsPrefix { kind: None, span: bar_token_span },
                 };
 
-                match peek!(input) {
+                match input.cursor.peek()? {
                     TokenWithSpan { token: Token::Ident(..) | Token::HashLBrace(..), .. } => {
                         let name = input.parse::<InterpolableIdent>()?;
                         let name_span = name.span();
@@ -1258,7 +1264,7 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
                         }))
                     }
                     TokenWithSpan { token: Token::Asterisk(..), .. } => {
-                        let asterisk_span = bump!(input).span;
+                        let asterisk_span = input.cursor.bump()?.span;
                         util::assert_no_ws(input.source, &prefix.span, &asterisk_span)?;
                         let span = Span { start: prefix.span.start, end: asterisk_span.end };
                         Ok(TypeSelector::Universal(UniversalSelector {
@@ -1291,7 +1297,7 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
 
 impl<'a> Parser<'a> {
     fn parse_combinator(&mut self, pos: usize) -> PResult<Option<Combinator>> {
-        match peek!(self) {
+        match self.cursor.peek()? {
             TokenWithSpan {
                 token:
                     Token::Ident(..)
@@ -1321,28 +1327,28 @@ impl<'a> Parser<'a> {
                 ..
             } => Ok(Some(Combinator {
                 kind: CombinatorKind::Child,
-                span: bump!(self).span,
+                span: self.cursor.bump()?.span,
             })),
             TokenWithSpan {
                 token: Token::Plus(..),
                 ..
             } => Ok(Some(Combinator {
                 kind: CombinatorKind::NextSibling,
-                span: bump!(self).span,
+                span: self.cursor.bump()?.span,
             })),
             TokenWithSpan {
                 token: Token::Tilde(..),
                 ..
             } => Ok(Some(Combinator {
                 kind: CombinatorKind::LaterSibling,
-                span: bump!(self).span,
+                span: self.cursor.bump()?.span,
             })),
             TokenWithSpan {
                 token: Token::BarBar(..),
                 ..
             } => Ok(Some(Combinator {
                 kind: CombinatorKind::Column,
-                span: bump!(self).span,
+                span: self.cursor.bump()?.span,
             })),
             // deprecated shadow-piercing `/deep/` and less.js's arbitrary
             // slashed combinators (`.container /shadow/ .content`) — but not
@@ -1351,12 +1357,12 @@ impl<'a> Parser<'a> {
                 if !matches!(self.syntax, Syntax::Scss | Syntax::Sass) =>
             {
                 let deep = self.try_parse(|p| {
-                    let start = bump!(p).span; // `/`
-                    let ident_end = match peek!(p) {
+                    let start = p.cursor.bump()?.span; // `/`
+                    let ident_end = match p.cursor.peek()? {
                         TokenWithSpan { token: Token::Ident(..), span }
                             if span.start == start.end =>
                         {
-                            bump!(p).span.end
+                            p.cursor.bump()?.span.end
                         }
                         TokenWithSpan { span, .. } => {
                             return Err(Error {
@@ -1365,11 +1371,11 @@ impl<'a> Parser<'a> {
                             });
                         }
                     };
-                    match peek!(p) {
+                    match p.cursor.peek()? {
                         TokenWithSpan { token: Token::Solidus(..), span }
                             if span.start == ident_end =>
                         {
-                            let end = bump!(p).span.end;
+                            let end = p.cursor.bump()?.span.end;
                             Ok(Span { start: start.start, end })
                         }
                         TokenWithSpan { span, .. } => Err(Error {
@@ -1391,12 +1397,12 @@ impl<'a> Parser<'a> {
             } if !matches!(self.syntax, Syntax::Scss | Syntax::Sass)
                 && self.source.as_bytes().get(span.start) == Some(&b'^') =>
             {
-                let start = bump!(self).span.start;
-                if matches!(&peek!(self).token, Token::Unknown(..))
-                    && peek!(self).span.start == start + 1
+                let start = self.cursor.bump()?.span.start;
+                if matches!(&self.cursor.peek()?.token, Token::Unknown(..))
+                    && self.cursor.peek()?.span.start == start + 1
                     && self.source.as_bytes().get(start + 1) == Some(&b'^')
                 {
-                    let end = bump!(self).span.end;
+                    let end = self.cursor.bump()?.span.end;
                     Ok(Some(Combinator {
                         kind: CombinatorKind::ShadowDescendant,
                         span: Span { start, end },

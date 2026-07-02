@@ -2,16 +2,15 @@ use super::Parser;
 use crate::{
     Parse,
     ast::*,
-    bump,
     error::{Error, ErrorKind, PResult},
-    expect, peek,
+    expect,
     pos::Span,
     tokenizer::{Token, TokenWithSpan},
 };
 
 impl<'a> Parse<'a> for ScopeEnd<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let to_span = match bump!(input) {
+        let to_span = match input.cursor.bump()? {
             TokenWithSpan { token: Token::Ident(ident), span }
                 if ident.name().eq_ignore_ascii_case("to") =>
             {
@@ -34,12 +33,12 @@ impl<'a> Parse<'a> for ScopeEnd<'a> {
 // https://drafts.csswg.org/css-cascade-6/#scope-syntax
 impl<'a> Parse<'a> for ScopePrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let start = if let Token::LParen(..) = peek!(input).token {
+        let start = if let Token::LParen(..) = input.cursor.peek()?.token {
             Some(input.parse::<ScopeStart>()?)
         } else {
             None
         };
-        let end = match &peek!(input).token {
+        let end = match &input.cursor.peek()?.token {
             Token::Ident(ident) if ident.name().eq_ignore_ascii_case("to") => {
                 Some(input.parse::<ScopeEnd>()?)
             }
@@ -55,7 +54,7 @@ impl<'a> Parse<'a> for ScopePrelude<'a> {
             (None, Some(end)) => Ok(ScopePrelude::EndOnly(end)),
             (None, None) => {
                 use crate::{token::LParen, tokenizer::TokenSymbol};
-                let TokenWithSpan { token, span } = bump!(input);
+                let TokenWithSpan { token, span } = input.cursor.bump()?;
                 Err(Error { kind: ErrorKind::Unexpected(LParen::symbol(), token.symbol()), span })
             }
         }

@@ -2,9 +2,9 @@ use super::Parser;
 use crate::{
     Parse, Syntax,
     ast::*,
-    bump, eat,
+    eat,
     error::{Error, ErrorKind, PResult},
-    expect, peek,
+    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
@@ -24,7 +24,7 @@ impl<'a> Parse<'a> for MediaAnd<'a> {
 
 impl<'a> Parse<'a> for MediaConditionAfterMediaType<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let and: Ident = match bump!(input) {
+        let and: Ident = match input.cursor.bump()? {
             TokenWithSpan { token: Token::Ident(ident), span }
                 if ident.name().eq_ignore_ascii_case("and") =>
             {
@@ -47,7 +47,7 @@ impl<'a> Parse<'a> for MediaConditionAfterMediaType<'a> {
 impl<'a> Parse<'a> for MediaFeature<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.parse_media_feature_value()? {
-            ComponentValue::InterpolableIdent(ident) => match &peek!(input).token {
+            ComponentValue::InterpolableIdent(ident) => match &input.cursor.peek()?.token {
                 Token::Colon(..) => input.parse_media_feature_plain(ident).map(MediaFeature::Plain),
                 Token::LessThan(..)
                 | Token::LessThanEqual(..)
@@ -85,7 +85,7 @@ impl<'a> Parse<'a> for MediaFeature<'a> {
 
 impl<'a> Parse<'a> for MediaFeatureComparison {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match bump!(input) {
+        match input.cursor.bump()? {
             TokenWithSpan { token: Token::LessThan(..), span } => {
                 Ok(MediaFeatureComparison { kind: MediaFeatureComparisonKind::LessThan, span })
             }
@@ -117,7 +117,7 @@ impl<'a> Parse<'a> for MediaInParens<'a> {
         // Sass allows an interpolation wherever `<media-in-parens>` is expected,
         // e.g. `@media screen and #{$query} {}`.
         if matches!(input.syntax, Syntax::Scss | Syntax::Sass)
-            && matches!(&peek!(input).token, Token::HashLBrace(..))
+            && matches!(&input.cursor.peek()?.token, Token::HashLBrace(..))
             && let InterpolableIdent::SassInterpolated(interpolation) =
                 input.parse_sass_interpolated_ident()?
         {
@@ -144,20 +144,20 @@ impl<'a> Parse<'a> for MediaInParensKind<'a> {
             // `SassInterpolation` media condition, but a trailing `:` means it is
             // really a media feature name. Require the closing `)` here so such
             // cases fall through to the media-feature branch below.
-            if matches!(&peek!(parser).token, Token::RParen(..)) {
+            if matches!(&parser.cursor.peek()?.token, Token::RParen(..)) {
                 Ok(media_condition)
             } else {
-                let span = peek!(parser).span.clone();
+                let span = parser.cursor.peek()?.span.clone();
                 Err(Error { kind: ErrorKind::ExpectMediaFeatureName, span })
             }
         }) {
             Ok(MediaInParensKind::MediaCondition(media_condition))
         } else if let Ok(media_feature) = input.try_parse(|parser| {
             let media_feature = parser.parse::<MediaFeature>()?;
-            if matches!(&peek!(parser).token, Token::RParen(..)) {
+            if matches!(&parser.cursor.peek()?.token, Token::RParen(..)) {
                 Ok(media_feature)
             } else {
-                let span = peek!(parser).span.clone();
+                let span = parser.cursor.peek()?.span.clone();
                 Err(Error { kind: ErrorKind::ExpectMediaFeatureName, span })
             }
         }) {
@@ -205,7 +205,7 @@ impl<'a> Parse<'a> for MediaQuery<'a> {
         }) {
             Ok(MediaQuery::ConditionOnly(condition_only))
         } else if input.syntax == Syntax::Less {
-            match peek!(input).token {
+            match input.cursor.peek()?.token {
                 Token::AtKeyword(..) => {
                     input.parse_less_maybe_variable_or_with_lookups().map(|value| match value {
                         ComponentValue::LessVariable(variable) => {
@@ -254,7 +254,7 @@ impl<'a> Parse<'a> for MediaQueryList<'a> {
 
 impl<'a> Parse<'a> for MediaQueryWithType<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let modifier = if let Token::Ident(ident) = &peek!(input).token {
+        let modifier = if let Token::Ident(ident) = &input.cursor.peek()?.token {
             let name = ident.name();
             if name.eq_ignore_ascii_case("not") || name.eq_ignore_ascii_case("only") {
                 Some(input.parse::<Ident>()?)
@@ -277,7 +277,7 @@ impl<'a> Parse<'a> for MediaQueryWithType<'a> {
                 span: span.clone(),
             });
         }
-        let condition = match &peek!(input).token {
+        let condition = match &input.cursor.peek()?.token {
             Token::Ident(ident) if ident.name().eq_ignore_ascii_case("and") => {
                 input.parse::<MediaConditionAfterMediaType>().map(Some)?
             }
@@ -303,11 +303,11 @@ impl<'a> Parser<'a> {
     /// relax: elsewhere an ident is a media type (`@media print`).
     fn parse_media_in_parens_after_logic(&mut self) -> PResult<MediaInParens<'a>> {
         if self.syntax == Syntax::Css
-            && let TokenWithSpan { token: Token::Ident(ident), span } = peek!(self)
+            && let TokenWithSpan { token: Token::Ident(ident), span } = self.cursor.peek()?
             && !ident.name().eq_ignore_ascii_case("not")
             && self.source.as_bytes().get(span.end) != Some(&b'(')
         {
-            let token = bump!(self);
+            let token = self.cursor.bump()?;
             let span = token.span.clone();
             return Ok(MediaInParens {
                 kind: MediaInParensKind::GeneralEnclosed(TokenSeq {
@@ -325,7 +325,7 @@ impl<'a> Parser<'a> {
         allow_or: bool,
         after_logic_keyword: bool,
     ) -> PResult<MediaCondition<'a>> {
-        match &peek!(self).token {
+        match &self.cursor.peek()?.token {
             Token::Ident(ident) if ident.name().eq_ignore_ascii_case("not") => {
                 let media_not = self.parse::<MediaNot>()?;
                 let span = media_not.span.clone();
@@ -342,12 +342,12 @@ impl<'a> Parser<'a> {
                 };
                 let mut span = first.span.clone();
                 let mut conditions = self.vec1(MediaConditionKind::MediaInParens(first));
-                if let Token::Ident(ident) = &peek!(self).token {
+                if let Token::Ident(ident) = &self.cursor.peek()?.token {
                     let name = ident.name();
                     if name.eq_ignore_ascii_case("and") {
                         loop {
                             conditions.push(MediaConditionKind::And(self.parse()?));
-                            match &peek!(self).token {
+                            match &self.cursor.peek()?.token {
                                 Token::Ident(ident) if ident.name().eq_ignore_ascii_case("and") => {
                                 }
                                 _ => break,
@@ -356,7 +356,7 @@ impl<'a> Parser<'a> {
                     } else if allow_or && name.eq_ignore_ascii_case("or") {
                         loop {
                             conditions.push(MediaConditionKind::Or(self.parse()?));
-                            match &peek!(self).token {
+                            match &self.cursor.peek()?.token {
                                 Token::Ident(ident) if ident.name().eq_ignore_ascii_case("or") => {}
                                 _ => break,
                             }
@@ -389,7 +389,7 @@ impl<'a> Parser<'a> {
         let comparison = self.parse()?;
         let name_or_right = self.parse_media_feature_value()?;
         if let ComponentValue::InterpolableIdent(ident) = name_or_right {
-            match &peek!(self).token {
+            match &self.cursor.peek()?.token {
                 Token::LessThan(..)
                 | Token::LessThanEqual(..)
                 | Token::GreaterThan(..)
@@ -446,7 +446,8 @@ impl<'a> Parser<'a> {
         };
         match value {
             ComponentValue::Number(number)
-                if number.value >= 0.0 && matches!(peek!(self).token, Token::Solidus(..)) =>
+                if number.value >= 0.0
+                    && matches!(self.cursor.peek()?.token, Token::Solidus(..)) =>
             {
                 self.parse_ratio(number).map(ComponentValue::Ratio)
             }
@@ -456,7 +457,7 @@ impl<'a> Parser<'a> {
 
     fn parse_media_query_with_type_or_function(&mut self) -> PResult<MediaQuery<'a>> {
         let media_query_with_type = self.parse::<MediaQueryWithType>()?;
-        match (media_query_with_type, peek!(self)) {
+        match (media_query_with_type, self.cursor.peek()?) {
             (
                 MediaQueryWithType {
                     modifier: None,
@@ -466,7 +467,7 @@ impl<'a> Parser<'a> {
                 },
                 TokenWithSpan { token: crate::token::Token::LParen(..), span: lparen_span },
             ) if mq_span.end == lparen_span.start => {
-                bump!(self);
+                self.cursor.bump()?;
                 let args = self.parse_function_args()?;
                 let (_, Span { end, .. }) = expect!(self, RParen);
                 Ok(MediaQuery::Function(Function {

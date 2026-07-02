@@ -4,14 +4,14 @@ use crate::{
     ast::*,
     eat,
     error::{Error, ErrorKind, PResult},
-    expect, expect_without_ws_or_comments, peek,
+    expect, expect_without_ws_or_comments,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
 
 impl<'a> Parse<'a> for ContainerCondition<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &peek!(input).token {
+        match &input.cursor.peek()?.token {
             Token::Ident(ident) if ident.name().eq_ignore_ascii_case("not") => {
                 let container_condition_not = input.parse::<ContainerConditionNot>()?;
                 let span = container_condition_not.span.clone();
@@ -28,7 +28,7 @@ impl<'a> Parse<'a> for ContainerCondition<'a> {
                 // is leading-only, but real-world code (less.js) chains them
                 // freely: `(a) or (b) and (c)`, `(a) not (b)`.
                 loop {
-                    let kind = match &peek!(input).token {
+                    let kind = match &input.cursor.peek()?.token {
                         Token::Ident(ident) if ident.name().eq_ignore_ascii_case("and") => {
                             ContainerConditionKind::And(input.parse()?)
                         }
@@ -126,7 +126,7 @@ impl<'a> Parse<'a> for QueryInParens<'a> {
 
 impl<'a> Parse<'a> for StyleCondition<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &peek!(input).token {
+        match &input.cursor.peek()?.token {
             Token::Ident(ident) if ident.name().eq_ignore_ascii_case("not") => {
                 let style_condition_not = input.parse::<StyleConditionNot>()?;
                 let span = style_condition_not.span.clone();
@@ -139,12 +139,12 @@ impl<'a> Parse<'a> for StyleCondition<'a> {
                 let first = input.parse::<StyleInParens>()?;
                 let mut span = first.span.clone();
                 let mut conditions = input.vec1(StyleConditionKind::StyleInParens(first));
-                if let Token::Ident(ident) = &peek!(input).token {
+                if let Token::Ident(ident) = &input.cursor.peek()?.token {
                     let name = ident.name();
                     if name.eq_ignore_ascii_case("and") {
                         loop {
                             conditions.push(StyleConditionKind::And(input.parse()?));
-                            match &peek!(input).token {
+                            match &input.cursor.peek()?.token {
                                 Token::Ident(ident) if ident.name().eq_ignore_ascii_case("and") => {
                                 }
                                 _ => break,
@@ -153,7 +153,7 @@ impl<'a> Parse<'a> for StyleCondition<'a> {
                     } else if name.eq_ignore_ascii_case("or") {
                         loop {
                             conditions.push(StyleConditionKind::Or(input.parse()?));
-                            match &peek!(input).token {
+                            match &input.cursor.peek()?.token {
                                 Token::Ident(ident) if ident.name().eq_ignore_ascii_case("or") => {}
                                 _ => break,
                             }
@@ -235,14 +235,14 @@ impl<'a> Parse<'a> for StyleQuery<'a> {
         } else if let Ok(name) = input.try_parse(|p| {
             // a bare custom-property existence test: `style(--theme)`
             let name = p.parse::<InterpolableIdent>()?;
-            match (&name, &peek!(p).token) {
+            match (&name, &p.cursor.peek()?.token) {
                 (InterpolableIdent::Literal(ident), Token::RParen(..))
                     if ident.name.starts_with("--") =>
                 {
                     Ok(name)
                 }
                 _ => {
-                    let span = peek!(p).span.clone();
+                    let span = p.cursor.peek()?.span.clone();
                     Err(Error { kind: ErrorKind::TryParseError, span })
                 }
             }
@@ -267,7 +267,7 @@ impl<'a> Parse<'a> for ContainerPrelude<'a> {
                 Err(Error { kind: ErrorKind::TryParseError, span: ident.span })
             }
             InterpolableIdent::Literal(ident) if ident.name.eq_ignore_ascii_case("style") => {
-                match peek!(parser) {
+                match parser.cursor.peek()? {
                     TokenWithSpan { token: Token::LParen(..), span }
                         if span.start == ident.span.end =>
                     {

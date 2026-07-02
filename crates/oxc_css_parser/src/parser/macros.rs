@@ -1,27 +1,12 @@
 #[doc(hidden)]
 #[macro_export]
-macro_rules! bump {
-    ($parser:expr) => {{
-        match $parser.cached_token.take() {
-            Some(token_with_span) => token_with_span,
-            None => {
-                let tokenizer = &mut $parser.tokenizer;
-                tokenizer.bump()?
-            }
-        }
-    }};
-}
-
-#[doc(hidden)]
-#[macro_export]
 macro_rules! expect {
     ($parser:expr, $variant:ident) => {{
         use $crate::{
-            bump,
             error::{Error, ErrorKind},
             tokenizer::{Token, TokenSymbol, TokenWithSpan},
         };
-        match bump!($parser) {
+        match $parser.cursor.bump()? {
             TokenWithSpan { token: Token::$variant(token), span } => (token, span),
             TokenWithSpan { token, span } => {
                 return Err(Error {
@@ -49,9 +34,9 @@ macro_rules! expect_without_ws_or_comments {
             error::{Error, ErrorKind},
             tokenizer::TokenSymbol,
         };
-        debug_assert!($parser.cached_token.is_none());
+        debug_assert!($parser.cursor.cached_token.is_none());
         let allow_leading_digit = $allow_leading_digit;
-        let tokenizer = &mut $parser.tokenizer;
+        let tokenizer = &mut $parser.cursor.tokenizer;
         if tokenizer.is_start_of_ident() || (allow_leading_digit && tokenizer.is_start_of_digit()) {
             tokenizer.scan_ident_sequence(allow_leading_digit)?
         } else {
@@ -70,8 +55,8 @@ macro_rules! expect_without_ws_or_comments {
             error::{Error, ErrorKind},
             tokenizer::{Token, TokenSymbol, TokenWithSpan},
         };
-        debug_assert!($parser.cached_token.is_none());
-        let tokenizer = &mut $parser.tokenizer;
+        debug_assert!($parser.cursor.cached_token.is_none());
+        let tokenizer = &mut $parser.cursor.tokenizer;
         let token_with_span = tokenizer.bump_without_ws_or_comments()?;
         match token_with_span {
             TokenWithSpan { token: Token::$variant(token), span } => (token, span),
@@ -92,31 +77,13 @@ macro_rules! expect_without_ws_or_comments {
 #[macro_export]
 macro_rules! eat {
     ($parser:expr, $variant:ident) => {{
-        use $crate::{
-            bump,
-            tokenizer::{Token, TokenWithSpan},
-        };
-        let token_with_span = bump!($parser);
+        use $crate::tokenizer::{Token, TokenWithSpan};
+        let token_with_span = $parser.cursor.bump()?;
         match token_with_span {
             TokenWithSpan { token: Token::$variant(token), span } => Some((token, span)),
             value => {
-                $parser.cached_token = Some(value);
+                $parser.cursor.cached_token = Some(value);
                 None
-            }
-        }
-    }};
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! peek {
-    ($parser:expr) => {{
-        match &$parser.cached_token {
-            Some(token_with_span) => token_with_span,
-            None => {
-                let tokenizer = &mut $parser.tokenizer;
-                let token = tokenizer.bump()?;
-                $parser.cached_token.insert(token)
             }
         }
     }};

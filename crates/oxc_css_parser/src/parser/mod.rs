@@ -32,16 +32,47 @@ pub trait Parse<'a>: Sized {
     fn parse(input: &mut Parser<'a>) -> PResult<Self>;
 }
 
+pub(in crate::parser) struct ParserCursor<'a> {
+    tokenizer: Tokenizer<'a>,
+    cached_token: Option<TokenWithSpan<'a>>,
+}
+
+impl<'a> ParserCursor<'a> {
+    #[inline]
+    fn new(tokenizer: Tokenizer<'a>) -> Self {
+        Self { tokenizer, cached_token: None }
+    }
+
+    #[inline]
+    fn bump(&mut self) -> PResult<TokenWithSpan<'a>> {
+        match self.cached_token.take() {
+            Some(token_with_span) => Ok(token_with_span),
+            None => self.tokenizer.bump(),
+        }
+    }
+
+    #[inline]
+    fn peek(&mut self) -> PResult<&TokenWithSpan<'a>> {
+        if self.cached_token.is_none() {
+            let token = self.tokenizer.bump()?;
+            self.cached_token = Some(token);
+        }
+        match self.cached_token.as_ref() {
+            Some(token_with_span) => Ok(token_with_span),
+            None => unreachable!(),
+        }
+    }
+}
+
 /// Create a parser with some source code, then parse it.
 pub struct Parser<'a> {
     allocator: &'a Allocator,
     source: &'a str,
     syntax: Syntax,
     options: ParserOptions,
-    tokenizer: Tokenizer<'a>,
+    cursor: ParserCursor<'a>,
     state: ParserState,
     recoverable_errors: Vec<Error>,
-    cached_token: Option<TokenWithSpan<'a>>,
     /// Indented syntax only: `Indent` tokens consumed as mid-statement line
     /// continuations (`@for $i\n  from 1...`). The statement's own block then
     /// starts "virtually" at that depth (see [`SimpleBlock`]'s parse), and any
@@ -60,10 +91,9 @@ impl<'a> Parser<'a> {
             source,
             syntax,
             options: Default::default(),
-            tokenizer: Tokenizer::new(allocator, source, syntax, None, false),
+            cursor: ParserCursor::new(Tokenizer::new(allocator, source, syntax, None, false)),
             state: Default::default(),
             recoverable_errors: vec![],
-            cached_token: None,
             sass_pending_indents: 0,
         }
     }
@@ -85,7 +115,7 @@ impl<'a> Parser<'a> {
     /// Retrieve collected comments.
     #[inline]
     pub fn comments(&self) -> &[crate::tokenizer::token::Comment<'a>] {
-        self.tokenizer.comments()
+        self.cursor.tokenizer.comments()
     }
 
     #[inline]
@@ -200,17 +230,17 @@ impl<'a> Parser<'a> {
     }
 
     fn try_parse<R, F: FnOnce(&mut Self) -> PResult<R>>(&mut self, f: F) -> PResult<R> {
-        let tokenizer_state = self.tokenizer.state.clone();
-        let comments_count = self.tokenizer.comments_count();
+        let tokenizer_state = self.cursor.tokenizer.state.clone();
+        let comments_count = self.cursor.tokenizer.comments_count();
         let recoverable_errors_count = self.recoverable_errors.len();
-        let cached_token = self.cached_token.clone();
+        let cached_token = self.cursor.cached_token.clone();
         let sass_pending_indents = self.sass_pending_indents;
         let result = f(self);
         if result.is_err() {
-            self.tokenizer.state = tokenizer_state;
-            self.tokenizer.truncate_comments(comments_count);
+            self.cursor.tokenizer.state = tokenizer_state;
+            self.cursor.tokenizer.truncate_comments(comments_count);
             self.recoverable_errors.truncate(recoverable_errors_count);
-            self.cached_token = cached_token;
+            self.cursor.cached_token = cached_token;
             self.sass_pending_indents = sass_pending_indents;
         }
         result

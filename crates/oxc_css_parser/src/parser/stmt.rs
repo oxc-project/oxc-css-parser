@@ -5,9 +5,9 @@ use super::{
 use crate::{
     Parse, Syntax,
     ast::*,
-    bump, eat,
+    eat,
     error::{Error, ErrorKind, PResult},
-    expect, peek,
+    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
@@ -20,7 +20,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
         // when glued: `* color` (whitespace or a comment after the sigil) is
         // not the hack, so leave the token for the normal (failing) parse.
         let mut name_prefix = if input.state.allow_ie_star_hack
-            && let TokenWithSpan { token, span } = peek!(input)
+            && let TokenWithSpan { token, span } = input.cursor.peek()?
             && let Some(prefix) = match token {
                 Token::Asterisk(..) => Some('*'),
                 Token::Dot(..) if input.syntax == Syntax::Css => Some('.'),
@@ -34,32 +34,32 @@ impl<'a> Parse<'a> for Declaration<'a> {
                 .is_some_and(|b| !b.is_ascii_whitespace() && *b != b'/')
         {
             let start = span.start;
-            bump!(input);
+            input.cursor.bump()?;
             Some((start, prefix))
         } else {
             None
         };
         // A css-in-js `${}` placeholder may stand in for the property name
         // (`${foo}: ${bar}`); it is not a real ident, so accept it directly.
-        let name = if let Token::Placeholder(..) = peek!(input).token {
+        let name = if let Token::Placeholder(..) = input.cursor.peek()?.token {
             let (placeholder, span) = expect!(input, Placeholder);
             InterpolableIdent::Placeholder((placeholder, span).into())
         } else if input.state.allow_ie_star_hack
             && input.syntax == Syntax::Less
-            && let TokenWithSpan { token: Token::Number(number), span } = peek!(input)
+            && let TokenWithSpan { token: Token::Number(number), span } = input.cursor.peek()?
             && number.raw.bytes().all(|b| b.is_ascii_digit())
         {
             let raw = number.raw;
             let span = span.clone();
-            bump!(input);
+            input.cursor.bump()?;
             InterpolableIdent::Literal(Ident { name: raw, raw, span })
         } else if name_prefix.is_none()
             && input.state.allow_ie_star_hack
             && input.syntax == Syntax::Css
-            && matches!(peek!(input).token, Token::Hash(..))
+            && matches!(input.cursor.peek()?.token, Token::Hash(..))
         {
             // `#x: y` — the `#` and the name arrive as one <hash-token>.
-            let TokenWithSpan { token: Token::Hash(hash), span } = bump!(input) else {
+            let TokenWithSpan { token: Token::Hash(hash), span } = input.cursor.bump()? else {
                 unreachable!()
             };
             name_prefix = Some((span.start, '#'));
@@ -83,10 +83,11 @@ impl<'a> Parse<'a> for Declaration<'a> {
         };
 
         // https://tailwindcss.com/docs/theme#overriding-the-default-theme
-        let name_suffix = if let TokenWithSpan { token: Token::Asterisk(..), span } = peek!(input)
+        let name_suffix = if let TokenWithSpan { token: Token::Asterisk(..), span } =
+            input.cursor.peek()?
             && name.span().end == span.start
         {
-            bump!(input);
+            input.cursor.bump()?;
             Some('*')
         } else {
             None
@@ -107,7 +108,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
                 InterpolableIdent::Literal(ident)
                     if ident.name.starts_with("--")
                         || matches!(
-                            &peek!(parser).token,
+                            &parser.cursor.peek()?.token,
                             // for IE-compatibility, regardless of the property
                             // name (`filter`, `-ms-filter`, vendor variants...):
                             // filter: progid:DXImageTransform.Microsoft...
@@ -137,11 +138,11 @@ impl<'a> Parse<'a> for Declaration<'a> {
                 {
                     let typed = parser.try_parse(|p| {
                         let values = p.parse_declaration_value()?;
-                        let important = match &peek!(p).token {
+                        let important = match &p.cursor.peek()?.token {
                             Token::Exclamation(..) => Some(p.parse::<ImportantAnnotation>()?),
                             _ => None,
                         };
-                        let next = peek!(p);
+                        let next = p.cursor.peek()?;
                         if at_declaration_value_end(&next.token) {
                             Ok((values, important))
                         } else {
@@ -161,7 +162,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
                             // disambiguation) and the declaration is rejected.
                             let in_fn_body = parser.state.in_css_function_body;
                             let values = parser.parse_declaration_value_tokens(!in_fn_body)?;
-                            if !in_fn_body && let Token::LBrace(..) = &peek!(parser).token {
+                            if !in_fn_body && let Token::LBrace(..) = &parser.cursor.peek()?.token {
                                 return Err(error);
                             }
                             (values, None)
@@ -173,7 +174,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
         };
 
         if important.is_none()
-            && let Token::Exclamation(..) = &peek!(input).token
+            && let Token::Exclamation(..) = &input.cursor.peek()?.token
         {
             important = Some(input.parse::<ImportantAnnotation>()?);
         }
@@ -182,7 +183,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
         // another component, and only a trailing one is structural.
         while matches!(input.syntax, Syntax::Scss | Syntax::Sass)
             && important.is_some()
-            && !at_declaration_value_end(&peek!(input).token)
+            && !at_declaration_value_end(&input.cursor.peek()?.token)
         {
             if let Some(annotation) = important.take() {
                 value.push(ComponentValue::ImportantAnnotation(annotation));
@@ -196,7 +197,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
             for component in more {
                 value.push(component);
             }
-            if let Token::Exclamation(..) = &peek!(input).token {
+            if let Token::Exclamation(..) = &input.cursor.peek()?.token {
                 important = Some(input.parse::<ImportantAnnotation>()?);
             }
         }
@@ -277,19 +278,19 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
                 span.end
             } else if drained
                 && input.sass_pending_indents == 0
-                && input.tokenizer.reopen_indent_level()
+                && input.cursor.tokenizer.reopen_indent_level()
             {
                 // The block's level sat between two known indents, so its
                 // `Indent` was never emitted; re-open it directly.
-                peek!(input).span.start
+                input.cursor.peek()?.span.start
             } else if input.sass_pending_indents > 0 {
                 // The statement's clause consumed this block's `Indent` as a
                 // line continuation (`@each $a in\n  b, c\n  .x\n    ...`);
                 // enter the block "virtually" at that depth.
                 input.sass_pending_indents -= 1;
-                peek!(input).span.start
+                input.cursor.peek()?.span.start
             } else {
-                let offset = peek!(input).span.start;
+                let offset = input.cursor.peek()?.span.start;
                 return Ok(SimpleBlock {
                     statements: input.vec(),
                     span: Span { start: offset, end: offset },
@@ -304,13 +305,13 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
         // CSS Syntax: EOF closes all open constructs (a parse error, but the
         // tree is valid — browsers accept unclosed blocks at EOF). The
         // dialects' reference compilers reject them.
-        if input.syntax == Syntax::Css && matches!(peek!(input).token, Token::Eof(..)) {
-            let end = peek!(input).span.start;
+        if input.syntax == Syntax::Css && matches!(input.cursor.peek()?.token, Token::Eof(..)) {
+            let end = input.cursor.peek()?.span.start;
             return Ok(SimpleBlock { statements, span: Span { start, end } });
         }
 
         if is_sass {
-            match bump!(input) {
+            match input.cursor.bump()? {
                 TokenWithSpan { token: Token::Dedent(..) | Token::Eof(..), span } => {
                     let end = statements.last().map_or(span.start, |last| last.span().end);
                     Ok(SimpleBlock { statements, span: Span { start, end } })
@@ -351,7 +352,7 @@ impl<'a> Parser<'a> {
         let mut values = self.vec_with_capacity(3);
         let mut pairs = Vec::with_capacity(1);
         loop {
-            match &peek!(self).token {
+            match &self.cursor.peek()?.token {
                 Token::Dedent(..) | Token::Linebreak(..) | Token::Eof(..) => break,
                 Token::Semicolon(..) if pairs.is_empty() => {
                     break;
@@ -374,7 +375,7 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            values.push(ComponentValue::TokenWithSpan(bump!(self)));
+            values.push(ComponentValue::TokenWithSpan(self.cursor.bump()?));
         }
         Ok(values)
     }
@@ -384,7 +385,7 @@ impl<'a> Parser<'a> {
     ) -> PResult<oxc_allocator::Vec<'a, ComponentValue<'a>>> {
         let mut values = self.vec_with_capacity(3);
         loop {
-            match &peek!(self).token {
+            match &self.cursor.peek()?.token {
                 Token::RBrace(..)
                 | Token::RParen(..)
                 | Token::Semicolon(..)
@@ -468,7 +469,7 @@ impl<'a> Parser<'a> {
             // next statement may follow directly (`${mixin}\n@media {...}`,
             // `${a} ${b}`, `${foo}: ${bar}`).
             let mut is_block_element = false;
-            let TokenWithSpan { token, span } = peek!(self);
+            let TokenWithSpan { token, span } = self.cursor.peek()?;
             match token {
                 Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..) => {
                     match self.syntax {
@@ -576,7 +577,7 @@ impl<'a> Parser<'a> {
                 | Token::NumberSign(..)
                     if !self.state.in_keyframes_at_rule =>
                 {
-                    if matches!(peek!(self).token, Token::Asterisk(..)) {
+                    if matches!(self.cursor.peek()?.token, Token::Asterisk(..)) {
                         // `*color: red` / `*zoom: 1` (an IE<=7 hack) looks like a `*`
                         // universal selector but is a declaration; try the rule, then
                         // fall back to a declaration. (A `*` never starts a
@@ -608,7 +609,7 @@ impl<'a> Parser<'a> {
                             is_block_element = true;
                         }
                     } else if self.syntax == Syntax::Css
-                        && matches!(peek!(self).token, Token::Colon(..))
+                        && matches!(self.cursor.peek()?.token, Token::Colon(..))
                     {
                         let (stmt, is_block) = self.parse_rule_or_declaration(is_top_level)?;
                         is_block_element = is_block;
@@ -636,7 +637,7 @@ impl<'a> Parser<'a> {
                             "else" => {
                                 return Err(Error {
                                     kind: ErrorKind::UnexpectedSassElseAtRule,
-                                    span: bump!(self).span,
+                                    span: self.cursor.bump()?.span,
                                 });
                             }
                             _ => {
@@ -680,7 +681,7 @@ impl<'a> Parser<'a> {
                     // A placeholder may also be a declaration property name
                     // (`${foo}: ${bar}`), so try a declaration before falling back
                     // to a bare placeholder statement.
-                    let ph_end = peek!(self).span.end;
+                    let ph_end = self.cursor.peek()?.span.end;
                     if self.placeholder_starts_qualified_rule(ph_end)
                         && let Ok(rule) = self.try_parse(QualifiedRule::parse)
                     {
@@ -717,7 +718,7 @@ impl<'a> Parser<'a> {
                 // A spaced `+ b` stays a sibling-combinator selector: `+` is
                 // an include only when glued to an identifier.
                 Token::Equal(..) if self.syntax == Syntax::Sass => {
-                    let eq_span = bump!(self).span;
+                    let eq_span = self.cursor.bump()?.span;
                     self.eat_sass_line_continuation()?;
                     let prelude = self.parse::<SassMixin>()?;
                     let block = self
@@ -740,21 +741,23 @@ impl<'a> Parser<'a> {
                     if self.syntax == Syntax::Sass
                         && crate::tokenizer::ident_starts_at(self.source, span.end) =>
                 {
-                    let plus_span = bump!(self).span;
+                    let plus_span = self.cursor.bump()?.span;
                     let prelude = self.parse::<SassInclude>()?;
-                    let block =
-                        if matches!(peek!(self).token, Token::LBrace(..) | Token::Indent(..)) {
-                            Some(
-                                self.with_state(ParserState {
-                                    sass_ctx: self.state.sass_ctx
-                                        | super::state::SASS_CTX_ALLOW_KEYFRAME_BLOCK,
-                                    ..self.state.clone()
-                                })
-                                .parse::<SimpleBlock>()?,
-                            )
-                        } else {
-                            None
-                        };
+                    let block = if matches!(
+                        self.cursor.peek()?.token,
+                        Token::LBrace(..) | Token::Indent(..)
+                    ) {
+                        Some(
+                            self.with_state(ParserState {
+                                sass_ctx: self.state.sass_ctx
+                                    | super::state::SASS_CTX_ALLOW_KEYFRAME_BLOCK,
+                                ..self.state.clone()
+                            })
+                            .parse::<SimpleBlock>()?,
+                        )
+                    } else {
+                        None
+                    };
                     let end = block.as_ref().map_or(prelude.span.end, |block| block.span.end);
                     let span = Span { start: plus_span.start, end };
                     is_block_element = block.is_some();
@@ -777,7 +780,7 @@ impl<'a> Parser<'a> {
                     statements.push(self.parse().map(Statement::Declaration)?);
                 }
                 Token::Cdo(..) | Token::Cdc(..) => {
-                    bump!(self);
+                    self.cursor.bump()?;
                     continue;
                 }
                 Token::At(..) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
@@ -797,7 +800,7 @@ impl<'a> Parser<'a> {
                 }
                 Token::RBrace(..) | Token::Eof(..) | Token::Dedent(..) => break,
                 Token::Semicolon(..) | Token::Linebreak(..) => {
-                    bump!(self);
+                    self.cursor.bump()?;
                     continue;
                 }
                 Token::LBrace(..) if self.syntax == Syntax::Css => {
@@ -837,7 +840,7 @@ impl<'a> Parser<'a> {
             if self.drain_sass_pending_dedents()? {
                 continue;
             }
-            match &peek!(self).token {
+            match &self.cursor.peek()?.token {
                 Token::RBrace(..) | Token::Eof(..) | Token::Dedent(..) => break,
                 _ => {
                     if self.syntax == Syntax::Sass {
