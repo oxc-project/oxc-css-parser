@@ -5,7 +5,6 @@ use super::{
 use crate::{
     Parse, Syntax,
     ast::*,
-    eat,
     error::{Error, ErrorKind, PResult},
     expect,
     pos::{Span, Spanned},
@@ -274,7 +273,7 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
             // pending indent whose `Dedent` arrives before the block opens
             // (`a,\n    b\n  c: d`); cancel those out first.
             let drained = input.drain_sass_pending_dedents()?;
-            if let Some((_, span)) = eat!(input, Indent) {
+            if let Some((_, span)) = input.cursor.eat_indent()? {
                 span.end
             } else if drained
                 && input.sass_pending_indents == 0
@@ -847,14 +846,14 @@ impl<'a> Parser<'a> {
                         // The indented syntax also accepts `;` as a statement
                         // terminator/separator (`a; b`), like a newline.
                         if is_block_element {
-                            if eat!(self, Semicolon).is_none() {
-                                eat!(self, Linebreak);
+                            if self.cursor.eat_semicolon()?.is_none() {
+                                self.cursor.eat_linebreak()?;
                             }
-                        } else if eat!(self, Semicolon).is_none() {
+                        } else if self.cursor.eat_semicolon()?.is_none() {
                             expect!(self, Linebreak);
                         }
                     } else if is_block_element {
-                        eat!(self, Semicolon);
+                        self.cursor.eat_semicolon()?;
                     } else {
                         expect!(self, Semicolon);
                     }

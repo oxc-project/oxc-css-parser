@@ -9,7 +9,7 @@ use crate::{
     error::{Error, PResult},
     expect,
     pos::Span,
-    tokenizer::{TokenWithSpan, Tokenizer, token},
+    tokenizer::{Token, TokenWithSpan, Tokenizer, token},
     util,
 };
 pub use builder::ParserBuilder;
@@ -61,6 +61,125 @@ impl<'a> ParserCursor<'a> {
             Some(token_with_span) => Ok(token_with_span),
             None => unreachable!(),
         }
+    }
+
+    #[inline]
+    fn eat_token<T>(
+        &mut self,
+        extract: impl FnOnce(Token<'a>) -> Result<T, Token<'a>>,
+    ) -> PResult<Option<(T, Span)>> {
+        let TokenWithSpan { token, span } = self.bump()?;
+        match extract(token) {
+            Ok(token) => Ok(Some((token, span))),
+            Err(token) => {
+                self.cached_token = Some(TokenWithSpan { token, span });
+                Ok(None)
+            }
+        }
+    }
+
+    #[inline]
+    fn eat_bar(&mut self) -> PResult<Option<(token::Bar, Span)>> {
+        self.eat_token(|token| match token {
+            Token::Bar(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_colon(&mut self) -> PResult<Option<(token::Colon, Span)>> {
+        self.eat_token(|token| match token {
+            Token::Colon(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_comma(&mut self) -> PResult<Option<(token::Comma, Span)>> {
+        self.eat_token(|token| match token {
+            Token::Comma(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_dot_dot_dot(&mut self) -> PResult<Option<(token::DotDotDot, Span)>> {
+        self.eat_token(|token| match token {
+            Token::DotDotDot(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_exclamation(&mut self) -> PResult<Option<(token::Exclamation, Span)>> {
+        self.eat_token(|token| match token {
+            Token::Exclamation(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_greater_than(&mut self) -> PResult<Option<(token::GreaterThan, Span)>> {
+        self.eat_token(|token| match token {
+            Token::GreaterThan(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_ident(&mut self) -> PResult<Option<(token::Ident<'a>, Span)>> {
+        self.eat_token(|token| match token {
+            Token::Ident(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_indent(&mut self) -> PResult<Option<(token::Indent, Span)>> {
+        self.eat_token(|token| match token {
+            Token::Indent(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_linebreak(&mut self) -> PResult<Option<(token::Linebreak, Span)>> {
+        self.eat_token(|token| match token {
+            Token::Linebreak(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_l_paren(&mut self) -> PResult<Option<(token::LParen, Span)>> {
+        self.eat_token(|token| match token {
+            Token::LParen(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_r_paren(&mut self) -> PResult<Option<(token::RParen, Span)>> {
+        self.eat_token(|token| match token {
+            Token::RParen(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_semicolon(&mut self) -> PResult<Option<(token::Semicolon, Span)>> {
+        self.eat_token(|token| match token {
+            Token::Semicolon(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn eat_tilde(&mut self) -> PResult<Option<(token::Tilde, Span)>> {
+        self.eat_token(|token| match token {
+            Token::Tilde(token) => Ok(token),
+            token => Err(token),
+        })
     }
 }
 

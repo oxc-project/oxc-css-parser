@@ -2,7 +2,6 @@ use super::Parser;
 use crate::{
     Parse, Syntax,
     ast::*,
-    eat,
     error::{Error, ErrorKind, PResult},
     expect,
     pos::{Span, Spanned},
@@ -237,7 +236,7 @@ impl<'a> Parse<'a> for MediaQueryList<'a> {
 
         let mut queries = input.vec1(first);
         let mut comma_spans = input.vec();
-        while let Some((_, comma_span)) = eat!(input, Comma) {
+        while let Some((_, comma_span)) = input.cursor.eat_comma()? {
             comma_spans.push(comma_span);
             queries.push(input.parse()?);
         }

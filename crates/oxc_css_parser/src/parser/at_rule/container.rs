@@ -2,7 +2,6 @@ use super::Parser;
 use crate::{
     Parse,
     ast::*,
-    eat,
     error::{Error, ErrorKind, PResult},
     expect, expect_without_ws_or_comments,
     pos::{Span, Spanned},
@@ -93,7 +92,7 @@ impl<'a> Parse<'a> for ContainerConditionOr<'a> {
 
 impl<'a> Parse<'a> for QueryInParens<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        if let Some((_, Span { start, .. })) = eat!(input, LParen) {
+        if let Some((_, Span { start, .. })) = input.cursor.eat_l_paren()? {
             let kind = if let Ok(container_condition) = input.try_parse(ContainerCondition::parse) {
                 QueryInParensKind::ContainerCondition(container_condition)
             } else {
@@ -250,7 +249,7 @@ impl<'a> Parse<'a> for StyleQuery<'a> {
             Ok(StyleQuery::FeatureName(name))
         } else {
             let feature = input.parse().map(StyleQuery::Feature);
-            eat!(input, Semicolon);
+            input.cursor.eat_semicolon()?;
             feature
         }
     }
