@@ -290,13 +290,34 @@ impl<'a> Parser<'a> {
                 TokenWithSpan { token: Token::Percent(..), .. }
                     if PRECEDENCE_MULTIPLY >= min_precedence =>
                 {
-                    (
-                        SassBinaryOperator {
-                            kind: SassBinaryOperatorKind::Modulo,
-                            span: bump!(self).span,
-                        },
-                        PRECEDENCE_MULTIPLY,
-                    )
+                    // `b: c %` — a bare `%` is a plain value token in Sass, so
+                    // only take it as the modulo operator when a right operand
+                    // actually follows.
+                    let modulo = self.try_parse(|p| {
+                        let op_span = bump!(p).span;
+                        p.eat_sass_line_continuation()?;
+                        let right = p.parse_sass_bin_expr_with_min_precedence(
+                            PRECEDENCE_MULTIPLY + 1,
+                            allow_comparison,
+                        )?;
+                        Ok((op_span, right))
+                    });
+                    match modulo {
+                        Ok((op_span, right)) => {
+                            let span = Span { start: left.span().start, end: right.span().end };
+                            left = ComponentValue::SassBinaryExpression(SassBinaryExpression {
+                                left: arena_box!(self, left),
+                                op: SassBinaryOperator {
+                                    kind: SassBinaryOperatorKind::Modulo,
+                                    span: op_span,
+                                },
+                                right: arena_box!(self, right),
+                                span,
+                            });
+                            continue;
+                        }
+                        Err(_) => break,
+                    }
                 }
                 TokenWithSpan { token: Token::Plus(..), .. }
                     if PRECEDENCE_PLUS >= min_precedence =>
@@ -443,27 +464,12 @@ impl<'a> Parser<'a> {
             util::assert_no_ws_or_comment(&exclamation_span, &keyword_span)?;
             end = Some(keyword_span.end);
 
-            match keyword.name {
-                "default" => {
-                    if flags.iter().any(|flag| flag.keyword.name == "default") {
-                        self.recoverable_errors.push(Error {
-                            kind: ErrorKind::DuplicatedSassFlag("default"),
-                            span: Span { start: exclamation_span.start, end: keyword.span.end },
-                        });
-                    }
-                }
-                "global" => {
-                    if flags.iter().any(|flag| flag.keyword.name == "global") {
-                        self.recoverable_errors.push(Error {
-                            kind: ErrorKind::DuplicatedSassFlag("global"),
-                            span: Span { start: exclamation_span.start, end: keyword.span.end },
-                        });
-                    }
-                }
-                _ => self.recoverable_errors.push(Error {
+            // duplicated flags (`!default !default`) are accepted, as in dart-sass
+            if !matches!(keyword.name, "default" | "global") {
+                self.recoverable_errors.push(Error {
                     kind: ErrorKind::InvalidSassFlagName(keyword.name.to_string()),
                     span: keyword.span.clone(),
-                }),
+                });
             }
 
             flags.push(SassFlag {
@@ -559,7 +565,7 @@ impl<'a> Parser<'a> {
         Ok((SassInterpolatedIdentElement::Expression(expr), Span { start, end }))
     }
 
-    fn parse_sass_invocation_args(
+    pub(super) fn parse_sass_invocation_args(
         &mut self,
     ) -> PResult<(oxc_allocator::Vec<'a, ComponentValue<'a>>, oxc_allocator::Vec<'a, Span>)> {
         debug_assert!(matches!(self.syntax, Syntax::Scss | Syntax::Sass));
@@ -768,6 +774,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_sass_unary_expression(&mut self) -> PResult<ComponentValue<'a>> {
+        // dart-sass accepts a bare `%` in declaration values (`b: %`,
+        // `b: % c`, `b: c %`) as a plain token. Calculations bypass this
+        // (they parse atoms directly), so `calc(1px % 2px)` stays invalid.
+        if let Token::Percent(..) = &peek!(self).token {
+            return Ok(ComponentValue::TokenWithSpan(bump!(self)));
+        }
         let op = match &peek!(self).token {
             Token::Plus(..) => {
                 SassUnaryOperator { kind: SassUnaryOperatorKind::Plus, span: bump!(self).span }

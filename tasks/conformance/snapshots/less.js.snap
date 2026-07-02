@@ -4,11 +4,11 @@ files: 459   success: 400   failed: 37   expected: 22
 clean: 400  recovered: 1  hard_error: 36  panic: 0
 
 failures:
-ERROR    packages/test-data/tests-config/at-rules-compressed-evaluation/at-rules-compressed-evaluation.css    expect token `{`, but found `<ident>`
+ERROR    packages/test-data/tests-config/at-rules-compressed-evaluation/at-rules-compressed-evaluation.css    expect token `(`, but found `<ident>`
 ERROR    packages/test-data/tests-config/compression/compression.css    expect token `{`, but found `<unknown>`
 ERROR    packages/test-data/tests-config/compression/compression.less    expect token `;`, but found `<unknown>`
 ERROR    packages/test-data/tests-config/debug/all/linenumbers-all.css    expect token `:`, but found `{`
-ERROR    packages/test-data/tests-config/debug/comments/linenumbers-comments.css    expect token `{`, but found `<ident>`
+ERROR    packages/test-data/tests-config/debug/comments/linenumbers-comments.css    expect token `(`, but found `<ident>`
 ERROR    packages/test-data/tests-config/debug/mediaquery/linenumbers-mediaquery.css    expect token `:`, but found `{`
 ERROR    packages/test-data/tests-config/math-always/mixins-guards.less    expect token `;`, but found `<ident>`
 ERROR    packages/test-data/tests-config/math-parens-division/mixins-args.less    expect token `;`, but found `{`
@@ -58,10 +58,10 @@ ERROR    packages/test-data/tests-error/parse/parens-error-2.less    expect toke
 ERROR    packages/test-data/tests-error/parse/parens-error-3.less    expect token `;`, but found `{`
 ERROR    packages/test-data/tests-error/parse/parse-error-curly-bracket.less    expect token `<eof>`, but found `}`
 ERROR    packages/test-data/tests-error/parse/parse-error-media-no-block-1.less    expect token `{`, but found `)`
-ERROR    packages/test-data/tests-error/parse/parse-error-media-no-block-2.less    expect token `{`, but found `<eof>`
+ERROR    packages/test-data/tests-error/parse/parse-error-media-no-block-2.less    expect one of `<ident>` or `@{`, but found `<eof>`
 ERROR    packages/test-data/tests-error/parse/parse-error-media-no-block-3.less    expect token `}`, but found `<eof>`
 ERROR    packages/test-data/tests-error/parse/parse-error-missing-bracket.less    expect token `(`, but found `{`
-ERROR    packages/test-data/tests-error/parse/parse-error-missing-parens.less    expect token `{`, but found `(`
+ERROR    packages/test-data/tests-error/parse/parse-error-missing-parens.less    expect one of `<ident>` or `@{`, but found `(`
 ERROR    packages/test-data/tests-error/parse/parse-error-with-import.less    expect token `(`, but found `;`
 ERROR    packages/test-data/tests-error/parse/property-asterisk-only-name.less    expect token `(`, but found `{`
 ERROR    packages/test-data/tests-error/parse/single-character.less    expect token `(`, but found `<eof>`

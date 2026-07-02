@@ -374,7 +374,7 @@ impl_spanned_enum!(PseudoClassSelectorArgKind<'a> {
 impl_spanned_struct!(PseudoElementSelector<'a>);
 impl_spanned_struct!(PseudoElementSelectorArg<'a>);
 impl_spanned_enum!(PseudoElementSelectorArgKind<'a> {
-    tuple: [CompoundSelector, Ident, TokenSeq, ],
+    tuple: [CompoundSelector, CompoundSelectorList, Ident, TokenSeq, ],
     unit: [],
 });
 impl_spanned_struct!(PseudoPage<'a>);
@@ -1024,7 +1024,7 @@ impl_span_ignored_eq_struct!(PseudoElementSelector<'a> { name, arg, });
 impl_span_ignored_eq_struct!(PseudoElementSelectorArg<'a> { kind, l_paren, r_paren, });
 #[cfg(feature = "span_ignored_eq")]
 impl_span_ignored_eq_enum!(PseudoElementSelectorArgKind<'a> {
-    tuple: [CompoundSelector, Ident, TokenSeq, ],
+    tuple: [CompoundSelector, CompoundSelectorList, Ident, TokenSeq, ],
     unit: [],
 });
 #[cfg(feature = "span_ignored_eq")]
@@ -1740,6 +1740,7 @@ impl_enum_as_is!(PseudoClassSelectorArgKind<'a> {
 impl_enum_as_is!(PseudoElementSelectorArgKind<'a> {
     tuple: [
         CompoundSelector(CompoundSelector<'a>) => is_compound_selector, as_compound_selector,
+        CompoundSelectorList(CompoundSelectorList<'a>) => is_compound_selector_list, as_compound_selector_list,
         Ident(InterpolableIdent<'a>) => is_ident, as_ident,
         TokenSeq(TokenSeq<'a>) => is_token_seq, as_token_seq,
     ],

@@ -29,7 +29,7 @@ fn is_special_typed_or_raw_function(name: &str) -> bool {
     let base = unvendored(name);
     let vendored = base.len() != name.len();
     base.eq_ignore_ascii_case("element")
-        || (!vendored && base.eq_ignore_ascii_case("type"))
+        || (!vendored && (base.eq_ignore_ascii_case("type") || base.eq_ignore_ascii_case("if")))
         || (vendored && (base.eq_ignore_ascii_case("calc") || base.eq_ignore_ascii_case("url")))
 }
 
@@ -51,6 +51,33 @@ impl<'a> Parser<'a> {
                 let expr = self.parse_calc_expr(allow_modulo)?;
                 expect!(self, RParen);
                 expr
+            } else if matches!(self.syntax, Syntax::Scss | Syntax::Sass)
+                && matches!(&peek!(self).token, Token::Minus(..) | Token::Plus(..))
+                && {
+                    let span = &peek!(self).span;
+                    self.source.as_bytes().get(span.end) == Some(&b'(')
+                }
+            {
+                // SassScript allows a unary sign glued to a parenthesized
+                // operand inside a calculation (`round(-(1) + 2)`); a spaced
+                // `calc(+ 1px)` stays invalid, as in dart-sass.
+                let op = match &peek!(self).token {
+                    Token::Minus(..) => SassUnaryOperator {
+                        kind: SassUnaryOperatorKind::Minus,
+                        span: bump!(self).span,
+                    },
+                    _ => SassUnaryOperator {
+                        kind: SassUnaryOperatorKind::Plus,
+                        span: bump!(self).span,
+                    },
+                };
+                let expr = self.parse_calc_expr_recursively(PRECEDENCE_MULTIPLY, allow_modulo)?;
+                let span = Span { start: op.span.start, end: expr.span().end };
+                ComponentValue::SassUnaryExpression(SassUnaryExpression {
+                    expr: arena_box!(self, expr),
+                    op,
+                    span,
+                })
             } else if self.syntax == Syntax::Less {
                 if matches!(peek!(self).token, Token::Minus(..)) {
                     ComponentValue::LessNegativeValue(self.parse()?)
@@ -104,7 +131,7 @@ impl<'a> Parser<'a> {
         let token_with_span = peek!(self);
         match &token_with_span.token {
             Token::Ident(token) => {
-                if token.name().eq_ignore_ascii_case("url") {
+                if unvendored(&token.name()).eq_ignore_ascii_case("url") {
                     match self.try_parse(Url::parse) {
                         Ok(url) => return Ok(ComponentValue::Url(arena_box!(self, url))),
                         Err(Error { kind: ErrorKind::TryParseError, .. }) => {}
@@ -379,29 +406,52 @@ impl<'a> Parser<'a> {
                     let allow_modulo = matches!(self.syntax, Syntax::Scss | Syntax::Sass)
                         && (ident.name.eq_ignore_ascii_case("min")
                             || ident.name.eq_ignore_ascii_case("max"));
-                    let mut values = self.vec_with_capacity(1);
-                    loop {
-                        match peek!(self) {
-                            TokenWithSpan { token: Token::RParen(..), .. } => break,
-                            TokenWithSpan { token: Token::Comma(..), .. } => {
-                                values.push(ComponentValue::Delimiter(self.parse()?));
+                    // The calc grammar doesn't cover SassScript uses of these
+                    // names (`abs(\$number: -3)`, `max(1 2 3...)`,
+                    // `round(-(1) + 2)`); fall back to a strict SassScript
+                    // call — but only there, so invalid calc stays invalid.
+                    let typed = self.try_parse(|p| {
+                        let values = p.parse_calc_args(allow_modulo)?;
+                        if matches!(&peek!(p).token, Token::RParen(..)) {
+                            Ok(values)
+                        } else {
+                            let span = peek!(p).span.clone();
+                            Err(Error { kind: ErrorKind::TryParseError, span })
+                        }
+                    });
+                    match typed {
+                        Ok(values) => values,
+                        Err(error) => {
+                            if !matches!(self.syntax, Syntax::Scss | Syntax::Sass) {
+                                return Err(error);
                             }
-                            TokenWithSpan { token: Token::DotDotDot(..), .. }
-                                if matches!(self.syntax, Syntax::Scss | Syntax::Sass)
-                                    && values.len() == 1 =>
+                            let (args, comma_spans) = self.parse_sass_invocation_args()?;
+                            // Only a keyword argument justifies the fallback
+                            // (`abs(\$number: -3)` is a SassScript call); plain
+                            // expressions the calc grammar rejected
+                            // (`calc(1px % 2px)`, double spreads) stay invalid.
+                            if !args
+                                .iter()
+                                .any(|arg| matches!(arg, ComponentValue::SassKeywordArgument(..)))
                             {
-                                let TokenWithSpan { span: Span { end, .. }, .. } = bump!(self);
-                                let value = values.remove(0);
-                                let span = Span { start: value.span().start, end };
-                                values.push(ComponentValue::SassArbitraryArgument(
-                                    SassArbitraryArgument { value: arena_box!(self, value), span },
-                                ));
-                                break;
+                                return Err(error);
                             }
-                            _ => values.push(self.parse_calc_expr(allow_modulo)?),
+                            let mut values = self.vec_with_capacity(args.len() * 2);
+                            let mut comma_spans = comma_spans.into_iter();
+                            for (i, arg) in args.into_iter().enumerate() {
+                                if i > 0
+                                    && let Some(span) = comma_spans.next()
+                                {
+                                    values.push(ComponentValue::Delimiter(Delimiter {
+                                        kind: DelimiterKind::Comma,
+                                        span,
+                                    }));
+                                }
+                                values.push(arg);
+                            }
+                            values
                         }
                     }
-                    values
                 }
                 InterpolableIdent::Literal(ident) if ident.name.eq_ignore_ascii_case("element") => {
                     arena_vec!(self; self.parse().map(ComponentValue::IdSelector)?)
@@ -423,6 +473,44 @@ impl<'a> Parser<'a> {
         let end = expect!(self, RParen).1.end;
         let span = Span { start: name.span().start, end };
         Ok(Function { name: FunctionName::Ident(name), args, span })
+    }
+
+    /// The `calc()`-family argument list: comma-delimited calc expressions,
+    /// with the SassScript spread (`max(1 2 3...)`) wrapping the preceding
+    /// value. Stops before the closing `)`.
+    fn parse_calc_args(
+        &mut self,
+        allow_modulo: bool,
+    ) -> PResult<oxc_allocator::Vec<'a, ComponentValue<'a>>> {
+        let mut values = self.vec_with_capacity(1);
+        loop {
+            match peek!(self) {
+                TokenWithSpan { token: Token::RParen(..), .. } => break,
+                TokenWithSpan { token: Token::Comma(..), .. } => {
+                    values.push(ComponentValue::Delimiter(self.parse()?));
+                }
+                // a spread is SassScript, so only the legacy `min`/`max`
+                // accept it (`clamp(1px 2px 3px...)` errors), and only once
+                TokenWithSpan { token: Token::DotDotDot(..), .. }
+                    if allow_modulo
+                        && matches!(self.syntax, Syntax::Scss | Syntax::Sass)
+                        && !values.is_empty()
+                        && !values
+                            .iter()
+                            .any(|v| matches!(v, ComponentValue::SassArbitraryArgument(..))) =>
+                {
+                    let TokenWithSpan { span: Span { end, .. }, .. } = bump!(self);
+                    let value = values.pop().unwrap();
+                    let span = Span { start: value.span().start, end };
+                    values.push(ComponentValue::SassArbitraryArgument(SassArbitraryArgument {
+                        value: arena_box!(self, value),
+                        span,
+                    }));
+                }
+                _ => values.push(self.parse_calc_expr(allow_modulo)?),
+            }
+        }
+        Ok(values)
     }
 
     /// Parse a function with the typed grammar; when its arguments don't fit
@@ -981,9 +1069,10 @@ impl<'a> Parse<'a> for Url<'a> {
         // take the same unquoted-URL contents as `url(...)` — token-level
         // scanning would mis-lex `//` in `https://` as a comment.
         let prefix_name = prefix.name();
-        if !prefix_name.eq_ignore_ascii_case("url")
-            && !prefix_name.eq_ignore_ascii_case("url-prefix")
-            && !prefix_name.eq_ignore_ascii_case("domain")
+        let base_name = unvendored(&prefix_name);
+        if !base_name.eq_ignore_ascii_case("url")
+            && !base_name.eq_ignore_ascii_case("url-prefix")
+            && !base_name.eq_ignore_ascii_case("domain")
         {
             return Err(Error { kind: ErrorKind::ExpectUrl, span: prefix_span });
         }

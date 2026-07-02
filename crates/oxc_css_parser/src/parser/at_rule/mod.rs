@@ -31,7 +31,40 @@ impl<'a> Parse<'a> for AtRule<'a> {
 
         let at_rule_name = at_keyword.ident.name();
         let (prelude, block, end) = if at_rule_name.eq_ignore_ascii_case("media") {
-            let prelude = input.try_parse(MediaQueryList::parse).ok().map(AtRulePrelude::Media);
+            // The typed grammar must account for the whole prelude; queries it
+            // can't express (`@media all #{$m}`, less.js's `all and screen`)
+            // are kept as raw tokens instead.
+            let prelude = input
+                .try_parse(|p| {
+                    let queries = MediaQueryList::parse(p)?;
+                    match &peek!(p).token {
+                        Token::LBrace(..)
+                        | Token::Indent(..)
+                        | Token::Semicolon(..)
+                        | Token::Dedent(..)
+                        | Token::Linebreak(..)
+                        | Token::Eof(..) => Ok(AtRulePrelude::Media(queries)),
+                        _ => {
+                            let span = peek!(p).span.clone();
+                            Err(Error { kind: ErrorKind::TryParseError, span })
+                        }
+                    }
+                })
+                .ok();
+            let prelude = match prelude {
+                Some(prelude) => Some(prelude),
+                None if matches!(peek!(input).token, Token::LBrace(..) | Token::Indent(..)) => None,
+                // Only interpolation justifies the raw form — dart-sass
+                // reparses such queries after resolving `#{...}`; plain
+                // malformed logic (`@media a and b or c`) must keep erroring.
+                None if matches!(input.syntax, Syntax::Scss | Syntax::Sass)
+                    && interpolation_before_block(input.source, peek!(input).span.start) =>
+                {
+                    let raw = input.parse_raw_at_rule_prelude()?;
+                    Some(AtRulePrelude::Unknown(arena_box!(input, raw)))
+                }
+                None => Some(AtRulePrelude::Media(input.parse()?)),
+            };
             let block = input.parse::<SimpleBlock>()?;
             let end = block.span.end;
             (prelude, Some(block), end)
@@ -270,7 +303,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
             // CSS in every syntax (the `--` name marks it), so the prelude is
             // kept as raw tokens and the body takes declarations with raw
             // values.
-            let prelude = input.parse_css_function_prelude()?;
+            let prelude = input.parse_raw_at_rule_prelude()?;
             let block = input
                 .with_state(ParserState { in_css_function_body: true, ..input.state.clone() })
                 .parse::<SimpleBlock>()?;
@@ -406,7 +439,14 @@ impl<'a> Parse<'a> for AtRule<'a> {
                     } else {
                         None
                     };
-                    let block = input.parse::<SimpleBlock>()?;
+                    // `@at-root` escapes surrounding contexts, including a
+                    // `@keyframes` body — its block holds normal rules.
+                    let block = input
+                        .with_state(ParserState {
+                            in_keyframes_at_rule: false,
+                            ..input.state.clone()
+                        })
+                        .parse::<SimpleBlock>()?;
                     let end = block.span.end;
                     (prelude, Some(block), end)
                 }
@@ -441,11 +481,27 @@ impl<'a> Parse<'a> for AtRule<'a> {
     }
 }
 
+/// Whether an `#{...}` interpolation occurs between `from` and the prelude's
+/// end (the block's `{` or a `;`).
+fn interpolation_before_block(source: &str, from: usize) -> bool {
+    let bytes = source.as_bytes();
+    let mut i = from;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'#' if bytes.get(i + 1) == Some(&b'{') => return true,
+            b'{' | b';' => return false,
+            _ => i += 1,
+        }
+    }
+    false
+}
+
 impl<'a> Parser<'a> {
-    /// Raw prelude of a CSS custom function: everything up to the body's `{`,
-    /// balancing pairs so interpolations (`--#{a}`) and parameter parens pass
-    /// through, e.g. `--name(--arg <type>) returns <type>`.
-    fn parse_css_function_prelude(&mut self) -> PResult<UnknownAtRulePrelude<'a>> {
+    /// A raw at-rule prelude: everything up to the body's `{` (or the end of
+    /// the statement), balancing pairs so interpolations and parens pass
+    /// through — CSS custom function preludes (`--name(--arg) returns <type>`)
+    /// and media queries the typed grammar can't express.
+    fn parse_raw_at_rule_prelude(&mut self) -> PResult<UnknownAtRulePrelude<'a>> {
         let start = self.tokenizer.current_offset();
         let mut tokens = self.vec();
         let mut pairs: Vec<crate::util::PairedToken> = Vec::new();
@@ -496,7 +552,20 @@ impl<'a> Parser<'a> {
     ) -> PResult<(Option<UnknownAtRulePrelude<'a>>, Option<SimpleBlock<'a>>, Option<usize>)> {
         let prelude = self.parse_unknown_at_rule_prelude()?;
         let block = match &peek!(self).token {
-            Token::LBrace(..) | Token::Indent(..) => Some(self.parse::<SimpleBlock>()?),
+            // An unknown at-rule's children parse generically; in Sass that
+            // includes keyframe-style `10% { ... }` blocks
+            // (`@keyfr#{"ames"} a {...}`). less.js keeps them an error.
+            Token::LBrace(..) | Token::Indent(..) => {
+                let sass_ctx = if matches!(self.syntax, Syntax::Scss | Syntax::Sass) {
+                    self.state.sass_ctx | super::state::SASS_CTX_ALLOW_KEYFRAME_BLOCK
+                } else {
+                    self.state.sass_ctx
+                };
+                Some(
+                    self.with_state(ParserState { sass_ctx, ..self.state.clone() })
+                        .parse::<SimpleBlock>()?,
+                )
+            }
             _ => None,
         };
         let end = block

@@ -941,7 +941,14 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
                     InterpolableIdent::Literal(Ident { name, .. })
                         if name.eq_ignore_ascii_case("-moz-any")
                             || name.eq_ignore_ascii_case("-webkit-any")
-                            || name.eq_ignore_ascii_case("current")
+                            || name.eq_ignore_ascii_case("any") =>
+                    {
+                        // formally compound selectors, but real-world usage
+                        // includes complex ones (`:-moz-any(ol p.blah, ul)`)
+                        input.parse().map(PseudoClassSelectorArgKind::SelectorList)?
+                    }
+                    InterpolableIdent::Literal(Ident { name, .. })
+                        if name.eq_ignore_ascii_case("current")
                             || name.eq_ignore_ascii_case("past")
                             || name.eq_ignore_ascii_case("future") =>
                     {
@@ -1005,10 +1012,16 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
                     }
                     InterpolableIdent::Literal(Ident { name, .. })
                         if name.eq_ignore_ascii_case("cue")
-                            || name.eq_ignore_ascii_case("cue-region")
-                            || name.eq_ignore_ascii_case("slotted") =>
+                            || name.eq_ignore_ascii_case("cue-region") =>
                     {
                         input.parse().map(PseudoElementSelectorArgKind::CompoundSelector)?
+                    }
+                    InterpolableIdent::Literal(Ident { name, .. })
+                        if name.eq_ignore_ascii_case("slotted") =>
+                    {
+                        // formally a single compound selector, but sass extend
+                        // output produces lists (`::slotted(.c.d, .d.e)`)
+                        input.parse().map(PseudoElementSelectorArgKind::CompoundSelectorList)?
                     }
                     _ => input
                         .parse_tokens_in_parens()
@@ -1268,6 +1281,7 @@ impl<'a> Parser<'a> {
                     | Token::AtLBraceVar(..)
                     | Token::NumberSign(..)
                     | Token::HashLBrace(..)
+                    | Token::Percent(..) // Sass `%placeholder` descendant
                     | Token::Placeholder(..), // `${a} ${b}` descendant
                 span,
             } if pos < span.start => Ok(Some(Combinator {

@@ -60,7 +60,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
         let less_property_merge = if input.syntax == Syntax::Less { input.parse()? } else { None };
 
         let (_, colon_span) = expect!(input, Colon);
-        let (value, mut important) = {
+        let (mut value, mut important) = {
             let mut parser = input.with_state(ParserState {
                 qualified_rule_ctx: Some(QualifiedRuleContext::DeclarationValue),
                 ..input.state
@@ -142,6 +142,37 @@ impl<'a> Parse<'a> for Declaration<'a> {
             && let Token::Exclamation(..) = &peek!(input).token
         {
             important = Some(input.parse::<ImportantAnnotation>()?);
+        }
+        // dart-sass allows `!important` mid-value (`fludge: foo bar
+        // !important hux;`): when more value follows, the annotation is just
+        // another component, and only a trailing one is structural.
+        while matches!(input.syntax, Syntax::Scss | Syntax::Sass)
+            && important.is_some()
+            && !matches!(
+                &peek!(input).token,
+                Token::Semicolon(..)
+                    | Token::RBrace(..)
+                    | Token::RParen(..)
+                    | Token::Dedent(..)
+                    | Token::Linebreak(..)
+                    | Token::Eof(..)
+            )
+        {
+            if let Some(annotation) = important.take() {
+                value.push(ComponentValue::ImportantAnnotation(annotation));
+            }
+            let more = input
+                .with_state(ParserState {
+                    qualified_rule_ctx: Some(QualifiedRuleContext::DeclarationValue),
+                    ..input.state
+                })
+                .parse_declaration_value()?;
+            for component in more {
+                value.push(component);
+            }
+            if let Token::Exclamation(..) = &peek!(input).token {
+                important = Some(input.parse::<ImportantAnnotation>()?);
+            }
         }
 
         let span = Span {

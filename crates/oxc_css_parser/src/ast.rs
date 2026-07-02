@@ -1607,6 +1607,7 @@ pub struct PseudoElementSelectorArg<'a> {
 #[cfg_attr(feature = "serialize", serde(untagged))]
 pub enum PseudoElementSelectorArgKind<'a> {
     CompoundSelector(CompoundSelector<'a>),
+    CompoundSelectorList(CompoundSelectorList<'a>),
     Ident(InterpolableIdent<'a>),
     TokenSeq(TokenSeq<'a>),
 }

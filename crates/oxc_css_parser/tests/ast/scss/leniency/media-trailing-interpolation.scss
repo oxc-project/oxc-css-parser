@@ -1,0 +1,4 @@
+$m: "and (min-width: 300px)";
+@media all #{$m} {
+  div { display: block; }
+}

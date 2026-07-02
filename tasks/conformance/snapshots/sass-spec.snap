@@ -1,37 +1,17 @@
 suite: sass-spec
 sha: a2ead9225786d49e91f5cc36755b7713596a2338
-files: 26787   success: 26443   failed: 50   expected: 294
-clean: 26443  recovered: 5  hard_error: 45  panic: 0
+files: 26787   success: 26476   failed: 20   expected: 291
+clean: 26476  recovered: 0  hard_error: 20  panic: 0
 
 failures:
 ERROR    spec/core_functions/string/unquote.hrx::meaningful_css_characters/output.css    expect token `}`, but found `<eof>`
-ERROR    spec/css/functions/special/prefixed/lowercase.hrx::url/punctuation/input.scss    expect token `)`, but found `<eof>`
-ERROR    spec/css/functions/special/prefixed/uppercase.hrx::url/punctuation/input.scss    expect token `)`, but found `<eof>`
-ERROR    spec/css/percent.hrx::declaration/after/input.scss    component value is expected
-ERROR    spec/css/percent.hrx::declaration/alone/input.scss    component value is expected
-ERROR    spec/css/percent.hrx::declaration/before/input.scss    component value is expected
 ERROR    spec/css/plain/hacks.hrx::output.css    unexpected whitespace
 ERROR    spec/css/plain/hacks.hrx::plain.css    unexpected whitespace
-ERROR    spec/css/selector/slotted.hrx::output.css    expect token `)`, but found `,`
-ERROR    spec/css/unknown_directive/name_interpolation.hrx::input.scss    CSS rule is expected
-RECOVER  spec/directives/at_root/keyframes.hrx::all/input.scss    unknown keyframe selector
-ERROR    spec/expressions/if/css.hrx::alone/argument/input.scss    expect token `<ident>`, but found `@`
-ERROR    spec/libsass-closed-issues/issue_346.hrx::input.scss    expect token `{`, but found `#{`
-RECOVER  spec/libsass-closed-issues/issue_759.hrx::input.scss    duplicated Sass flag `!default`
 ERROR    spec/libsass-todo-issues/issue_221262.hrx::input.scss    CSS rule is expected
 ERROR    spec/libsass-todo-issues/issue_221262.hrx::output.css    CSS rule is expected
 ERROR    spec/libsass-todo-issues/issue_221292.hrx::input.scss    CSS rule is expected
 ERROR    spec/libsass-todo-issues/issue_221292.hrx::output.css    CSS rule is expected
 ERROR    spec/non_conformant/basic/36_extra_commas_in_selectors.hrx::input.scss    simple selector is expected
-ERROR    spec/non_conformant/basic/50_wrapped_pseudo_selectors.hrx::input.scss    expect token `)`, but found `<ident>`
-ERROR    spec/non_conformant/basic/50_wrapped_pseudo_selectors.hrx::output.css    expect token `)`, but found `<ident>`
-ERROR    spec/non_conformant/extend-tests/069_test_attribute_unification.hrx::input.scss    expect token `{`, but found `%`
-ERROR    spec/non_conformant/extend-tests/189_test_placeholder_descendant_selector.hrx::input.scss    expect token `{`, but found `%`
-ERROR    spec/non_conformant/extend-tests/190_test_semi_placeholder_selector.hrx::input.scss    expect token `{`, but found `%`
-ERROR    spec/non_conformant/extend-tests/217_test_parent_and_sibling_extend.hrx::input.scss    expect token `{`, but found `%`
-ERROR    spec/non_conformant/extend-tests/219_test_nested_double_extend_optimization.hrx::input.scss    expect token `{`, but found `%`
-ERROR    spec/non_conformant/extend-tests/233_test_extend_cross_branch_redundancy_elimination.hrx::input.scss    expect token `{`, but found `%`
-ERROR    spec/non_conformant/extend-tests/234_test_extend_cross_branch_redundancy_elimination.hrx::input.scss    expect token `{`, but found `%`
 ERROR    spec/non_conformant/extend-tests/selector_list.hrx::input.scss    expect token `;`, but found `#{`
 ERROR    spec/non_conformant/misc/trailing_comma_in_selector.hrx::input.scss    simple selector is expected
 ERROR    spec/non_conformant/parser/interpolate/27_escaped_double_quotes/01_inline.hrx::output.css    unterminated string
@@ -44,16 +24,6 @@ ERROR    spec/non_conformant/parser/interpolate/28_escaped_single_quotes/03_inli
 ERROR    spec/non_conformant/parser/interpolate/28_escaped_single_quotes/04_variable_double.hrx::output.css    unterminated string
 ERROR    spec/non_conformant/sass/pseudo.hrx::input.sass    CSS rule is expected
 ERROR    spec/non_conformant/scss-tests/044_test_trailing_comma_in_selector.hrx::input.scss    simple selector is expected
-ERROR    spec/non_conformant/scss/important-in-arglist.hrx::input.scss    expect token `;`, but found `<ident>`
-ERROR    spec/non_conformant/scss/media/interpolated.hrx::input.scss    expect token `{`, but found `<ident>`
-ERROR    spec/values/calculation/abs.hrx::sass_script/input.scss    component value is expected
-ERROR    spec/values/calculation/calc/no_operator.hrx::function/max/input.scss    component value is expected
-ERROR    spec/values/calculation/calc/no_operator.hrx::function/min/input.scss    component value is expected
-ERROR    spec/values/calculation/round/one_argument.hrx::calc_unsafe_in_binary_operator/input.scss    component value is expected
-ERROR    spec/values/calculation/round/one_argument.hrx::sass_script/input.scss    component value is expected
-RECOVER  spec/variables/double_flag.hrx::default/input.scss    duplicated Sass flag `!default`
-RECOVER  spec/variables/double_flag.hrx::global/input.scss    duplicated Sass flag `!global`
-RECOVER  spec/variables/whitespace.hrx::between_double_default/scss/input.scss    duplicated Sass flag `!default`
 
 expected failures (error tests, correct behavior):
 RECOVER  spec/callable/arguments.hrx::mixin/error/comma_only/input.scss    component value is expected
@@ -78,17 +48,16 @@ ERROR    spec/css/important.hrx::error/syntax/eof_after_bang/input.scss    expec
 ERROR    spec/css/important.hrx::error/syntax/sass/multiline/after_prop/input.sass    CSS rule is expected
 ERROR    spec/css/media/logic/error.hrx::and_after/or/input.scss    expect token `{`, but found `<ident>`
 ERROR    spec/css/media/logic/error.hrx::and_after/type_and_not/input.scss    expect token `{`, but found `<ident>`
-ERROR    spec/css/media/logic/error.hrx::nothing_after/and/after_interpolation/input.scss    expect token `{`, but found `#{`
-ERROR    spec/css/media/logic/error.hrx::nothing_after/and/after_paren/input.scss    expect token `{`, but found `(`
-ERROR    spec/css/media/logic/error.hrx::nothing_after/and/after_type/input.scss    expect token `{`, but found `<ident>`
-ERROR    spec/css/media/logic/error.hrx::nothing_after/and_not/input.scss    expect token `{`, but found `<ident>`
-ERROR    spec/css/media/logic/error.hrx::nothing_after/not/input.scss    expect token `{`, but found `<ident>`
-ERROR    spec/css/media/logic/error.hrx::nothing_after/or/input.scss    expect token `{`, but found `(`
+ERROR    spec/css/media/logic/error.hrx::nothing_after/and/after_paren/input.scss    expect one of `<ident>` or `#{`, but found `(`
+ERROR    spec/css/media/logic/error.hrx::nothing_after/and/after_type/input.scss    expect token `(`, but found `{`
+ERROR    spec/css/media/logic/error.hrx::nothing_after/and_not/input.scss    expect token `(`, but found `{`
+ERROR    spec/css/media/logic/error.hrx::nothing_after/not/input.scss    expect one of `<ident>` or `#{`, but found `{`
+ERROR    spec/css/media/logic/error.hrx::nothing_after/or/input.scss    expect one of `<ident>` or `#{`, but found `(`
 ERROR    spec/css/media/logic/error.hrx::or_after/and/input.scss    expect token `{`, but found `<ident>`
 ERROR    spec/css/media/logic/error.hrx::or_after/type/input.scss    expect token `{`, but found `<ident>`
 ERROR    spec/css/media/logic/error.hrx::or_after/type_and_not/input.scss    expect token `{`, but found `<ident>`
 ERROR    spec/css/media/logic/error.hrx::or_after/type_then_and/input.scss    expect token `{`, but found `<ident>`
-ERROR    spec/css/media/whitespace.hrx::error/logic_sequence/after_operator/sass/input.sass    CSS rule is expected
+ERROR    spec/css/media/whitespace.hrx::error/logic_sequence/after_operator/sass/input.sass    expect one of `<ident>` or `#{`, but found `(`
 ERROR    spec/css/media/whitespace.hrx::error/logic_sequence/before_operator/sass/input.sass    CSS rule is expected
 ERROR    spec/css/moz_document/whitespace.hrx::error/before_arg/sass/input.sass    expect token `<ident>`, but found `<indent>`
 ERROR    spec/css/plain/error/expression/interpolation.hrx::identifier/plain.css    component value is expected
@@ -96,11 +65,11 @@ ERROR    spec/css/plain/error/expression/interpolation.hrx::standalone/plain.css
 ERROR    spec/css/plain/error/expression/variable.hrx::declaration/plain.css    CSS rule is expected
 ERROR    spec/css/plain/error/media.hrx::logic/and_after/or/plain.css    expect token `{`, but found `<ident>`
 ERROR    spec/css/plain/error/media.hrx::logic/and_after/type_and_not/plain.css    expect token `{`, but found `<ident>`
-ERROR    spec/css/plain/error/media.hrx::logic/nothing_after/and/after_paren/plain.css    expect token `{`, but found `(`
-ERROR    spec/css/plain/error/media.hrx::logic/nothing_after/and/after_type/plain.css    expect token `{`, but found `<ident>`
-ERROR    spec/css/plain/error/media.hrx::logic/nothing_after/and_not/plain.css    expect token `{`, but found `<ident>`
-ERROR    spec/css/plain/error/media.hrx::logic/nothing_after/not/plain.css    expect token `{`, but found `<ident>`
-ERROR    spec/css/plain/error/media.hrx::logic/nothing_after/or/plain.css    expect token `{`, but found `(`
+ERROR    spec/css/plain/error/media.hrx::logic/nothing_after/and/after_paren/plain.css    expect token `<ident>`, but found `(`
+ERROR    spec/css/plain/error/media.hrx::logic/nothing_after/and/after_type/plain.css    expect token `(`, but found `{`
+ERROR    spec/css/plain/error/media.hrx::logic/nothing_after/and_not/plain.css    expect token `(`, but found `{`
+ERROR    spec/css/plain/error/media.hrx::logic/nothing_after/not/plain.css    expect token `<ident>`, but found `{`
+ERROR    spec/css/plain/error/media.hrx::logic/nothing_after/or/plain.css    expect token `<ident>`, but found `(`
 ERROR    spec/css/plain/error/media.hrx::logic/or_after/and/plain.css    expect token `{`, but found `<ident>`
 ERROR    spec/css/plain/error/media.hrx::logic/or_after/type/plain.css    expect token `{`, but found `<ident>`
 ERROR    spec/css/plain/error/media.hrx::logic/or_after/type_and_not/plain.css    expect token `{`, but found `<ident>`
@@ -293,7 +262,6 @@ ERROR    spec/parser/interpolation.hrx::error/selector/unmatched_close_bracket/i
 ERROR    spec/parser/interpolation.hrx::error/selector/unmatched_close_paren/input.sass    CSS rule is expected
 ERROR    spec/parser/selector.hrx::error/empty_placeholder/input.scss    expect one of `<ident>` or `#{`, but found `{`
 ERROR    spec/parser/selector.hrx::error/newline/before_comma/input.sass    CSS rule is expected
-ERROR    spec/values/calculation/abs.hrx::error/sass_script_and_variable/input.scss    component value is expected
 ERROR    spec/values/calculation/abs.hrx::error/syntax/invalid_arg/input.scss    component value is expected
 ERROR    spec/values/calculation/acos.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/acos.hrx::error/syntax/invalid_arg/input.scss    component value is expected
@@ -306,7 +274,7 @@ ERROR    spec/values/calculation/calc-size.hrx::error/syntax/invalid_arg/input.s
 ERROR    spec/values/calculation/calc/error/syntax.hrx::dollar/input.scss    component value is expected
 ERROR    spec/values/calculation/calc/error/syntax.hrx::double_operator/input.scss    component value is expected
 ERROR    spec/values/calculation/calc/error/syntax.hrx::hash/input.scss    component value is expected
-ERROR    spec/values/calculation/calc/error/syntax.hrx::interpolation/line_noise/input.scss    component value is expected
+ERROR    spec/values/calculation/calc/error/syntax.hrx::interpolation/line_noise/input.scss    expect token `<ident>`, but found `{`
 ERROR    spec/values/calculation/calc/error/syntax.hrx::leading_operator/input.scss    component value is expected
 ERROR    spec/values/calculation/calc/error/syntax.hrx::trailing_operator/input.scss    component value is expected
 ERROR    spec/values/calculation/calc/error/syntax.hrx::unknown_operator/input.scss    component value is expected
@@ -328,7 +296,6 @@ ERROR    spec/values/calculation/pow.hrx::error/sass_script/input.scss    compon
 ERROR    spec/values/calculation/pow.hrx::error/syntax/invalid_arg/input.scss    component value is expected
 ERROR    spec/values/calculation/rem.hrx::error/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/rem.hrx::error/syntax/invalid_arg/input.scss    component value is expected
-ERROR    spec/values/calculation/round/error.hrx::one_argument/sass_script/variable_named_argument/input.scss    component value is expected
 ERROR    spec/values/calculation/round/error.hrx::one_argument/syntax/invalid_arg/input.scss    component value is expected
 ERROR    spec/values/calculation/round/error.hrx::two_argument/sass_script/input.scss    component value is expected
 ERROR    spec/values/calculation/sign.hrx::error/sass_script/input.scss    component value is expected

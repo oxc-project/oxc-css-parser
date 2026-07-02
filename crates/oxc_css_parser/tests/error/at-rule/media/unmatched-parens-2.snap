@@ -1,10 +1,8 @@
 ---
 source: crates/oxc_css_parser/tests/error.rs
 ---
-error: expect token `{`, but found `(`
+error: expect token `<ident>`, but found `(`
   ┌─ unmatched-parens-2.css:1:8
   │
 1 │ @media (missing: bracket {
   │        ^
-
-
