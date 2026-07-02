@@ -2,7 +2,6 @@ use super::{Parser, state::QualifiedRuleContext};
 use crate::{
     Parse, Syntax,
     ast::*,
-    eat,
     error::{Error, ErrorKind, PResult},
     expect,
     pos::{Span, Spanned},
@@ -47,7 +46,7 @@ impl<'a> Parser<'a> {
         allow_modulo: bool,
     ) -> PResult<ComponentValue<'a>> {
         let mut left = if precedence >= PRECEDENCE_MULTIPLY {
-            if eat!(self, LParen).is_some() {
+            if self.cursor.eat_l_paren()?.is_some() {
                 let expr = self.parse_calc_expr(allow_modulo)?;
                 expect!(self, RParen);
                 expr
@@ -639,13 +638,13 @@ impl<'a> Parser<'a> {
                         continue;
                     };
                     if matches!(self.syntax, Syntax::Scss | Syntax::Sass) {
-                        if let Some((_, mut span)) = eat!(self, DotDotDot) {
+                        if let Some((_, mut span)) = self.cursor.eat_dot_dot_dot()? {
                             span.start = value.span().start;
                             values.push(ComponentValue::SassArbitraryArgument(
                                 SassArbitraryArgument { value: self.alloc(value), span },
                             ));
                         } else if let ComponentValue::SassVariable(sass_var) = value {
-                            if let Some((_, colon_span)) = eat!(self, Colon) {
+                            if let Some((_, colon_span)) = self.cursor.eat_colon()? {
                                 let value = self.parse::<ComponentValue>()?;
                                 let span =
                                     Span { start: sass_var.span.start, end: value.span().end };

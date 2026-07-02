@@ -2,7 +2,6 @@ use super::Parser;
 use crate::{
     Parse, Syntax,
     ast::*,
-    eat,
     error::{Error, ErrorKind, PResult},
     expect, expect_without_ws_or_comments,
     pos::{Span, Spanned},
@@ -322,7 +321,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
             } => {
                 let ident = input.parse::<InterpolableIdent>()?;
                 let ident_span = ident.span();
-                if let Some((_, bar_token_span)) = eat!(input, Bar) {
+                if let Some((_, bar_token_span)) = input.cursor.eat_bar()? {
                     let name = input.parse::<InterpolableIdent>()?;
                     let name_span = name.span();
 
@@ -678,7 +677,7 @@ impl<'a> Parse<'a> for CompoundSelectorList<'a> {
 
         let mut selectors = input.vec1(first);
         let mut comma_spans = input.vec();
-        while let Some((_, comma_span)) = eat!(input, Comma) {
+        while let Some((_, comma_span)) = input.cursor.eat_comma()? {
             comma_spans.push(comma_span);
             input.eat_sass_line_continuation()?;
             selectors.push(input.parse()?);
@@ -765,7 +764,7 @@ impl<'a> Parse<'a> for LanguageRangeList<'a> {
 
         let mut ranges = input.vec1(first);
         let mut comma_spans = input.vec();
-        while let Some((_, comma_span)) = eat!(input, Comma) {
+        while let Some((_, comma_span)) = input.cursor.eat_comma()? {
             comma_spans.push(comma_span);
             ranges.push(input.parse()?);
         }
@@ -1083,7 +1082,7 @@ impl<'a> Parse<'a> for RelativeSelectorList<'a> {
 
         let mut selectors = input.vec1(first);
         let mut comma_spans = input.vec();
-        while let Some((_, comma_span)) = eat!(input, Comma) {
+        while let Some((_, comma_span)) = input.cursor.eat_comma()? {
             comma_spans.push(comma_span);
             selectors.push(input.parse()?);
         }
@@ -1107,13 +1106,13 @@ impl<'a> Parse<'a> for SelectorList<'a> {
         let mut comma_spans = input.vec();
 
         let is_css = input.syntax == Syntax::Css;
-        while let Some((_, comma_span)) = eat!(input, Comma) {
+        while let Some((_, comma_span)) = input.cursor.eat_comma()? {
             span.end = comma_span.end;
             comma_spans.push(comma_span);
             // legacy corpora carry doubled/trailing commas (`div,, span,, {`);
             // absorb the extras in SCSS like libsass did
             if input.syntax == Syntax::Scss {
-                while let Some((_, comma_span)) = eat!(input, Comma) {
+                while let Some((_, comma_span)) = input.cursor.eat_comma()? {
                     span.end = comma_span.end;
                     comma_spans.push(comma_span);
                 }

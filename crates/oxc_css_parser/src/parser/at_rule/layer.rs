@@ -2,7 +2,6 @@ use super::Parser;
 use crate::{
     Parse,
     ast::*,
-    eat,
     error::{Error, PResult},
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
@@ -17,7 +16,7 @@ impl<'a> Parse<'a> for LayerNames<'a> {
 
         let mut names = input.vec1(first);
         let mut comma_spans = input.vec();
-        while let Some((_, comma_span)) = eat!(input, Comma) {
+        while let Some((_, comma_span)) = input.cursor.eat_comma()? {
             comma_spans.push(comma_span);
             names.push(input.parse()?);
         }

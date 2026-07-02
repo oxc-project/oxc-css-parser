@@ -6,7 +6,6 @@ use crate::{
     Parse,
     ast::*,
     config::Syntax,
-    eat,
     error::{Error, ErrorKind, PResult},
     expect, expect_without_ws_or_comments,
     pos::{Span, Spanned},
@@ -471,7 +470,7 @@ impl<'a> Parser<'a> {
     ) -> PResult<(oxc_allocator::Vec<'a, SassFlag<'a>>, Option<usize>)> {
         let mut flags: oxc_allocator::Vec<'a, SassFlag<'a>> = self.vec_with_capacity(1);
         let mut end = None;
-        while let Some((_, exclamation_span)) = eat!(self, Exclamation) {
+        while let Some((_, exclamation_span)) = self.cursor.eat_exclamation()? {
             let keyword = self.parse::<Ident>()?;
             let keyword_span = keyword.span.clone();
             util::assert_no_ws_or_comment(&exclamation_span, &keyword_span)?;
@@ -595,14 +594,14 @@ impl<'a> Parser<'a> {
                 }
                 _ => {
                     let value = self.parse_maybe_sass_list(/* allow_comma */ false)?;
-                    if let Some((_, span)) = eat!(self, DotDotDot) {
+                    if let Some((_, span)) = self.cursor.eat_dot_dot_dot()? {
                         let span = Span { start: value.span().start, end: span.end };
                         values.push(ComponentValue::SassArbitraryArgument(SassArbitraryArgument {
                             value: self.alloc(value),
                             span,
                         }));
                     } else if let ComponentValue::SassVariable(sass_var) = value {
-                        if let Some((_, colon_span)) = eat!(self, Colon) {
+                        if let Some((_, colon_span)) = self.cursor.eat_colon()? {
                             let value = self.parse_maybe_sass_list(/* allow_comma */ false)?;
                             let span = Span { start: sass_var.span.start, end: value.span().end };
                             values.push(ComponentValue::SassKeywordArgument(SassKeywordArgument {
@@ -642,18 +641,18 @@ impl<'a> Parser<'a> {
                 let item = self.parse_sass_module_config_item(allow_overridable)?;
                 let mut items = self.vec1(item);
                 let mut comma_spans = self.vec();
-                if let Some((_, span)) = eat!(self, RParen) {
+                if let Some((_, span)) = self.cursor.eat_r_paren()? {
                     end = span.end;
                 } else {
                     comma_spans.push(expect!(self, Comma).1);
                     loop {
-                        if let Some((_, span)) = eat!(self, RParen) {
+                        if let Some((_, span)) = self.cursor.eat_r_paren()? {
                             end = span.end;
                             break;
                         }
 
                         items.push(self.parse_sass_module_config_item(allow_overridable)?);
-                        if let Some((_, span)) = eat!(self, RParen) {
+                        if let Some((_, span)) = self.cursor.eat_r_paren()? {
                             end = span.end;
                             break;
                         } else {
@@ -701,7 +700,7 @@ impl<'a> Parser<'a> {
         let mut comma_spans = self.vec();
         let end;
         loop {
-            if let Some((_, span)) = eat!(self, RParen) {
+            if let Some((_, span)) = self.cursor.eat_r_paren()? {
                 end = span.end;
                 break;
             }
@@ -733,7 +732,7 @@ impl<'a> Parser<'a> {
                 Token::DotDotDot(..) => {
                     let span = Span { start: name.span().start, end: token_with_span.span.end };
                     arbitrary_parameter = Some(SassArbitraryParameter { name, span });
-                    if let Some((_, comma_span)) = eat!(self, Comma) {
+                    if let Some((_, comma_span)) = self.cursor.eat_comma()? {
                         comma_spans.push(comma_span);
                     }
                     end = expect!(self, RParen).1.end;
@@ -752,7 +751,7 @@ impl<'a> Parser<'a> {
                     });
                 }
             }
-            if let Some((_, span)) = eat!(self, RParen) {
+            if let Some((_, span)) = self.cursor.eat_r_paren()? {
                 end = span.end;
                 break;
             } else {
@@ -901,7 +900,7 @@ impl<'a> Parse<'a> for SassEach<'a> {
         loop {
             // the comma may sit on a continuation line (`@each $a\n  , $b in ...`)
             input.eat_sass_line_continuation()?;
-            let Some((_, comma_span)) = eat!(input, Comma) else { break };
+            let Some((_, comma_span)) = input.cursor.eat_comma()? else { break };
             comma_spans.push(comma_span);
             input.eat_sass_line_continuation()?;
             bindings.push(input.parse()?);
@@ -928,7 +927,7 @@ impl<'a> Parse<'a> for SassExtend<'a> {
         let start = selectors.span.start;
         let mut end = selectors.span.end;
 
-        let optional = if let Some((_, exclamation_span)) = eat!(input, Exclamation) {
+        let optional = if let Some((_, exclamation_span)) = input.cursor.eat_exclamation()? {
             let (keyword, keyword_span) = expect_without_ws_or_comments!(input, Ident);
             if keyword.name().eq_ignore_ascii_case("optional") {
                 end = keyword_span.end;
@@ -1025,7 +1024,7 @@ impl<'a> Parse<'a> for SassForward<'a> {
                         }
                         _ => members.push(input.parse().map(SassForwardMember::Variable)?),
                     }
-                    if let Some((_, span)) = eat!(input, Comma) {
+                    if let Some((_, span)) = input.cursor.eat_comma()? {
                         comma_spans.push(span);
                     } else {
                         break;
@@ -1052,7 +1051,7 @@ impl<'a> Parse<'a> for SassForward<'a> {
                         }
                         _ => members.push(input.parse().map(SassForwardMember::Variable)?),
                     }
-                    if let Some((_, span)) = eat!(input, Comma) {
+                    if let Some((_, span)) = input.cursor.eat_comma()? {
                         comma_spans.push(span);
                     } else {
                         break;
@@ -1117,7 +1116,7 @@ impl<'a> Parse<'a> for SassIfAtRule<'a> {
             // (Linebreak tokens exist only in the indented syntax, so the
             // rollback snapshot is needed only when one is present.)
             fn else_keyword<'a>(p: &mut Parser<'a>) -> PResult<(Span, bool)> {
-                while eat!(p, Linebreak).is_some() {}
+                while p.cursor.eat_linebreak()?.is_some() {}
                 let is_else = match &p.cursor.peek()?.token {
                     Token::AtKeyword(at_keyword) => match &*at_keyword.ident.name() {
                         "else" => true,
@@ -1179,7 +1178,7 @@ impl<'a> Parse<'a> for SassImportPrelude<'a> {
 
         let mut paths = input.vec1(first);
         let mut comma_spans = input.vec();
-        while let Some((_, comma_span)) = eat!(input, Comma) {
+        while let Some((_, comma_span)) = input.cursor.eat_comma()? {
             comma_spans.push(comma_span);
             paths.push(input.parse()?);
         }
@@ -1428,7 +1427,7 @@ impl<'a> Parse<'a> for SassNestingDeclaration<'a> {
 impl<'a> Parse<'a> for SassParenthesizedExpression<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let start = expect!(input, LParen).1.start;
-        eat!(input, Indent);
+        input.cursor.eat_indent()?;
         let expr = input
             .with_state(ParserState {
                 sass_ctx: input.state.sass_ctx | SASS_CTX_ALLOW_DIV | SASS_CTX_IN_PARENS,
@@ -1528,7 +1527,7 @@ impl<'a> Parse<'a> for SassVariableDeclaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
 
-        let namespace = if let Some((ident_token, span)) = eat!(input, Ident) {
+        let namespace = if let Some((ident_token, span)) = input.cursor.eat_ident()? {
             let (_, dot_span) = expect!(input, Dot);
             util::assert_no_ws_or_comment(&span, &dot_span)?;
             let TokenWithSpan { span: next_span, .. } = input.cursor.peek()?;

@@ -6,7 +6,6 @@ use crate::{
     Parse,
     ast::*,
     config::Syntax,
-    eat,
     error::{Error, ErrorKind, PResult},
     expect, expect_without_ws_or_comments,
     pos::{Span, Spanned},
@@ -162,7 +161,7 @@ impl<'a> Parser<'a> {
                 }
                 Token::Ident(ident) if ident.raw == "not" => {
                     let Span { start, .. } = self.cursor.bump()?.span;
-                    let (condition, end) = if eat!(self, LParen).is_some() {
+                    let (condition, end) = if self.cursor.eat_l_paren()?.is_some() {
                         self.parse_less_guard_paren_condition(needs_parens)?
                     } else {
                         // less.js also accepts a bare operand: `when not @a`
@@ -869,7 +868,7 @@ impl<'a> Parse<'a> for LessExtendList<'a> {
 
         let mut elements = input.vec1(first);
         let mut comma_spans = input.vec();
-        while let Some((_, comma_span)) = eat!(input, Comma) {
+        while let Some((_, comma_span)) = input.cursor.eat_comma()? {
             comma_spans.push(comma_span);
             elements.push(input.parse()?);
         }
@@ -1020,7 +1019,7 @@ impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
 
 impl<'a> Parse<'a> for LessJavaScriptSnippet<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let tilde = eat!(input, Tilde);
+        let tilde = input.cursor.eat_tilde()?;
         let (token, span) = expect!(input, BacktickCode);
 
         Ok(LessJavaScriptSnippet {
@@ -1113,7 +1112,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
         let callee = input.parse::<LessMixinCallee>()?;
 
         let mut end = callee.span.end;
-        let args = if let Some((_, lparen_span)) = eat!(input, LParen) {
+        let args = if let Some((_, lparen_span)) = input.cursor.eat_l_paren()? {
             let mut semicolon_comes_at = 0;
             let mut args = input.vec();
             let mut comma_spans = input.vec();
@@ -1168,7 +1167,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                                 }
                             }
                         };
-                        if let Some((_, colon_span)) = eat!(input, Colon) {
+                        if let Some((_, colon_span)) = input.cursor.eat_colon()? {
                             let value = if matches!(input.cursor.peek()?.token, Token::LBrace(..)) {
                                 input.parse().map(ComponentValue::LessDetachedRuleset)?
                             } else {
@@ -1183,7 +1182,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                                 value,
                                 span,
                             }));
-                        } else if let Some((_, dotdotdot_span)) = eat!(input, DotDotDot) {
+                        } else if let Some((_, dotdotdot_span)) = input.cursor.eat_dot_dot_dot()? {
                             // unlike definitions, call-site spreads may appear
                             // anywhere and repeat: `.m(@x..., @a: 0)`,
                             // `.aa(@y, @x..., and again, @y...)`
@@ -1285,7 +1284,7 @@ impl<'a> Parser<'a> {
                         name: None,
                         span,
                     }));
-                    eat!(self, Semicolon);
+                    self.cursor.eat_semicolon()?;
                     (_, rparen_span) = expect!(self, RParen);
                     break;
                 }
@@ -1320,7 +1319,7 @@ impl<'a> Parser<'a> {
                         }
                     };
                     let name_span = name.span();
-                    if let Some((_, colon_span)) = eat!(self, Colon) {
+                    if let Some((_, colon_span)) = self.cursor.eat_colon()? {
                         let value = if matches!(self.cursor.peek()?.token, Token::LBrace(..)) {
                             self.parse().map(ComponentValue::LessDetachedRuleset)?
                         } else {
@@ -1341,13 +1340,13 @@ impl<'a> Parser<'a> {
                             value: Some(default_value),
                             span,
                         }));
-                    } else if let Some((_, Span { end, .. })) = eat!(self, DotDotDot) {
+                    } else if let Some((_, Span { end, .. })) = self.cursor.eat_dot_dot_dot()? {
                         let span = Span { start: name_span.start, end };
                         params.push(LessMixinParameter::Variadic(LessMixinVariadicParameter {
                             name: Some(name),
                             span,
                         }));
-                        if let Some((_, semicolon_span)) = eat!(self, Semicolon) {
+                        if let Some((_, semicolon_span)) = self.cursor.eat_semicolon()? {
                             semicolon_spans.push(semicolon_span);
                         };
                         (_, rparen_span) = expect!(self, RParen);
@@ -1449,7 +1448,9 @@ impl<'a> Parse<'a> for LessMixinCallee<'a> {
             span: span.clone(),
         });
         loop {
-            let combinator = eat!(input, GreaterThan)
+            let combinator = input
+                .cursor
+                .eat_greater_than()?
                 .map(|(_, span)| Combinator { kind: CombinatorKind::Child, span });
             let at_name = {
                 let TokenWithSpan { token, span } = input.cursor.peek()?;
@@ -1646,7 +1647,7 @@ impl<'a> Parse<'a> for LessPlugin<'a> {
 
         let mut start = None;
 
-        let args = if let Some((_, span)) = eat!(input, LParen) {
+        let args = if let Some((_, span)) = input.cursor.eat_l_paren()? {
             start = Some(span.start);
             let args = input.parse_tokens_in_parens()?;
             expect!(input, RParen);

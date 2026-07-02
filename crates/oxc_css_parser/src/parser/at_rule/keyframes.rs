@@ -2,7 +2,6 @@ use super::Parser;
 use crate::{
     Parse,
     ast::*,
-    eat,
     error::{Error, ErrorKind, PResult},
     parser::state::ParserState,
     pos::{Span, Spanned},
@@ -19,7 +18,7 @@ impl<'a> Parse<'a> for KeyframeBlock<'a> {
         let mut selectors = input.vec_with_capacity(2);
         selectors.push(first_selector);
         let mut comma_spans = input.vec();
-        while let Some((_, comma_span)) = eat!(input, Comma) {
+        while let Some((_, comma_span)) = input.cursor.eat_comma()? {
             comma_spans.push(comma_span);
             selectors.push(input.parse()?);
         }

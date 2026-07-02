@@ -72,19 +72,3 @@ macro_rules! expect_without_ws_or_comments {
         }
     }};
 }
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! eat {
-    ($parser:expr, $variant:ident) => {{
-        use $crate::tokenizer::{Token, TokenWithSpan};
-        let token_with_span = $parser.cursor.bump()?;
-        match token_with_span {
-            TokenWithSpan { token: Token::$variant(token), span } => Some((token, span)),
-            value => {
-                $parser.cursor.cached_token = Some(value);
-                None
-            }
-        }
-    }};
-}
