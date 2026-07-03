@@ -3,7 +3,6 @@ use crate::{
     Parse,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
@@ -99,22 +98,22 @@ impl<'a> Parse<'a> for QueryInParens<'a> {
                 let size_feature = input.parse()?;
                 QueryInParensKind::SizeFeature(input.alloc(size_feature))
             };
-            let (_, Span { end, .. }) = expect!(input, RParen);
+            let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
             Ok(QueryInParens { kind, span: Span { start, end } })
         } else {
-            let (style_keyword, ident_span) = expect!(input, Ident);
+            let (style_keyword, ident_span) = input.cursor.expect_ident()?;
             let keyword = style_keyword.name();
             if keyword.eq_ignore_ascii_case("style") {
                 input.cursor.expect_l_paren_without_ws_or_comments()?;
                 let kind = input.parse().map(QueryInParensKind::StyleQuery)?;
-                let (_, Span { end, .. }) = expect!(input, RParen);
+                let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
                 Ok(QueryInParens { kind, span: Span { start: ident_span.start, end } })
             } else if keyword.eq_ignore_ascii_case("scroll-state") {
                 // https://drafts.csswg.org/css-conditional-5/#scroll-state-container
                 input.cursor.expect_l_paren_without_ws_or_comments()?;
                 let media = input.parse()?;
                 let kind = QueryInParensKind::ScrollState(input.alloc(media));
-                let (_, Span { end, .. }) = expect!(input, RParen);
+                let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
                 Ok(QueryInParens { kind, span: Span { start: ident_span.start, end } })
             } else {
                 Err(Error { kind: ErrorKind::ExpectStyleQuery, span: ident_span })
@@ -210,9 +209,9 @@ impl<'a> Parse<'a> for StyleConditionOr<'a> {
 
 impl<'a> Parse<'a> for StyleInParens<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, Span { start, .. }) = expect!(input, LParen);
+        let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
         let kind = input.parse()?;
-        let (_, Span { end, .. }) = expect!(input, RParen);
+        let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
         Ok(StyleInParens { kind, span: Span { start, end } })
     }
 }

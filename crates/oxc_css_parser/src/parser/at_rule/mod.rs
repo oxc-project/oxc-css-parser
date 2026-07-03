@@ -3,7 +3,6 @@ use crate::{
     Parse, Syntax,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect,
     pos::{Span, Spanned},
     tokenizer::Token,
 };
@@ -26,7 +25,7 @@ mod supports;
 
 impl<'a> Parse<'a> for AtRule<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (at_keyword, at_keyword_span) = expect!(input, AtKeyword);
+        let (at_keyword, at_keyword_span) = input.cursor.expect_at_keyword()?;
 
         let at_rule_name = at_keyword.ident.name();
         let (prelude, block, end) = if at_rule_name.eq_ignore_ascii_case("media") {

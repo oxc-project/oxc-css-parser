@@ -4,7 +4,6 @@ use crate::{
     ast::*,
     config::Syntax,
     error::PResult,
-    expect,
     pos::{Span, Spanned},
     tokenizer::Token,
 };
@@ -23,7 +22,7 @@ impl<'a> Parse<'a> for PostcssSimpleVarDeclaration<'a> {
         debug_assert!(input.syntax == Syntax::Css && input.options.allow_postcss_simple_vars);
 
         let name = input.parse::<PostcssSimpleVar>()?;
-        let (_, colon_span) = expect!(input, Colon);
+        let (_, colon_span) = input.cursor.expect_colon()?;
         let mut value = input.parse_declaration_value()?;
         // postcss-simple-vars is textual substitution; `!important` is just part
         // of the value, not a structural declaration modifier (unlike CSS's

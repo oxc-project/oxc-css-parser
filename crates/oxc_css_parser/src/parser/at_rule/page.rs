@@ -3,7 +3,6 @@ use crate::{
     Parse,
     ast::*,
     error::PResult,
-    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
     util,
@@ -66,7 +65,7 @@ impl<'a> Parse<'a> for PageSelectorList<'a> {
 
 impl<'a> Parse<'a> for PseudoPage<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, colon_span) = expect!(input, Colon);
+        let (_, colon_span) = input.cursor.expect_colon()?;
         let name = input.parse::<InterpolableIdent>()?;
 
         let name_span = name.span();
