@@ -62,7 +62,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
             };
             name_prefix = Some((span.start, '#'));
             let name = if hash.escaped {
-                crate::util::handle_escape_in(hash.raw, input.allocator())
+                crate::util::handle_escape_in(hash.raw, input.allocator)
             } else {
                 hash.raw
             };
