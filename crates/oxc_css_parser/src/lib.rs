@@ -165,7 +165,6 @@ pub use config::{ParserOptions, Syntax, TemplatePlaceholder};
 pub use oxc_allocator::Allocator;
 pub use parser::{Parse, Parser, ParserBuilder};
 pub use pos::{Span, Spanned};
-pub use span_ignored_eq::SpanIgnoredEq;
 pub use tokenizer::token;
 
 pub mod ast;
@@ -173,6 +172,5 @@ mod config;
 pub mod error;
 mod parser;
 pub mod pos;
-mod span_ignored_eq;
 mod tokenizer;
 mod util;
