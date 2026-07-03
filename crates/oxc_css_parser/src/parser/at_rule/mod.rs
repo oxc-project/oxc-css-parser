@@ -126,7 +126,28 @@ impl<'a> Parse<'a> for AtRule<'a> {
                     (prelude.span.end, AtRulePrelude::Import(input.alloc(prelude)))
                 }
                 Syntax::Scss | Syntax::Sass => {
-                    if let Ok(prelude) = input.try_parse(ImportPrelude::parse) {
+                    // A multi-path import (`@import 'a', 'b';`) is
+                    // Sass-specific and must win over `ImportPrelude`'s
+                    // lenient raw-modifiers tail so each path stays typed.
+                    // Claim it only on a full-prelude match with more than
+                    // one path: a single path keeps the standard
+                    // `ImportPrelude` shape, and any unparsed tail
+                    // (`@import 'a', 'b' screen;`) falls through to
+                    // `ImportPrelude`'s leniency.
+                    let multi_path = input.try_parse(|parser| {
+                        let prelude = parser.try_parse_full_prelude(SassImportPrelude::parse)?;
+                        if prelude.paths.len() > 1 {
+                            Ok(prelude)
+                        } else {
+                            Err(Error {
+                                kind: ErrorKind::TryParseError,
+                                span: prelude.span.clone(),
+                            })
+                        }
+                    });
+                    if let Ok(prelude) = multi_path {
+                        (prelude.span.end, AtRulePrelude::SassImport(prelude))
+                    } else if let Ok(prelude) = input.try_parse(ImportPrelude::parse) {
                         (prelude.span.end, AtRulePrelude::Import(input.alloc(prelude)))
                     } else {
                         let prelude = input.parse::<SassImportPrelude>()?;
