@@ -3,7 +3,7 @@ use crate::{
     Parse,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect, expect_without_ws_or_comments,
+    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
@@ -105,13 +105,13 @@ impl<'a> Parse<'a> for QueryInParens<'a> {
             let (style_keyword, ident_span) = expect!(input, Ident);
             let keyword = style_keyword.name();
             if keyword.eq_ignore_ascii_case("style") {
-                expect_without_ws_or_comments!(input, LParen);
+                input.cursor.expect_l_paren_without_ws_or_comments()?;
                 let kind = input.parse().map(QueryInParensKind::StyleQuery)?;
                 let (_, Span { end, .. }) = expect!(input, RParen);
                 Ok(QueryInParens { kind, span: Span { start: ident_span.start, end } })
             } else if keyword.eq_ignore_ascii_case("scroll-state") {
                 // https://drafts.csswg.org/css-conditional-5/#scroll-state-container
-                expect_without_ws_or_comments!(input, LParen);
+                input.cursor.expect_l_paren_without_ws_or_comments()?;
                 let media = input.parse()?;
                 let kind = QueryInParensKind::ScrollState(input.alloc(media));
                 let (_, Span { end, .. }) = expect!(input, RParen);

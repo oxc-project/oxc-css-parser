@@ -7,7 +7,7 @@ use crate::{
     ast::*,
     config::Syntax,
     error::{Error, ErrorKind, PResult},
-    expect, expect_without_ws_or_comments,
+    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
     util,
@@ -928,7 +928,8 @@ impl<'a> Parse<'a> for SassExtend<'a> {
         let mut end = selectors.span.end;
 
         let optional = if let Some((_, exclamation_span)) = input.cursor.eat_exclamation()? {
-            let (keyword, keyword_span) = expect_without_ws_or_comments!(input, Ident);
+            let (keyword, keyword_span) =
+                input.cursor.expect_ident_without_ws_or_comments(false)?;
             if keyword.name().eq_ignore_ascii_case("optional") {
                 end = keyword_span.end;
                 let span = Span { start: exclamation_span.start, end: keyword_span.end };
@@ -1000,7 +1001,8 @@ impl<'a> Parse<'a> for SassForward<'a> {
                 let TokenWithSpan { span: as_span, .. } = input.cursor.bump()?;
                 input.eat_sass_line_continuation()?;
                 let name = input.parse()?;
-                let (_, Span { end, .. }) = expect_without_ws_or_comments!(input, Asterisk);
+                let (_, Span { end, .. }) =
+                    input.cursor.expect_asterisk_without_ws_or_comments()?;
                 let span = Span { start: as_span.start, end };
                 Some(SassForwardPrefix { as_span, name, span })
             }
