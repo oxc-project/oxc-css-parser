@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.4...oxc-css-parser-v0.0.5) - 2026-07-03
+
+### Fixed
+
+- *(parser)* formatter v0.0.4 update follow-ups ([#85](https://github.com/oxc-project/oxc-css-parser/pull/85))
+
+### Other
+
+- *(parser)* annotate every grammar production with its spec grammar ([#83](https://github.com/oxc-project/oxc-css-parser/pull/83))
+
 ## [0.0.4](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.3...oxc-css-parser-v0.0.4) - 2026-07-03
 
 ### Added
