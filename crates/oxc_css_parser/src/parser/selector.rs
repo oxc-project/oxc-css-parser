@@ -1221,8 +1221,12 @@ impl<'a> Parse<'a> for SimpleSelector<'a> {
             TokenWithSpan { token: Token::Ampersand(..), .. } => {
                 input.parse().map(SimpleSelector::Nesting)
             }
+            // Css too: postcss-extend-rule uses Sass-style placeholders in
+            // plain CSS (`%thick-border {}` + `@extend %thick-border;`), and
+            // postcss parses `%x` as an ordinary selector. A selector-position
+            // `%` is invalid per spec, so accepting it is purely additive.
             TokenWithSpan { token: Token::Percent(..), .. }
-                if matches!(input.syntax, Syntax::Scss | Syntax::Sass) =>
+                if matches!(input.syntax, Syntax::Scss | Syntax::Sass | Syntax::Css) =>
             {
                 input.parse().map(SimpleSelector::SassPlaceholder)
             }

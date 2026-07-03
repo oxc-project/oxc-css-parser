@@ -723,7 +723,11 @@ impl<'a> Parser<'a> {
                         is_block_element = true;
                     }
                 }
-                Token::Percent(..) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
+                // Css too: postcss-extend-rule's `%thick-border {}`
+                // (see the placeholder arm in `SimpleSelector`'s parser).
+                Token::Percent(..)
+                    if matches!(self.syntax, Syntax::Scss | Syntax::Sass | Syntax::Css) =>
+                {
                     statements.push(Statement::QualifiedRule(self.parse()?));
                     is_block_element = true;
                 }

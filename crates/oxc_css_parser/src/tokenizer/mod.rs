@@ -583,30 +583,34 @@ impl<'a> Tokenizer<'a> {
                 }
             }
         }
-        if !is_start_with_dot {
-            let chars = self.state.chars.clone();
-            match self.state.chars.peek() {
-                // next token can be a `DotDotDot` token
-                Some((_, '.')) if !matches!(chars.clone().nth(1), Some((_, '.'))) => {
-                    // bump '.'
-                    self.state.chars.next();
-                    loop {
-                        match self.state.chars.peek() {
-                            Some((_, c)) if c.is_ascii_digit() => {
-                                self.state.chars.next();
-                            }
-                            Some((i, _)) => {
-                                end = *i;
-                                break;
-                            }
-                            None => {
-                                end = self.source.len();
-                                break;
-                            }
+        if !is_start_with_dot && matches!(self.state.chars.peek(), Some((_, '.'))) {
+            // Length of the dot run right after the digits decides who owns
+            // the first `.`:
+            // - 1 dot: a fraction (possibly empty: `50.` is one number)
+            // - 2-3 dots: leave them all (`..`; a `...` spread marker)
+            // - 4 dots: `50....` is `50.` + `...` — the number takes the
+            //   first dot (postcss lexes the word `50.`) and a spread marker
+            //   still follows, e.g. `rgba(50 50 50 50....)`
+            // (capped at 5: any longer run behaves like 2-3)
+            let dot_run = self.state.chars.clone().take(5).take_while(|(_, c)| *c == '.').count();
+            if dot_run == 1 || dot_run == 4 {
+                // bump '.'
+                self.state.chars.next();
+                loop {
+                    match self.state.chars.peek() {
+                        Some((_, c)) if c.is_ascii_digit() => {
+                            self.state.chars.next();
+                        }
+                        Some((i, _)) => {
+                            end = *i;
+                            break;
+                        }
+                        None => {
+                            end = self.source.len();
+                            break;
                         }
                     }
                 }
-                _ => {}
             }
         }
 

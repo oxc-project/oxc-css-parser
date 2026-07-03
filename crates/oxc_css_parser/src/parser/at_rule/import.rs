@@ -65,6 +65,9 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
             // Reference compilers accept arbitrary import modifiers (idents,
             // unknown functions, media-ish parens, further comma-chained
             // imports); keep the whole tail as raw component values.
+            // NOTE: Scss/Sass multi-path imports (`@import 'a', 'b';`) never
+            // get here — the at-rule dispatch claims them as
+            // `SassImportPrelude` before trying `ImportPrelude`.
             Err(_) => {
                 let start = input.cursor.peek()?.span.start;
                 let values = input.parse_declaration_value_tokens(true)?;
