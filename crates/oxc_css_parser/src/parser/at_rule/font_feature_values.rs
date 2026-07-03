@@ -1,7 +1,10 @@
 use super::Parser;
 use crate::{Parse, ast::*, error::PResult, tokenizer::Token};
 
-// https://drafts.csswg.org/css-fonts/Overview.bs
+// https://drafts.csswg.org/css-fonts/#typedef-family-name
+//
+// @font-feature-values <family-name># { ... }
+// <family-name> = <string> | <custom-ident>+
 impl<'a> Parse<'a> for FontFamilyName<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match &input.cursor.peek()?.token {

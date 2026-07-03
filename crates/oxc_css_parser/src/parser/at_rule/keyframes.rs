@@ -10,6 +10,8 @@ use crate::{
 };
 
 // https://drafts.csswg.org/css-animations/#keyframes
+//
+// <keyframe-block> = <keyframe-selector># { <declaration-list> }
 impl<'a> Parse<'a> for KeyframeBlock<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first_selector = input.parse::<KeyframeSelector>()?;
@@ -33,6 +35,7 @@ impl<'a> Parse<'a> for KeyframeBlock<'a> {
     }
 }
 
+// <keyframe-selector> = from | to | <percentage [0,100]>
 impl<'a> Parse<'a> for KeyframeSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match &input.cursor.peek()?.token {
@@ -58,6 +61,9 @@ impl<'a> Parse<'a> for KeyframeSelector<'a> {
 }
 
 // https://drafts.csswg.org/css-animations/#keyframes
+//
+// @keyframes <keyframes-name> { <rule-list> }
+// <keyframes-name> = <custom-ident> | <string>   (not a CSS-wide keyword)
 impl<'a> Parse<'a> for KeyframesName<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match &input.cursor.peek()?.token {

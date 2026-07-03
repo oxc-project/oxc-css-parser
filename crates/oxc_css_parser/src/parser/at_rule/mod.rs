@@ -23,6 +23,13 @@ mod page;
 mod scope;
 mod supports;
 
+// https://drafts.csswg.org/css-syntax-3/#consume-at-rule
+//
+// <at-rule> = <at-keyword-token> <component-value>* [ <{}-block> | ; ]
+//
+// This dispatches on the at-keyword name to a typed prelude/block grammar; each
+// rule's grammar is documented in its own module (see the `mod` list above).
+// Unrecognized names fall back to raw component values (`parse_unknown_at_rule`).
 impl<'a> Parse<'a> for AtRule<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (at_keyword, at_keyword_span) = input.cursor.expect_at_keyword()?;
@@ -624,6 +631,9 @@ impl<'a> Parser<'a> {
         Ok(UnknownAtRulePrelude::TokenSeq(TokenSeq { tokens, span }))
     }
 
+    // The generic `<at-rule>` for a name with no typed grammar: an arbitrary
+    // prelude of component values, then an optional `{}`-block or a `;`.
+    // https://drafts.csswg.org/css-syntax-3/#consume-at-rule
     pub(super) fn parse_unknown_at_rule(
         &mut self,
     ) -> PResult<(Option<UnknownAtRulePrelude<'a>>, Option<SimpleBlock<'a>>, Option<usize>)> {
@@ -652,6 +662,8 @@ impl<'a> Parser<'a> {
         Ok((prelude, block, end))
     }
 
+    // The prelude of an unknown at-rule: raw `<component-value>*` up to the body
+    // `{` or the statement boundary.
     fn parse_unknown_at_rule_prelude(&mut self) -> PResult<Option<UnknownAtRulePrelude<'a>>> {
         if let Ok(prelude) = self.try_parse(|parser| {
             let mut tokens = parser.vec();

@@ -7,6 +7,7 @@ use crate::{
     tokenizer::{Token, TokenWithSpan},
 };
 
+// <media-and> = and <media-in-parens>
 impl<'a> Parse<'a> for MediaAnd<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let keyword = input.parse::<Ident>()?;
@@ -20,6 +21,8 @@ impl<'a> Parse<'a> for MediaAnd<'a> {
     }
 }
 
+// The `and`-led tail after a <media-type> (top-level `or` not allowed here):
+// [ and <media-condition-without-or> ]
 impl<'a> Parse<'a> for MediaConditionAfterMediaType<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let and: Ident = match input.cursor.bump()? {
@@ -42,6 +45,11 @@ impl<'a> Parse<'a> for MediaConditionAfterMediaType<'a> {
     }
 }
 
+// https://www.w3.org/TR/mediaqueries-4/#mq-features
+//
+// <media-feature> = ( [ <mf-plain> | <mf-boolean> | <mf-range> ] )
+// <mf-plain>   = <mf-name> : <mf-value>
+// <mf-boolean> = <mf-name>
 impl<'a> Parse<'a> for MediaFeature<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.parse_media_feature_value()? {
@@ -81,6 +89,7 @@ impl<'a> Parse<'a> for MediaFeature<'a> {
     }
 }
 
+// <mf-comparison> = '<' | '>' | '<=' | '>=' | '='
 impl<'a> Parse<'a> for MediaFeatureComparison {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.bump()? {
@@ -110,6 +119,7 @@ impl<'a> Parse<'a> for MediaFeatureComparison {
     }
 }
 
+// <media-in-parens> = ( <media-condition> ) | <media-feature> | <general-enclosed>
 impl<'a> Parse<'a> for MediaInParens<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         // Sass allows an interpolation wherever `<media-in-parens>` is expected,
@@ -132,6 +142,7 @@ impl<'a> Parse<'a> for MediaInParens<'a> {
     }
 }
 
+// The contents inside the parens: ( <media-condition> ) | <media-feature> | <general-enclosed>
 impl<'a> Parse<'a> for MediaInParensKind<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if let Ok(media_condition) = input.try_parse(|parser| {
@@ -168,6 +179,7 @@ impl<'a> Parse<'a> for MediaInParensKind<'a> {
     }
 }
 
+// <media-not> = not <media-in-parens>
 impl<'a> Parse<'a> for MediaNot<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let keyword = input.parse::<Ident>()?;
@@ -181,6 +193,7 @@ impl<'a> Parse<'a> for MediaNot<'a> {
     }
 }
 
+// <media-or> = or <media-in-parens>
 impl<'a> Parse<'a> for MediaOr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let keyword = input.parse::<Ident>()?;
@@ -194,6 +207,10 @@ impl<'a> Parse<'a> for MediaOr<'a> {
     }
 }
 
+// https://www.w3.org/TR/mediaqueries-4/#mq-syntax
+//
+// <media-query> = <media-condition>
+//               | [ not | only ]? <media-type> [ and <media-condition-without-or> ]?
 impl<'a> Parse<'a> for MediaQuery<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if let Ok(condition_only) = input.try_parse(|parser| {
@@ -228,6 +245,8 @@ impl<'a> Parse<'a> for MediaQuery<'a> {
 }
 
 // https://www.w3.org/TR/mediaqueries-4/#mq-syntax
+//
+// <media-query-list> = <media-query>#
 impl<'a> Parse<'a> for MediaQueryList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<MediaQuery>()?;
@@ -250,6 +269,8 @@ impl<'a> Parse<'a> for MediaQueryList<'a> {
     }
 }
 
+// [ not | only ]? <media-type> [ and <media-condition-without-or> ]?
+// <media-type> = <ident>   (not `only` / `not` / `and` / `or` / `layer`)
 impl<'a> Parse<'a> for MediaQueryWithType<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let modifier = if let Token::Ident(ident) = &input.cursor.peek()?.token {
@@ -318,6 +339,8 @@ impl<'a> Parser<'a> {
         self.parse()
     }
 
+    // <media-condition>            = <media-not> | <media-in-parens> [ <media-and>* | <media-or>* ]
+    // <media-condition-without-or> = <media-not> | <media-in-parens> <media-and>*   (allow_or = false)
     fn parse_media_condition(
         &mut self,
         allow_or: bool,
@@ -370,6 +393,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // <mf-plain> = <mf-name> : <mf-value>
     fn parse_media_feature_plain(
         &mut self,
         ident: InterpolableIdent<'a>,
@@ -380,6 +404,9 @@ impl<'a> Parser<'a> {
         Ok(MediaFeaturePlain { name: MediaFeatureName::Ident(ident), colon_span, value, span })
     }
 
+    // <mf-range> = <mf-name>  <mf-comparison> <mf-value>                             (range)
+    //            | <mf-value> <mf-comparison> <mf-name>                             (range)
+    //            | <mf-value> <mf-comparison> <mf-name> <mf-comparison> <mf-value>  (interval)
     fn parse_media_feature_range_or_range_interval(
         &mut self,
         left: ComponentValue<'a>,
@@ -434,6 +461,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // <mf-value> = <number> | <dimension> | <ident> | <ratio>
     fn parse_media_feature_value(&mut self) -> PResult<ComponentValue<'a>> {
         let value = match self.syntax {
             Syntax::Css => self.parse_component_value_atom()?,
@@ -453,6 +481,8 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // The `[ not | only ]? <media-type> …` branch of <media-query>; a media type
+    // glued to `(` is also accepted as a function form (`screen(...)`, used by Less).
     fn parse_media_query_with_type_or_function(&mut self) -> PResult<MediaQuery<'a>> {
         let media_query_with_type = self.parse::<MediaQueryWithType>()?;
         match (media_query_with_type, self.cursor.peek()?) {

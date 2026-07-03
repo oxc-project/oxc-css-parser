@@ -8,6 +8,12 @@ use crate::{
 };
 
 // https://www.w3.org/TR/css-cascade-5/#at-import
+//
+// @import [ <url> | <string> ]
+//         [ layer | layer( <layer-name> ) ]?
+//         <import-conditions> ;
+// <import-conditions> = [ supports( [ <supports-condition> | <declaration> ] ) ]?
+//                       <media-query-list>?
 impl<'a> Parse<'a> for ImportPrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         // The indented syntax accepts an unquoted path (`@import other.css`),

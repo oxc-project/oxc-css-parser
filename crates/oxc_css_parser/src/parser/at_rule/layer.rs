@@ -9,6 +9,9 @@ use crate::{
 };
 
 // https://drafts.csswg.org/css-cascade-5/#layering
+//
+// @layer <layer-name># ;                (statement form)
+// @layer <layer-name>? { <rule-list> }  (block form)
 impl<'a> Parse<'a> for LayerNames<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<LayerName>()?;
@@ -29,6 +32,8 @@ impl<'a> Parse<'a> for LayerNames<'a> {
 }
 
 // https://drafts.csswg.org/css-cascade-5/#layer-names
+//
+// <layer-name> = <ident> [ '.' <ident> ]*
 impl<'a> Parse<'a> for LayerName<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<InterpolableIdent>()?;

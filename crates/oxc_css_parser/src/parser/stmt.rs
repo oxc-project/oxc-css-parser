@@ -10,6 +10,9 @@ use crate::{
     tokenizer::{Token, TokenWithSpan},
 };
 
+// https://drafts.csswg.org/css-syntax-3/#consume-declaration
+//
+// <declaration> = <ident-token> : <declaration-value>? [ '!' important ]?
 impl<'a> Parse<'a> for Declaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         // Legacy IE hacks glued to the property name: `*color: red` targets
@@ -236,6 +239,7 @@ fn at_declaration_value_end(token: &Token) -> bool {
     )
 }
 
+// <important> = '!' important
 impl<'a> Parse<'a> for ImportantAnnotation<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, span) = input.cursor.expect_exclamation()?;
@@ -250,6 +254,11 @@ impl<'a> Parse<'a> for ImportantAnnotation<'a> {
     }
 }
 
+// https://drafts.csswg.org/css-syntax-3/#consume-qualified-rule
+//
+// <qualified-rule> = <prelude> <{}-block>
+// In a style context the prelude is a selector list:
+//   <style-rule> = <selector-list> { <style-block> }
 impl<'a> Parse<'a> for QualifiedRule<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let selector_list = input
@@ -264,6 +273,10 @@ impl<'a> Parse<'a> for QualifiedRule<'a> {
     }
 }
 
+// https://drafts.csswg.org/css-syntax-3/#consume-simple-block
+//
+// <simple-block> = '{' <block-contents> '}'
+// (Sass indented syntax substitutes Indent/Dedent for the braces.)
 impl<'a> Parse<'a> for SimpleBlock<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let is_sass = input.syntax == Syntax::Sass;
@@ -325,6 +338,9 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
     }
 }
 
+// https://drafts.csswg.org/css-syntax-3/#parse-a-stylesheet
+//
+// <stylesheet> = <rule-list>
 impl<'a> Parse<'a> for Stylesheet<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let statements = input.parse_statements(/* is_top_level */ true)?;
@@ -334,10 +350,12 @@ impl<'a> Parse<'a> for Stylesheet<'a> {
 }
 
 impl<'a> Parser<'a> {
-    /// Consume a declaration value as raw tokens (CSS Syntax "preserved
+    /// `<declaration-value>` consumed as raw tokens (CSS Syntax "preserved
     /// tokens"), balancing `()`/`[]`/`{}` pairs, until a top-level `;`, an
     /// unbalanced closer, or a statement boundary. Used for custom-property
     /// values and as the fallback for CSS values the typed grammar rejects.
+    ///
+    /// <https://drafts.csswg.org/css-syntax-3/#typedef-declaration-value>
     ///
     /// `stop_at_top_level_brace` implements the CSS Nesting disambiguation: a
     /// `{` at the top level of a normal declaration's value means the whole
@@ -378,6 +396,8 @@ impl<'a> Parser<'a> {
         Ok(values)
     }
 
+    // The typed form of `<declaration-value>`: a list of `<component-value>` up to
+    // the declaration terminator (`;`, `!`, `}`, or a statement boundary).
     pub(super) fn parse_declaration_value(
         &mut self,
     ) -> PResult<oxc_allocator::Vec<'a, ComponentValue<'a>>> {
@@ -420,9 +440,12 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parse a qualified rule, falling back to a declaration when the `foo: bar`
-    /// vs `foo { }` prelude is ambiguous. Returns the statement and whether it
-    /// opened a block (for the caller's `is_block_element`).
+    /// The CSS Nesting `<style-block>` ambiguity: parse a qualified rule, falling
+    /// back to a declaration when the `foo: bar` vs `foo { }` prelude is
+    /// ambiguous. Returns the statement and whether it opened a block (for the
+    /// caller's `is_block_element`).
+    ///
+    /// <https://drafts.csswg.org/css-nesting-1/#syntax>
     fn parse_rule_or_declaration(&mut self, is_top_level: bool) -> PResult<(Statement<'a>, bool)> {
         match self.try_parse(QualifiedRule::parse) {
             Ok(rule) => Ok((Statement::QualifiedRule(rule), true)),
@@ -455,6 +478,10 @@ impl<'a> Parser<'a> {
         self.with_state(ParserState { allow_ie_star_hack: true, ..self.state.clone() }).parse()
     }
 
+    // Block contents: a mix of declarations, nested style rules and at-rules
+    // (CSS Syntax `<block-contents>`; `is_top_level` selects the `<stylesheet>`
+    // rule-list, which has no declarations).
+    // https://drafts.csswg.org/css-syntax-3/#consume-block-contents
     fn parse_statements(
         &mut self,
         is_top_level: bool,

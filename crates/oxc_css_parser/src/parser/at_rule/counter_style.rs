@@ -7,6 +7,8 @@ use crate::{
 
 // https://www.w3.org/TR/css-counter-styles-3/#the-counter-style-rule
 impl<'a> Parser<'a> {
+    // @counter-style <counter-style-name> { <declaration-list> }
+    // <counter-style-name> = <custom-ident>  (excludes CSS-wide keywords and `none`)
     pub(super) fn parse_counter_style_prelude(&mut self) -> PResult<InterpolableIdent<'a>> {
         let ident = self.parse()?;
         match &ident {

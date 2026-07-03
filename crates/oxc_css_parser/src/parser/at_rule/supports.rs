@@ -8,6 +8,10 @@ use crate::{
 };
 
 // https://drafts.csswg.org/css-conditional-3/#at-supports
+//
+// <supports-condition> = not <supports-in-parens>
+//                      | <supports-in-parens> [ and <supports-in-parens> ]*
+//                      | <supports-in-parens> [ or <supports-in-parens> ]*
 impl<'a> Parse<'a> for SupportsCondition<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match &input.cursor.peek()?.token {
@@ -61,6 +65,11 @@ impl<'a> Parse<'a> for SupportsCondition<'a> {
     }
 }
 
+// https://drafts.csswg.org/css-conditional-3/#typedef-supports-in-parens
+//
+// <supports-in-parens> = ( <supports-condition> )
+//                      | <supports-feature>
+//                      | <general-enclosed>
 impl<'a> Parse<'a> for SupportsInParens<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.peek()? {
@@ -165,6 +174,10 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
     }
 }
 
+// https://drafts.csswg.org/css-conditional-3/#typedef-supports-feature
+//
+// <supports-feature> = <supports-decl>
+// <supports-decl>    = ( <declaration> )
 impl<'a> Parse<'a> for SupportsDecl<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let start = input.cursor.expect_l_paren()?.1.start;
