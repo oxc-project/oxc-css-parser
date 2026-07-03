@@ -95,13 +95,6 @@ pub struct TokenWithSpan<'s> {
     pub span: Span,
 }
 
-impl crate::pos::Spanned for TokenWithSpan<'_> {
-    #[inline]
-    fn span(&self) -> &Span {
-        &self.span
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(Serialize))]
 #[cfg_attr(feature = "serialize", serde(tag = "kind", rename_all = "camelCase"))]

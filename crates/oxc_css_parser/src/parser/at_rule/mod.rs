@@ -674,7 +674,7 @@ impl<'a> Parser<'a> {
                 }
             }
             if let Some((first, last)) = tokens.first().zip(tokens.last()) {
-                let span = Span { start: first.span().start, end: last.span().end };
+                let span = Span { start: first.span.start, end: last.span.end };
                 Ok(Some(UnknownAtRulePrelude::TokenSeq(TokenSeq { tokens, span })))
             } else {
                 Ok(None)
