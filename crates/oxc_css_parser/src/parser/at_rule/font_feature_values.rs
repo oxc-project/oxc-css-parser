@@ -1,5 +1,5 @@
 use super::Parser;
-use crate::{Parse, Spanned, ast::*, error::PResult, tokenizer::Token};
+use crate::{Parse, ast::*, error::PResult, tokenizer::Token};
 
 // https://drafts.csswg.org/css-fonts/Overview.bs
 impl<'a> Parse<'a> for FontFamilyName<'a> {

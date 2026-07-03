@@ -7,7 +7,7 @@ use crate::{
     ast::*,
     config::Syntax,
     error::{Error, ErrorKind, PResult},
-    pos::{Span, Spanned},
+    pos::Span,
     tokenizer::{Token, TokenWithSpan},
     util,
 };

@@ -1,12 +1,5 @@
 use super::Parser;
-use crate::{
-    Parse,
-    ast::*,
-    config::Syntax,
-    error::PResult,
-    pos::{Span, Spanned},
-    tokenizer::Token,
-};
+use crate::{Parse, ast::*, config::Syntax, error::PResult, pos::Span, tokenizer::Token};
 
 impl<'a> Parse<'a> for PostcssSimpleVar<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {

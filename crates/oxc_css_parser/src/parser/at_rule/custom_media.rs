@@ -1,11 +1,5 @@
 use super::Parser;
-use crate::{
-    Parse,
-    ast::*,
-    error::PResult,
-    pos::{Span, Spanned},
-    tokenizer::Token,
-};
+use crate::{Parse, ast::*, error::PResult, pos::Span, tokenizer::Token};
 
 // https://www.w3.org/TR/mediaqueries-5/#custom-mq
 impl<'a> Parse<'a> for CustomMedia<'a> {

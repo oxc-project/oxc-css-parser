@@ -4,7 +4,7 @@ use crate::{
     ast::*,
     error::{Error, ErrorKind, PResult},
     parser::state::ParserState,
-    pos::{Span, Spanned},
+    pos::Span,
     tokenizer::Token,
     util,
 };
