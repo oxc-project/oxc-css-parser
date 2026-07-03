@@ -200,25 +200,45 @@ impl<'a> Parser<'a> {
                         if matches!(self.syntax, Syntax::Scss | Syntax::Sass)
                             && span.start == ident_end =>
                     {
-                        if let InterpolableIdent::Literal(module) = ident {
-                            let name = self.parse_sass_qualified_name(module)?;
-                            return if let SassQualifiedName {
-                                member: SassModuleMemberName::Ident(..),
-                                ..
-                            } = name
-                            {
-                                let (_, lparen_span) = self.cursor.expect_l_paren()?;
-                                util::assert_no_ws_or_comment(&name.span, &lparen_span)?;
-                                let args = self.parse_function_args()?;
-                                let (_, Span { end, .. }) = self.cursor.expect_r_paren()?;
-                                let span = Span { start: name.span.start, end };
-                                Ok(ComponentValue::Function(Function {
-                                    name: FunctionName::SassQualifiedName(self.alloc(name)),
-                                    args,
-                                    span,
-                                }))
-                            } else {
-                                Ok(ComponentValue::SassQualifiedName(self.alloc(name)))
+                        if let InterpolableIdent::Literal(module) = &ident {
+                            let module = Ident {
+                                name: module.name,
+                                raw: module.raw,
+                                span: module.span.clone(),
+                            };
+                            // A namespaced member is `foo.$var` or a glued
+                            // call `foo.bar(...)`.
+                            let qualified = self.try_parse(|parser| {
+                                let name = parser.parse_sass_qualified_name(module)?;
+                                if let SassQualifiedName {
+                                    member: SassModuleMemberName::Ident(..),
+                                    ..
+                                } = name
+                                {
+                                    let (_, lparen_span) = parser.cursor.expect_l_paren()?;
+                                    util::assert_no_ws_or_comment(&name.span, &lparen_span)?;
+                                    let args = parser.parse_function_args()?;
+                                    let (_, Span { end, .. }) = parser.cursor.expect_r_paren()?;
+                                    let span = Span { start: name.span.start, end };
+                                    Ok(ComponentValue::Function(Function {
+                                        name: FunctionName::SassQualifiedName(parser.alloc(name)),
+                                        args,
+                                        span,
+                                    }))
+                                } else {
+                                    Ok(ComponentValue::SassQualifiedName(parser.alloc(name)))
+                                }
+                            });
+                            return match qualified {
+                                Ok(value) => Ok(value),
+                                // `foo.bar` with no call: dart-sass rejects a
+                                // plain ident member at compile time, but
+                                // postcss-scss lexes the dotted run as ONE
+                                // word (xstyled / tailwind-theme tokens).
+                                // Keep the plain ident; the `.ident` tail
+                                // parses as raw tokens (the Css-mode shape)
+                                // via the `Token::Dot` atom arm.
+                                Err(_) => Ok(ComponentValue::InterpolableIdent(ident)),
                             };
                         }
                     }
@@ -320,6 +340,22 @@ impl<'a> Parser<'a> {
             }
             Token::Dot(..) if self.syntax == Syntax::Less => {
                 self.parse_less_maybe_mixin_call_or_with_lookups()
+            }
+            // Not Sass on its own — dart-sass has no bare `.` in values — but
+            // the ident atom declines the namespaced parse for postcss-word
+            // runs like `foo.bar.baz` (xstyled / tailwind-theme tokens),
+            // whose `.` then lands here. Accept it when glued to a following
+            // ident, keeping the Css-mode raw-token shape.
+            Token::Dot(..) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
+                let dot = self.cursor.bump()?;
+                match self.cursor.peek()? {
+                    TokenWithSpan { token: Token::Ident(..), span }
+                        if span.start == dot.span.end =>
+                    {
+                        Ok(ComponentValue::TokenWithSpan(dot))
+                    }
+                    _ => Err(Error { kind: ErrorKind::ExpectComponentValue, span: dot.span }),
+                }
             }
             Token::StrTemplate(..) if self.syntax == Syntax::Less => self
                 .parse()
