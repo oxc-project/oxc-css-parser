@@ -23,7 +23,6 @@ default = []
 codspeed = ["criterion2/codspeed"]
 config_serde = ["serde"]
 serialize = ["serde", "oxc_allocator/serialize"]
-span_ignored_eq = []
 
 [[bench]]
 name = "self"
