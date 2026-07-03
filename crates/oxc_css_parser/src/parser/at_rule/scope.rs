@@ -7,6 +7,7 @@ use crate::{
     tokenizer::{Token, TokenWithSpan},
 };
 
+// to ( <scope-end> ) where <scope-end> = <selector-list>
 impl<'a> Parse<'a> for ScopeEnd<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let to_span = match input.cursor.bump()? {
@@ -30,6 +31,10 @@ impl<'a> Parse<'a> for ScopeEnd<'a> {
 }
 
 // https://drafts.csswg.org/css-cascade-6/#scope-syntax
+//
+// @scope [ ( <scope-start> ) ]? [ to ( <scope-end> ) ]? { <block-contents> }
+// <scope-start> = <selector-list>
+// <scope-end>   = <selector-list>
 impl<'a> Parse<'a> for ScopePrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let start = if let Token::LParen(..) = input.cursor.peek()?.token {
@@ -59,6 +64,7 @@ impl<'a> Parse<'a> for ScopePrelude<'a> {
     }
 }
 
+// ( <scope-start> ) where <scope-start> = <selector-list>
 impl<'a> Parse<'a> for ScopeStart<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;

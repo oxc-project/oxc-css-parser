@@ -8,6 +8,8 @@ use crate::{
 };
 
 impl<'a> Parser<'a> {
+    // The raw `( <any-value> )` body of a <general-enclosed>: balanced tokens up
+    // to the matching `)`. https://www.w3.org/TR/mediaqueries-4/#typedef-general-enclosed
     pub(super) fn parse_tokens_in_parens(&mut self) -> PResult<TokenSeq<'a>> {
         let start = self.cursor.tokenizer.current_offset();
         let mut tokens = self.vec_with_capacity(1);

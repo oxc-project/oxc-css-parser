@@ -2,6 +2,9 @@ use super::Parser;
 use crate::{Parse, ast::*, error::PResult};
 
 // https://developer.mozilla.org/en-US/docs/Web/CSS/@document
+//
+// Non-standard (dropped from css-conditional); a comma-separated matcher list:
+// @document <matcher> [ , <matcher> ]* { <rule-list> }
 impl<'a> Parse<'a> for DocumentPrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<DocumentPreludeMatcher>()?;
@@ -22,6 +25,9 @@ impl<'a> Parse<'a> for DocumentPrelude<'a> {
     }
 }
 
+// <matcher> = <url>
+//           | url-prefix( <string> ) | domain( <string> )
+//           | media-document( <string> ) | regexp( <string> )
 impl<'a> Parse<'a> for DocumentPreludeMatcher<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if let Ok(url) = input.try_parse(Url::parse) {

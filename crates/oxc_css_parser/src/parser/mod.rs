@@ -613,6 +613,8 @@ impl<'a> Parser<'a> {
         Ident { name: self.ident_name(&token), raw: token.raw, span }
     }
 
+    // A `$`-prefixed variable name: '$' <ident>  (Sass variables, Less property
+    // accessors, postcss-simple-vars).
     pub(super) fn parse_dollar_var_ident(&mut self) -> PResult<(Ident<'a>, Span)> {
         let (dollar_var, span) = self.cursor.expect_dollar_var()?;
         let name = self.ident(dollar_var.ident, Span { start: span.start + 1, end: span.end });

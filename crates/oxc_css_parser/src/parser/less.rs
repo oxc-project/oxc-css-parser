@@ -20,6 +20,8 @@ const PRECEDENCE_MULTIPLY: u8 = 2;
 const PRECEDENCE_PLUS: u8 = 1;
 
 impl<'a> Parser<'a> {
+    // A guard condition: <condition> [ [ and | or ] <condition> ]*  (right-assoc)
+    // https://lesscss.org/features/#mixin-guards-feature
     pub(super) fn parse_less_condition(
         &mut self,
         needs_parens: bool,
@@ -27,6 +29,8 @@ impl<'a> Parser<'a> {
         self.parse_less_condition_recursively(needs_parens, 0)
     }
 
+    // <condition-atom> = <value> [ <comparison> <value> ]?
+    // <comparison> = '>' | '>=' | '<' | '<=' | '=' | '=<' | '=>'
     fn parse_less_condition_atom(&mut self) -> PResult<LessCondition<'a>> {
         let left =
             self.parse_less_operation(/* allow_mixin_call */ false).map(LessCondition::Value)?;
@@ -105,6 +109,7 @@ impl<'a> Parser<'a> {
         Ok((condition, end))
     }
 
+    // A guard operand inside `( … )`: a nested <condition> or a <condition-atom>.
     fn parse_less_condition_inside_parens(
         &mut self,
         needs_parens: bool,
@@ -143,6 +148,8 @@ impl<'a> Parser<'a> {
         .or_else(|_| self.parse_less_condition_atom())
     }
 
+    // Precedence-climbing worker for guards: `or` looser than `and`; a leaf is
+    // ( <condition> ) | not <condition-atom> | <condition-atom>.
     fn parse_less_condition_recursively(
         &mut self,
         needs_parens: bool,
@@ -221,6 +228,8 @@ impl<'a> Parser<'a> {
         Ok(left)
     }
 
+    // An identifier interleaving static parts with `@{ <name> }` / `${ <name> }`
+    // interpolation. https://lesscss.org/features/#variables-feature-variable-interpolation
     pub(super) fn parse_less_interpolated_ident(&mut self) -> PResult<InterpolableIdent<'a>> {
         debug_assert_eq!(self.syntax, Syntax::Less);
 
@@ -275,6 +284,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    // The static/`@{…}`/`${…}` element sequence after an interpolated ident's first part.
     pub(super) fn parse_less_interpolated_ident_rest(
         &mut self,
         end: &mut usize,
@@ -313,6 +323,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // <mixin-call> [ <lookups> ]?   (a mixin call, optionally with `[...]` lookups)
     pub(super) fn parse_less_maybe_mixin_call_or_with_lookups(
         &mut self,
     ) -> PResult<ComponentValue<'a>> {
@@ -330,6 +341,8 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // <variable> [ '(' ')' | <lookups> ]?   (a variable, a detached-ruleset call,
+    // or a variable with `[...]` map lookups)
     pub(super) fn parse_less_maybe_variable_or_with_lookups(
         &mut self,
     ) -> PResult<ComponentValue<'a>> {
@@ -357,6 +370,8 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // A Less arithmetic operation: <value> [ [ '+' | '-' | '*' | '/' ] <value> ]*
+    // ('*' / '/' bind tighter than '+' / '-'). https://lesscss.org/functions/#math
     pub(super) fn parse_less_operation(
         &mut self,
         allow_mixin_call: bool,
@@ -364,6 +379,7 @@ impl<'a> Parser<'a> {
         self.parse_less_operation_recursively(allow_mixin_call, 0)
     }
 
+    // Precedence-climbing worker for `parse_less_operation`.
     fn parse_less_operation_recursively(
         &mut self,
         allow_mixin_call: bool,
@@ -579,6 +595,7 @@ impl<'a> Parser<'a> {
         Ok(left)
     }
 
+    // ( <operation> )   (parentheses force math mode on their contents)
     fn parse_less_parenthesized_operation(
         &mut self,
         allow_mixin_call: bool,
@@ -597,6 +614,8 @@ impl<'a> Parser<'a> {
         })
     }
 
+    // A style rule that may carry a guard: <selector-list> [ when <guard> ]? { <block> }
+    // (guards are only allowed on a single-selector rule).
     pub(super) fn parse_less_qualified_rule(&mut self) -> PResult<Statement<'a>> {
         debug_assert_eq!(self.syntax, Syntax::Less);
 
@@ -637,6 +656,7 @@ impl<'a> Parser<'a> {
         Ok(Statement::QualifiedRule(QualifiedRule { selector: selector_list, block, span }))
     }
 
+    // A `#…`-led value that is either a <hex-color> or an id-selector <mixin-call>.
     pub(super) fn parse_maybe_hex_color_or_less_mixin_call(
         &mut self,
     ) -> PResult<ComponentValue<'a>> {
@@ -665,6 +685,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // A Less list: space- or comma-separated values (comma binds looser than space).
     pub(super) fn parse_maybe_less_list(
         &mut self,
         allow_comma: bool,
@@ -753,6 +774,9 @@ impl<'a> Parser<'a> {
     }
 }
 
+// https://lesscss.org/features/#mixin-guards-feature
+//
+// A guard: when <condition> [ , <condition> ]*
 impl<'a> Parse<'a> for LessConditions<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let when_span = match input.cursor.bump()? {
@@ -790,6 +814,9 @@ impl<'a> Parse<'a> for LessConditions<'a> {
     }
 }
 
+// https://lesscss.org/features/#detached-rulesets-feature
+//
+// A detached ruleset (a `{ <block> }` stored in a variable).
 impl<'a> Parse<'a> for LessDetachedRuleset<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let block = input.parse::<SimpleBlock>()?;
@@ -798,6 +825,9 @@ impl<'a> Parse<'a> for LessDetachedRuleset<'a> {
     }
 }
 
+// https://lesscss.org/functions/#string-functions-e
+//
+// An escaped string: '~' <string>   (e.g. `~"raw value"`)
 impl<'a> Parse<'a> for LessEscapedStr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = input.cursor.expect_tilde()?;
@@ -810,6 +840,9 @@ impl<'a> Parse<'a> for LessEscapedStr<'a> {
     }
 }
 
+// https://lesscss.org/features/#extend-feature
+//
+// One extend target inside `:extend(...)`: <complex-selector> [ all ]?
 impl<'a> Parse<'a> for LessExtend<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let mut selector = input.parse::<ComplexSelector>()?;
@@ -851,6 +884,7 @@ impl<'a> Parse<'a> for LessExtend<'a> {
     }
 }
 
+// <less-extend> [ , <less-extend> ]*   (the contents of `:extend(...)`)
 impl<'a> Parse<'a> for LessExtendList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert_eq!(input.syntax, Syntax::Less);
@@ -873,6 +907,7 @@ impl<'a> Parse<'a> for LessExtendList<'a> {
     }
 }
 
+// The selector-attached extend form: '&' :extend( <extend-list> )
 impl<'a> Parse<'a> for LessExtendRule<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let nesting_selector = input.parse::<NestingSelector>()?;
@@ -904,6 +939,8 @@ impl<'a> Parse<'a> for LessExtendRule<'a> {
     }
 }
 
+// The Less `%(…)` string-format function name.
+// https://lesscss.org/functions/#string-functions-format
 impl<'a> Parse<'a> for LessFormatFunction {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, span) = input.cursor.expect_percent()?;
@@ -911,6 +948,9 @@ impl<'a> Parse<'a> for LessFormatFunction {
     }
 }
 
+// https://lesscss.org/features/#import-atrules-feature-import-options
+//
+// ( [ less | css | multiple | once | inline | reference | optional ]# )
 impl<'a> Parse<'a> for LessImportOptions<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
@@ -935,6 +975,7 @@ impl<'a> Parse<'a> for LessImportOptions<'a> {
     }
 }
 
+// @import ( <import-options> ) [ <string> | <url> ] <media-query-list>?
 impl<'a> Parse<'a> for LessImportPrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let options = input.parse::<LessImportOptions>()?;
@@ -958,6 +999,8 @@ impl<'a> Parse<'a> for LessImportPrelude<'a> {
     }
 }
 
+// A quoted string containing `@{ <name> }` / `${ <name> }` interpolation.
+// https://lesscss.org/features/#variables-feature-variable-interpolation
 impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (first, first_span) = input.cursor.expect_str_template()?;
@@ -1007,6 +1050,7 @@ impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
     }
 }
 
+// Inline JavaScript evaluation: '~'? '`' <code> '`'  (deprecated Less feature)
 impl<'a> Parse<'a> for LessJavaScriptSnippet<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let tilde = input.cursor.eat_tilde()?;
@@ -1024,6 +1068,7 @@ impl<'a> Parse<'a> for LessJavaScriptSnippet<'a> {
     }
 }
 
+// The Less `~` function-name marker.
 impl<'a> Parse<'a> for LessListFunction {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, span) = input.cursor.expect_tilde()?;
@@ -1031,6 +1076,9 @@ impl<'a> Parse<'a> for LessListFunction {
     }
 }
 
+// https://lesscss.org/features/#maps-feature
+//
+// A map lookup: '[' <lookup-name>? ']'
 impl<'a> Parse<'a> for LessLookup<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert_eq!(input.syntax, Syntax::Less);
@@ -1046,6 +1094,7 @@ impl<'a> Parse<'a> for LessLookup<'a> {
     }
 }
 
+// <lookup-name> = @<var> | @@<var> | $<prop> | $@<var> | <ident>
 impl<'a> Parse<'a> for LessLookupName<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert_eq!(input.syntax, Syntax::Less);
@@ -1076,6 +1125,7 @@ impl<'a> Parse<'a> for LessLookupName<'a> {
     }
 }
 
+// <lookup>+   (a chain of `[...]` map lookups)
 impl<'a> Parse<'a> for LessLookups<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert_eq!(input.syntax, Syntax::Less);
@@ -1095,6 +1145,9 @@ impl<'a> Parse<'a> for LessLookups<'a> {
     }
 }
 
+// https://lesscss.org/features/#mixins-feature
+//
+// <mixin-callee> [ ( <mixin-args> ) ]? [ !important ]?
 impl<'a> Parse<'a> for LessMixinCall<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert_eq!(input.syntax, Syntax::Less);
@@ -1255,6 +1308,8 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
 }
 
 impl<'a> Parser<'a> {
+    // Declared mixin parameters: ( <parameter> [ [ ',' | ';' ] <parameter> ]* )
+    // <parameter> = <variable> [ ':' <default> ]? | <value> | <variable>... | ...
     fn parse_less_mixin_parameters(&mut self) -> PResult<LessMixinParameters<'a>> {
         let (_, lparen_span) = self.cursor.expect_l_paren()?;
         let rparen_span;
@@ -1427,6 +1482,7 @@ impl<'a> Parser<'a> {
     }
 }
 
+// A (possibly namespaced) mixin path: <mixin-name> [ '>' <mixin-name> ]*
 impl<'a> Parse<'a> for LessMixinCallee<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first_name = input.parse::<LessMixinName>()?;
@@ -1471,6 +1527,7 @@ impl<'a> Parse<'a> for LessMixinCallee<'a> {
     }
 }
 
+// A mixin definition: <mixin-name> ( <parameters> ) [ when <guard> ]? { <block> }
 impl<'a> Parse<'a> for LessMixinDefinition<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert_eq!(input.syntax, Syntax::Less);
@@ -1497,6 +1554,7 @@ impl<'a> Parse<'a> for LessMixinDefinition<'a> {
     }
 }
 
+// <mixin-name> = <class-selector> | <id-selector>   ('.name' or '#name')
 impl<'a> Parse<'a> for LessMixinName<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.bump()? {
@@ -1546,6 +1604,7 @@ impl<'a> Parse<'a> for LessMixinName<'a> {
     }
 }
 
+// <mixin-parameter-name> = @<var> | $<prop>
 impl<'a> Parse<'a> for LessMixinParameterName<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if matches!(input.cursor.peek()?.token, Token::AtKeyword(..)) {
@@ -1556,6 +1615,7 @@ impl<'a> Parse<'a> for LessMixinParameterName<'a> {
     }
 }
 
+// A namespaced value access: <callee> <lookups>   (e.g. `#ns.mixin()[@k]`)
 impl<'a> Parse<'a> for LessNamespaceValue<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let callee = input.parse::<LessNamespaceValueCallee>()?;
@@ -1569,6 +1629,7 @@ impl<'a> Parse<'a> for LessNamespaceValue<'a> {
     }
 }
 
+// <namespace-value-callee> = <less-variable> | <mixin-call>
 impl<'a> Parse<'a> for LessNamespaceValueCallee<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if matches!(input.cursor.peek()?.token, Token::AtKeyword(..)) {
@@ -1579,6 +1640,7 @@ impl<'a> Parse<'a> for LessNamespaceValueCallee<'a> {
     }
 }
 
+// A negated value: '-' [ <variable> | <property-var> | ( <operation> ) ]
 impl<'a> Parse<'a> for LessNegativeValue<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, minus_span) = input.cursor.expect_minus()?;
@@ -1609,6 +1671,7 @@ impl<'a> Parse<'a> for LessNegativeValue<'a> {
     }
 }
 
+// The `%` keyword (e.g. the Less `percentage`/format context).
 impl<'a> Parse<'a> for LessPercentKeyword {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, span) = input.cursor.expect_percent()?;
@@ -1616,6 +1679,9 @@ impl<'a> Parse<'a> for LessPercentKeyword {
     }
 }
 
+// https://lesscss.org/features/#plugin-atrules-feature
+//
+// @plugin [ ( <args> ) ]? <plugin-path>
 impl<'a> Parse<'a> for LessPlugin<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert_eq!(input.syntax, Syntax::Less);
@@ -1639,6 +1705,7 @@ impl<'a> Parse<'a> for LessPlugin<'a> {
     }
 }
 
+// <plugin-path> = <string> | <url>
 impl<'a> Parse<'a> for LessPluginPath<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if let Token::Str(..) = input.cursor.peek()?.token {
@@ -1649,6 +1716,7 @@ impl<'a> Parse<'a> for LessPluginPath<'a> {
     }
 }
 
+// A property-as-variable interpolation: '${' <ident> '}'
 impl<'a> Parse<'a> for LessPropertyInterpolation<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (dollar_lbrace_var, span) = input.cursor.expect_dollar_l_brace_var()?;
@@ -1660,6 +1728,9 @@ impl<'a> Parse<'a> for LessPropertyInterpolation<'a> {
     }
 }
 
+// https://lesscss.org/features/#merge-feature
+//
+// A property-merge flag after a property name: '+' (comma) | '+_' (space)
 impl<'a> Parse<'a> for Option<LessPropertyMerge> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Less | Syntax::Css));
@@ -1678,6 +1749,9 @@ impl<'a> Parse<'a> for Option<LessPropertyMerge> {
     }
 }
 
+// https://lesscss.org/features/#variables-feature-properties-as-variables
+//
+// A property accessor: '$' <ident>
 impl<'a> Parse<'a> for LessPropertyVariable<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (dollar_var, span) = input.cursor.expect_dollar_var()?;
@@ -1688,6 +1762,9 @@ impl<'a> Parse<'a> for LessPropertyVariable<'a> {
     }
 }
 
+// https://lesscss.org/features/#variables-feature
+//
+// A variable reference: '@' <ident>
 impl<'a> Parse<'a> for LessVariable<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (at_keyword, span) = input.cursor.expect_at_keyword()?;
@@ -1698,6 +1775,7 @@ impl<'a> Parse<'a> for LessVariable<'a> {
     }
 }
 
+// A detached-ruleset call: '@' <ident> '(' ')'
 impl<'a> Parse<'a> for LessVariableCall<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let variable = input.parse::<LessVariable>()?;
@@ -1709,6 +1787,7 @@ impl<'a> Parse<'a> for LessVariableCall<'a> {
     }
 }
 
+// A variable declaration: '@' <ident> ':' <value>
 impl<'a> Parse<'a> for LessVariableDeclaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert_eq!(input.syntax, Syntax::Less);
@@ -1767,6 +1846,7 @@ impl<'a> Parse<'a> for LessVariableDeclaration<'a> {
     }
 }
 
+// A variable interpolation: '@{' <ident> '}'
 impl<'a> Parse<'a> for LessVariableInterpolation<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (at_lbrace_var, span) = input.cursor.expect_at_l_brace_var()?;
@@ -1778,6 +1858,7 @@ impl<'a> Parse<'a> for LessVariableInterpolation<'a> {
     }
 }
 
+// A variable-variable (indirection): '@@' <ident>
 impl<'a> Parse<'a> for LessVariableVariable<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, at_span) = input.cursor.expect_at()?;

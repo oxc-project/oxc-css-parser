@@ -9,6 +9,12 @@ use crate::{
 };
 
 // https://www.w3.org/TR/css-syntax-3/#the-anb-type
+//
+// <an+b> = odd | even | <integer>
+//        | <n-dimension>        [ <signed-integer> | [ '+' | '-' ] <signless-integer> ]?
+//        | '+'? n               [ <signed-integer> | [ '+' | '-' ] <signless-integer> ]?
+//        | -n                   [ <signed-integer> | [ '+' | '-' ] <signless-integer> ]?
+//        | <ndashdigit-dimension> | '+'? <ndashdigit-ident> | <dashndashdigit-ident>
 impl<'a> Parse<'a> for AnPlusB {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.peek()? {
@@ -310,6 +316,12 @@ impl<'a> Parse<'a> for AnPlusB {
     }
 }
 
+// https://www.w3.org/TR/selectors-4/#attribute-selectors
+//
+// <attribute-selector> = '[' <wq-name> ']'
+//                      | '[' <wq-name> <attr-matcher> [ <string-token> | <ident-token> ] <attr-modifier>? ']'
+// <attr-matcher>  = [ '~' | '|' | '^' | '$' | '*' ]? '='
+// <attr-modifier> = i | s
 impl<'a> Parse<'a> for AttributeSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let start = input.cursor.expect_l_bracket()?.1.start;
@@ -498,6 +510,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
     }
 }
 
+// <class-selector> = '.' <ident-token>
 impl<'a> Parse<'a> for ClassSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, dot_span) = input.cursor.expect_dot()?;
@@ -535,6 +548,7 @@ impl<'a> Parse<'a> for ClassSelector<'a> {
     }
 }
 
+// <complex-selector> = <compound-selector> [ <combinator>? <compound-selector> ]*
 impl<'a> Parse<'a> for ComplexSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let mut children = input.vec_with_capacity(3);
@@ -615,6 +629,8 @@ impl<'a> Parse<'a> for ComplexSelector<'a> {
     }
 }
 
+// <compound-selector> = [ <type-selector>? <subclass-selector>*
+//                         [ <pseudo-element-selector> <pseudo-class-selector>* ]* ]!
 impl<'a> Parse<'a> for CompoundSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<SimpleSelector>()?;
@@ -670,6 +686,7 @@ impl<'a> Parse<'a> for CompoundSelector<'a> {
     }
 }
 
+// <compound-selector-list> = <compound-selector>#
 impl<'a> Parse<'a> for CompoundSelectorList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<CompoundSelector>()?;
@@ -692,6 +709,7 @@ impl<'a> Parse<'a> for CompoundSelectorList<'a> {
     }
 }
 
+// <id-selector> = <hash-token>
 impl<'a> Parse<'a> for IdSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.bump()? {
@@ -745,6 +763,7 @@ impl<'a> Parse<'a> for IdSelector<'a> {
     }
 }
 
+// A `:lang()` argument: <lang-range> = <ident-token> | <string-token>  (BCP 47 range)
 impl<'a> Parse<'a> for LanguageRange<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match &input.cursor.peek()?.token {
@@ -754,6 +773,7 @@ impl<'a> Parse<'a> for LanguageRange<'a> {
     }
 }
 
+// :lang( <lang-range># )
 impl<'a> Parse<'a> for LanguageRangeList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<LanguageRange>()?;
@@ -774,6 +794,10 @@ impl<'a> Parse<'a> for LanguageRangeList<'a> {
     }
 }
 
+// https://drafts.csswg.org/css-nesting-1/#nest-selector
+//
+// The nesting selector `&`. This parser also accepts a glued ident/interpolation
+// suffix (`&__x`, `&#{$m}`, `&-@{v}`) as used by Sass/Less.
 impl<'a> Parse<'a> for NestingSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, mut span) = input.cursor.expect_ampersand()?;
@@ -816,6 +840,8 @@ impl<'a> Parse<'a> for NestingSelector<'a> {
 }
 
 // https://drafts.csswg.org/selectors-4/#the-nth-child-pseudo
+//
+// The `:nth-child()` argument: <nth> [ of <complex-selector-list> ]?
 impl<'a> Parse<'a> for Nth<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let index = input.parse::<NthIndex>()?;
@@ -833,6 +859,7 @@ impl<'a> Parse<'a> for Nth<'a> {
     }
 }
 
+// <nth> = <an+b> | even | odd   (plus a plain <integer>)
 impl<'a> Parse<'a> for NthIndex<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match &input.cursor.peek()?.token {
@@ -859,6 +886,7 @@ impl<'a> Parse<'a> for NthIndex<'a> {
     }
 }
 
+// of <complex-selector-list>
 impl<'a> Parse<'a> for NthMatcher<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (ident, mut span) = input.cursor.expect_ident()?;
@@ -878,6 +906,10 @@ impl<'a> Parse<'a> for NthMatcher<'a> {
     }
 }
 
+// https://www.w3.org/TR/selectors-4/#pseudo-classes
+//
+// <pseudo-class-selector> = ':' <ident-token>
+//                         | ':' <function-token> <any-value> ')'
 impl<'a> Parse<'a> for PseudoClassSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, colon_span) = input.cursor.expect_colon()?;
@@ -998,6 +1030,10 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
     }
 }
 
+// https://www.w3.org/TR/selectors-4/#pseudo-elements
+//
+// <pseudo-element-selector> = '::' <ident-token>
+//                           | '::' <function-token> <any-value> ')'
 impl<'a> Parse<'a> for PseudoElementSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, colon_colon_span) = input.cursor.expect_colon_colon()?;
@@ -1056,6 +1092,7 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
     }
 }
 
+// <relative-selector> = <combinator>? <complex-selector>
 impl<'a> Parse<'a> for RelativeSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let pos = input.cursor.tokenizer.current_offset();
@@ -1072,6 +1109,7 @@ impl<'a> Parse<'a> for RelativeSelector<'a> {
     }
 }
 
+// <relative-selector-list> = <relative-selector>#
 impl<'a> Parse<'a> for RelativeSelectorList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<RelativeSelector>()?;
@@ -1093,6 +1131,9 @@ impl<'a> Parse<'a> for RelativeSelectorList<'a> {
     }
 }
 
+// https://www.w3.org/TR/selectors-4/#typedef-selector-list
+//
+// <selector-list> = <complex-selector-list> = <complex-selector>#
 impl<'a> Parse<'a> for SelectorList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<ComplexSelector>()?;
@@ -1148,6 +1189,10 @@ impl<'a> Parse<'a> for SelectorList<'a> {
 }
 
 // https://www.w3.org/TR/selectors-4/#ref-for-typedef-simple-selector
+//
+// <simple-selector>   = <type-selector> | <subclass-selector>
+// <subclass-selector> = <id-selector> | <class-selector>
+//                     | <attribute-selector> | <pseudo-class-selector>
 impl<'a> Parse<'a> for SimpleSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.peek()? {
@@ -1197,6 +1242,9 @@ impl<'a> Parse<'a> for SimpleSelector<'a> {
     }
 }
 
+// <type-selector> = <wq-name> | <ns-prefix>? '*'
+// <wq-name>       = <ns-prefix>? <ident-token>
+// <ns-prefix>     = [ <ident-token> | '*' ]? '|'
 impl<'a> Parse<'a> for TypeSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         enum IdentOrAsterisk<'a> {
@@ -1292,6 +1340,9 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
 }
 
 impl<'a> Parser<'a> {
+    // <combinator> = '>' | '+' | '~' | [ '|' '|' ]
+    // An absent combinator between two compounds is the descendant combinator
+    // (whitespace), which this returns as `CombinatorKind::Descendant`.
     fn parse_combinator(&mut self, pos: usize) -> PResult<Option<Combinator>> {
         match self.cursor.peek()? {
             TokenWithSpan {

@@ -7,6 +7,12 @@ use crate::{
     tokenizer::{Token, TokenWithSpan},
 };
 
+// https://drafts.csswg.org/css-conditional-5/#container-queries
+//
+// Spec `<container-query>` — the boolean logic over `<query-in-parens>`
+// (this AST names the node `ContainerCondition`):
+// <container-query> = not <query-in-parens>
+//                   | <query-in-parens> [ [ and <query-in-parens> ]* | [ or <query-in-parens> ]* ]
 impl<'a> Parse<'a> for ContainerCondition<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match &input.cursor.peek()?.token {
@@ -50,6 +56,7 @@ impl<'a> Parse<'a> for ContainerCondition<'a> {
     }
 }
 
+// and <query-in-parens>
 impl<'a> Parse<'a> for ContainerConditionAnd<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let keyword = input.parse::<Ident>()?;
@@ -63,6 +70,7 @@ impl<'a> Parse<'a> for ContainerConditionAnd<'a> {
     }
 }
 
+// not <query-in-parens>
 impl<'a> Parse<'a> for ContainerConditionNot<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let keyword = input.parse::<Ident>()?;
@@ -76,6 +84,7 @@ impl<'a> Parse<'a> for ContainerConditionNot<'a> {
     }
 }
 
+// or <query-in-parens>
 impl<'a> Parse<'a> for ContainerConditionOr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let keyword = input.parse::<Ident>()?;
@@ -89,6 +98,11 @@ impl<'a> Parse<'a> for ContainerConditionOr<'a> {
     }
 }
 
+// <query-in-parens> = ( <container-query> )
+//                   | ( <size-feature> )
+//                   | style( <style-query> )
+//                   | scroll-state( <scroll-state-query> )
+//                   | <general-enclosed>
 impl<'a> Parse<'a> for QueryInParens<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if let Some((_, Span { start, .. })) = input.cursor.eat_l_paren()? {
@@ -122,6 +136,10 @@ impl<'a> Parse<'a> for QueryInParens<'a> {
     }
 }
 
+// https://drafts.csswg.org/css-contain-3/#typedef-style-query
+//
+// <style-condition> = not <style-in-parens>
+//                   | <style-in-parens> [ [ and <style-in-parens> ]* | [ or <style-in-parens> ]* ]
 impl<'a> Parse<'a> for StyleCondition<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match &input.cursor.peek()?.token {
@@ -168,6 +186,7 @@ impl<'a> Parse<'a> for StyleCondition<'a> {
     }
 }
 
+// and <style-in-parens>
 impl<'a> Parse<'a> for StyleConditionAnd<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let ident = input.parse::<Ident>()?;
@@ -181,6 +200,7 @@ impl<'a> Parse<'a> for StyleConditionAnd<'a> {
     }
 }
 
+// not <style-in-parens>
 impl<'a> Parse<'a> for StyleConditionNot<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let keyword = input.parse::<Ident>()?;
@@ -194,6 +214,7 @@ impl<'a> Parse<'a> for StyleConditionNot<'a> {
     }
 }
 
+// or <style-in-parens>
 impl<'a> Parse<'a> for StyleConditionOr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let keyword = input.parse::<Ident>()?;
@@ -207,6 +228,7 @@ impl<'a> Parse<'a> for StyleConditionOr<'a> {
     }
 }
 
+// <style-in-parens> = ( <style-condition> ) | ( <style-feature> ) | <general-enclosed>
 impl<'a> Parse<'a> for StyleInParens<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
@@ -216,6 +238,7 @@ impl<'a> Parse<'a> for StyleInParens<'a> {
     }
 }
 
+// <style-condition> | <style-feature>
 impl<'a> Parse<'a> for StyleInParensKind<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if let Ok(style_condition) = input.try_parse(StyleCondition::parse) {
@@ -226,6 +249,8 @@ impl<'a> Parse<'a> for StyleInParensKind<'a> {
     }
 }
 
+// <style-query> = <style-condition> | <style-feature>
+// (a bare custom-property name, e.g. `style(--theme)`, is a boolean-context <style-feature>)
 impl<'a> Parse<'a> for StyleQuery<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if let Ok(condition) = input.try_parse(StyleCondition::parse) {
@@ -255,6 +280,9 @@ impl<'a> Parse<'a> for StyleQuery<'a> {
 }
 
 // https://drafts.csswg.org/css-contain-3/#container-rule
+//
+// @container <container-name>? <container-query> { <block-contents> }
+// <container-name> = <custom-ident>
 impl<'a> Parse<'a> for ContainerPrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let name = input.try_parse(|parser| match parser.parse()? {

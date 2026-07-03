@@ -39,6 +39,13 @@ impl<'a> Parser<'a> {
         self.parse_calc_expr_recursively(0, allow_modulo)
     }
 
+    // https://drafts.csswg.org/css-values-4/#calc-syntax
+    //
+    // <calc-sum>     = <calc-product> [ [ '+' | '-' ] <calc-product> ]*
+    // <calc-product> = <calc-value>   [ [ '*' | '/' ] <calc-value> ]*
+    // <calc-value>   = <number> | <dimension> | <percentage> | ( <calc-sum> )
+    // Precedence-climbing over the two operator tiers (Sass `%` modulo shares the
+    // '*' tier when `allow_modulo`).
     fn parse_calc_expr_recursively(
         &mut self,
         precedence: u8,
@@ -127,6 +134,9 @@ impl<'a> Parser<'a> {
         Ok(left)
     }
 
+    // A single CSS `<component-value>`: a function, a `[]`/`()` block, or a
+    // preserved token (ident, number, dimension, percentage, string, hash, url, …).
+    // https://drafts.csswg.org/css-syntax-3/#component-value
     pub(super) fn parse_component_value_atom(&mut self) -> PResult<ComponentValue<'a>> {
         let token_with_span = self.cursor.peek()?;
         match &token_with_span.token {
@@ -358,6 +368,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // <dashed-ident> = <ident-token> whose name starts with '--'
     pub(super) fn parse_dashed_ident(&mut self) -> PResult<InterpolableIdent<'a>> {
         let ident = self.parse()?;
         match &ident {
@@ -370,6 +381,7 @@ impl<'a> Parser<'a> {
         Ok(ident)
     }
 
+    // Build a `<function>` from an already-parsed name: '(' <function-args> ')'.
     pub(super) fn parse_function(&mut self, name: InterpolableIdent<'a>) -> PResult<Function<'a>> {
         self.cursor.expect_l_paren()?;
         let args = if let Token::RParen(..) = &self.cursor.peek()?.token {
@@ -593,6 +605,8 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    // A function's argument list: a run of `<component-value>` up to the closing
+    // `)` (commas/`/` are preserved Delimiters).
     pub(super) fn parse_function_args(
         &mut self,
     ) -> PResult<oxc_allocator::Vec<'a, ComponentValue<'a>>> {
@@ -670,6 +684,8 @@ impl<'a> Parser<'a> {
         Ok(values)
     }
 
+    // <ratio> = <number [0,∞]> [ '/' <number [0,∞]> ]?
+    // https://drafts.csswg.org/css-values-4/#ratios
     pub(super) fn parse_ratio(&mut self, numerator: Number<'a>) -> PResult<Ratio<'a>> {
         let (_, solidus_span) = self.cursor.expect_solidus()?;
         let denominator = self.parse::<Number>()?;
@@ -684,6 +700,8 @@ impl<'a> Parser<'a> {
         Ok(Ratio { numerator, solidus_span, denominator, span })
     }
 
+    // The `src()` value function: src( [ <string> ]? <url-modifier>* )
+    // https://drafts.csswg.org/css-values-4/#funcdef-src
     fn parse_src_url(&mut self, name: Ident<'a>) -> PResult<Url<'a>> {
         // caller of `parse_src_url` should make sure there're no whitespaces before paren
         self.cursor.expect_l_paren()?;
@@ -711,6 +729,8 @@ impl<'a> Parser<'a> {
         Ok(Url { name, value, modifiers, span })
     }
 
+    // <urange> = u '+' <ident-token> '?'* | u <dimension-token> '?'* | u <number-token> …
+    // Written `U+0-10FFFF`, `U+4??`, etc. https://drafts.csswg.org/css-syntax-3/#urange-syntax
     fn parse_unicode_range(&mut self, prefix_ident: Ident<'a>) -> PResult<UnicodeRange<'a>> {
         let prefix = prefix_ident.raw.chars().next().unwrap();
         let (span_start, span_end) = match self.cursor.bump()? {
@@ -822,6 +842,8 @@ fn replace_unicode_range_wildcards(source: &str, replacement: char) -> String {
     source.chars().map(|c| if c == '?' { replacement } else { c }).collect()
 }
 
+// A `[]`-block of component values (a `<simple-block>` opened by `[`).
+// https://drafts.csswg.org/css-syntax-3/#simple-block
 impl<'a> Parse<'a> for BracketBlock<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let start = input.cursor.expect_l_bracket()?.1.start;
@@ -837,6 +859,10 @@ impl<'a> Parse<'a> for BracketBlock<'a> {
     }
 }
 
+// https://drafts.csswg.org/css-syntax-3/#component-value
+//
+// <component-value> = <preserved-token> | <function> | <simple-block>
+// (Scss/Sass and Less parse a full operator expression at this position instead.)
 impl<'a> Parse<'a> for ComponentValue<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.syntax {
@@ -849,6 +875,7 @@ impl<'a> Parse<'a> for ComponentValue<'a> {
     }
 }
 
+// A list of `<component-value>` (public entry point; a `;` is kept as a Delimiter).
 impl<'a> Parse<'a> for ComponentValues<'a> {
     /// This is for public-use only. For internal code of oxc-css-parser, **DO NOT** use.
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
@@ -874,6 +901,7 @@ impl<'a> Parse<'a> for ComponentValues<'a> {
     }
 }
 
+// A preserved delimiter token: '/' | ',' | ';'
 impl<'a> Parse<'a> for Delimiter {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         use crate::tokenizer::token::*;
@@ -892,6 +920,7 @@ impl<'a> Parse<'a> for Delimiter {
     }
 }
 
+// <dimension> = <number> <unit>   (a <dimension-token>: length, angle, time, …)
 impl<'a> Parse<'a> for Dimension<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (dimension, span) = input.cursor.expect_dimension()?;
@@ -899,6 +928,9 @@ impl<'a> Parse<'a> for Dimension<'a> {
     }
 }
 
+// https://drafts.csswg.org/css-syntax-3/#function
+//
+// <function> = <function-token> <component-value>* ')'
 impl<'a> Parse<'a> for Function<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let name = input.parse::<FunctionName>()?;
@@ -923,6 +955,8 @@ impl<'a> Parse<'a> for Function<'a> {
     }
 }
 
+// The name before a function's `(`: an <ident-token>. Sass also allows a
+// module-qualified `module.member`; Less adds `%`/`~` function forms.
 impl<'a> Parse<'a> for FunctionName<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.peek()?.token {
@@ -956,6 +990,7 @@ impl<'a> Parse<'a> for FunctionName<'a> {
     }
 }
 
+// <hex-color> = '#' [ 3 | 4 | 6 | 8 hex digits ]   (a <hash-token>)
 impl<'a> Parse<'a> for HexColor<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (token, span) = input.cursor.expect_hash()?;
@@ -965,6 +1000,7 @@ impl<'a> Parse<'a> for HexColor<'a> {
     }
 }
 
+// <ident-token>
 impl<'a> Parse<'a> for Ident<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (ident, span) = input.cursor.expect_ident()?;
@@ -972,6 +1008,8 @@ impl<'a> Parse<'a> for Ident<'a> {
     }
 }
 
+// An <ident-token>, or a preprocessor-interpolated ident (Sass `#{}`, Less `@{}`)
+// / css-in-js placeholder standing in for one.
 impl<'a> Parse<'a> for InterpolableIdent<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         // A css-in-js placeholder stands in for an interpolated ident anywhere one
@@ -998,6 +1036,7 @@ impl<'a> Parse<'a> for InterpolableIdent<'a> {
     }
 }
 
+// A <string-token>, or a Sass/Less interpolated string template.
 impl<'a> Parse<'a> for InterpolableStr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.peek()? {
@@ -1018,6 +1057,7 @@ impl<'a> Parse<'a> for InterpolableStr<'a> {
     }
 }
 
+// <number-token>
 impl<'a> Parse<'a> for Number<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (number, span) = input.cursor.expect_number()?;
@@ -1029,6 +1069,7 @@ impl<'a> Parse<'a> for Number<'a> {
     }
 }
 
+// <percentage> = <percentage-token>   (a <number> immediately followed by '%')
 impl<'a> Parse<'a> for Percentage<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (token, span) = input.cursor.expect_percentage()?;
@@ -1039,6 +1080,7 @@ impl<'a> Parse<'a> for Percentage<'a> {
     }
 }
 
+// <string-token>
 impl<'a> Parse<'a> for Str<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (str, span) = input.cursor.expect_str()?;
@@ -1046,6 +1088,10 @@ impl<'a> Parse<'a> for Str<'a> {
     }
 }
 
+// https://drafts.csswg.org/css-values-4/#urls
+//
+// <url> = url( <string> <url-modifier>* ) | <url-token>
+// (also accepts the Gecko `url-prefix(…)` / `domain(…)` @document matchers)
 impl<'a> Parse<'a> for Url<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (prefix, prefix_span) = input.cursor.expect_ident()?;
@@ -1125,6 +1171,7 @@ impl<'a> Parse<'a> for Url<'a> {
     }
 }
 
+// <url-modifier> = <ident> | <function>
 impl<'a> Parse<'a> for UrlModifier<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let ident = input.parse::<InterpolableIdent>()?;
@@ -1137,6 +1184,7 @@ impl<'a> Parse<'a> for UrlModifier<'a> {
     }
 }
 
+// The unquoted URL body of a <url-token> (raw text up to the closing `)`).
 impl<'a> Parse<'a> for UrlRaw<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.tokenizer.scan_url_raw_or_template()? {

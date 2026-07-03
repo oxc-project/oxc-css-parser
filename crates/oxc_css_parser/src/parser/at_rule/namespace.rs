@@ -2,6 +2,9 @@ use super::Parser;
 use crate::{Parse, ast::*, error::PResult, tokenizer::Token};
 
 // https://www.w3.org/TR/css-namespaces-3/#syntax
+//
+// @namespace <namespace-prefix>? [ <string> | <url> ] ;
+// <namespace-prefix> = <ident>
 impl<'a> Parse<'a> for NamespacePrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let prefix = match &input.cursor.peek()?.token {

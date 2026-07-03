@@ -9,6 +9,8 @@ use crate::{
 };
 
 // https://www.w3.org/TR/css-page-3/#syntax-page-selector
+//
+// <page-selector> = [ <ident-token>? <pseudo-page>* ]!
 impl<'a> Parse<'a> for PageSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let mut name = None;
@@ -44,6 +46,7 @@ impl<'a> Parse<'a> for PageSelector<'a> {
     }
 }
 
+// <page-selector-list> = <page-selector>#
 impl<'a> Parse<'a> for PageSelectorList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<PageSelector>()?;
@@ -63,6 +66,7 @@ impl<'a> Parse<'a> for PageSelectorList<'a> {
     }
 }
 
+// <pseudo-page> = ':' [ left | right | first | blank ]
 impl<'a> Parse<'a> for PseudoPage<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, colon_span) = input.cursor.expect_colon()?;

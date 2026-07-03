@@ -1,6 +1,8 @@
 use super::Parser;
 use crate::{Parse, ast::*, config::Syntax, error::PResult, pos::Span, tokenizer::Token};
 
+// postcss-simple-vars variable reference: `$` <ident>
+// https://github.com/postcss/postcss-simple-vars
 impl<'a> Parse<'a> for PostcssSimpleVar<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(input.syntax == Syntax::Css && input.options.allow_postcss_simple_vars);
@@ -10,6 +12,8 @@ impl<'a> Parse<'a> for PostcssSimpleVar<'a> {
     }
 }
 
+// postcss-simple-vars declaration: `$` <ident> ':' <declaration-value>
+// (textual substitution; a trailing `!important` stays part of the value)
 impl<'a> Parse<'a> for PostcssSimpleVarDeclaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(input.syntax == Syntax::Css && input.options.allow_postcss_simple_vars);

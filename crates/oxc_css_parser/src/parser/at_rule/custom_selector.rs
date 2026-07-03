@@ -1,6 +1,8 @@
 use super::Parser;
 use crate::{Parse, ast::*, error::PResult, pos::Span, tokenizer::Token, util};
 
+// The custom-selector name token `:<ident>` (e.g. `:--heading`), extended here
+// with this parser's optional `$arg` prefix and `(args)` list (PostCSS/Sass).
 impl<'a> Parse<'a> for CustomSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let prefix_arg = if matches!(input.cursor.peek()?.token, Token::DollarVar(..)) {
@@ -33,6 +35,7 @@ impl<'a> Parse<'a> for CustomSelector<'a> {
     }
 }
 
+// A custom-selector argument placeholder: '$' <ident>
 impl<'a> Parse<'a> for CustomSelectorArg<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (dollar_var, dollar_var_span) = input.cursor.expect_dollar_var()?;
@@ -46,6 +49,7 @@ impl<'a> Parse<'a> for CustomSelectorArg<'a> {
     }
 }
 
+// The argument list of a custom selector: '(' <arg> [ , <arg> ]* ')'
 impl<'a> Parse<'a> for CustomSelectorArgs<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
@@ -65,6 +69,9 @@ impl<'a> Parse<'a> for CustomSelectorArgs<'a> {
 }
 
 // https://drafts.csswg.org/css-extensions/#custom-selectors
+//
+// @custom-selector : <extension-name> <selector-list> ;
+// <extension-name> = <dashed-ident>  (spelled with a leading `:`, e.g. `:--heading`)
 impl<'a> Parse<'a> for CustomSelectorPrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let custom_selector = input.parse::<CustomSelector>()?;

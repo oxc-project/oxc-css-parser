@@ -272,6 +272,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    // Sass indented-syntax layout tokens: Indent / Dedent / Linebreak (no CSS equivalent).
     fn scan_indent(&mut self) -> Option<TokenWithSpan<'a>> {
         debug_assert_eq!(self.syntax, Syntax::Sass);
         let mut start = None;
@@ -310,6 +311,8 @@ impl<'a> Tokenizer<'a> {
         Some(TokenWithSpan { token: Token::Eof(Eof {}), span: Span { start: offset, end: offset } })
     }
 
+    // A comment: '/*' ... '*/'
+    // https://drafts.csswg.org/css-syntax-3/#consume-comment
     fn scan_block_comment(&mut self) {
         let (start, c) = self.state.chars.next().unwrap();
         debug_assert_eq!(c, '/');
@@ -342,6 +345,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    // A '//' line comment (Sass/Less; not valid in plain CSS).
     fn scan_line_comment(&mut self) {
         let (start, c) = self.state.chars.next().unwrap();
         debug_assert_eq!(c, '/');
@@ -445,6 +449,8 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    // <ident-sequence> (a run of name code points / escapes).
+    // https://drafts.csswg.org/css-syntax-3/#consume-name
     pub(crate) fn scan_ident_sequence(
         &mut self,
         allow_leading_digit: bool,
@@ -506,6 +512,8 @@ impl<'a> Tokenizer<'a> {
         Ok((Ident { raw, escaped }, Span { start, end }))
     }
 
+    // An escaped code point: '\' followed by a hex digits run or any character.
+    // https://drafts.csswg.org/css-syntax-3/#consume-escaped-code-point
     fn scan_escape(&mut self, backslash_consumed: bool) -> PResult<usize> {
         if !backslash_consumed {
             self.state.chars.next(); // consume `\\`
@@ -537,6 +545,8 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    // <number-token> = [ '+' | '-' ]? <digits> [ '.' <digits> ]? [ e [ '+' | '-' ]? <digits> ]?
+    // https://drafts.csswg.org/css-syntax-3/#consume-number
     fn scan_number(&mut self) -> PResult<(Number<'a>, Span)> {
         let start;
         let mut end;
@@ -634,6 +644,7 @@ impl<'a> Tokenizer<'a> {
         Ok((Number { raw }, Span { start, end }))
     }
 
+    // A number followed by a unit or '%': <dimension-token> | <percentage-token>.
     fn scan_dimension_or_percentage(
         &mut self,
         number: Number<'a>,
@@ -652,6 +663,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    // <dimension-token> = <number-token> <ident-sequence>
     fn scan_dimension(
         &mut self,
         value: Number<'a>,
@@ -664,6 +676,7 @@ impl<'a> Tokenizer<'a> {
         })
     }
 
+    // <percentage-token> = <number-token> '%'
     fn scan_percentage(&mut self, value: Number<'a>, span: Span) -> PResult<TokenWithSpan<'a>> {
         self.state.chars.next();
         Ok(TokenWithSpan {
@@ -672,6 +685,8 @@ impl<'a> Tokenizer<'a> {
         })
     }
 
+    // <string-token> = '"' ... '"' | '\'' ... '\''
+    // https://drafts.csswg.org/css-syntax-3/#consume-string-token
     pub(crate) fn scan_string_only(&mut self) -> PResult<(Str<'a>, Span)> {
         let (start, quote) = match self.state.chars.next() {
             Some((index, c @ '\'' | c @ '"')) => (index, c),
@@ -717,6 +732,8 @@ impl<'a> Tokenizer<'a> {
         Ok((Str { raw, escaped }, Span { start, end }))
     }
 
+    // A <string-token>, or a dialect interpolated-string template (Sass/Less)
+    // when the string contains `#{…}` / `@{…}`.
     fn scan_string_or_template(&mut self) -> PResult<TokenWithSpan<'a>> {
         // '\'' or '"' is checked (but not consumed) before
         let (start, quote) = self.state.chars.next().unwrap();
@@ -787,6 +804,8 @@ impl<'a> Tokenizer<'a> {
         Ok(TokenWithSpan { token: Token::Str(Str { raw, escaped }), span: Span { start, end } })
     }
 
+    // Resume a string template after an interpolation, yielding the next static
+    // piece up to the following `#{`/`@{` or the closing quote.
     pub(crate) fn scan_string_template(&mut self, quote: char) -> PResult<(StrTemplate<'a>, Span)> {
         let start = self.current_offset();
         let end;
@@ -838,11 +857,14 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    // An ident-like token: <ident-token>, <function-token> (`name(`), or <url-token>.
+    // https://drafts.csswg.org/css-syntax-3/#consume-ident-like-token
     fn scan_ident(&mut self) -> PResult<TokenWithSpan<'a>> {
         self.scan_ident_sequence(false)
             .map(|(ident, span)| TokenWithSpan { token: Token::Ident(ident), span })
     }
 
+    // The next static piece of an ident interleaved with interpolation (Sass/Less).
     pub(crate) fn scan_ident_template(&mut self) -> PResult<Option<(Ident<'a>, Span)>> {
         let start = self.current_offset();
         let mut escaped = false;
@@ -877,6 +899,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    // Sass: a lone '-' consumed as an <ident-token>.
     fn scan_sass_single_hyphen_as_ident(&mut self) -> PResult<TokenWithSpan<'a>> {
         debug_assert!(matches!(self.syntax, Syntax::Scss | Syntax::Sass));
         match self.state.chars.next() {
@@ -891,6 +914,8 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    // The unquoted body of a <url-token> (or an interpolated url template in Sass/Less).
+    // https://drafts.csswg.org/css-syntax-3/#consume-url-token
     pub(crate) fn scan_url_raw_or_template(&mut self) -> PResult<TokenWithSpan<'a>> {
         self.skip_ws();
         let start = self.current_offset();
@@ -950,6 +975,7 @@ impl<'a> Tokenizer<'a> {
         Ok(TokenWithSpan { token: Token::UrlRaw(UrlRaw { raw, escaped }), span })
     }
 
+    // The next static piece of an unquoted url() body interleaved with interpolation.
     pub(crate) fn scan_url_template(&mut self) -> PResult<(UrlTemplate<'a>, Span)> {
         let start = self.current_offset();
         let mut escaped = false;
@@ -1014,6 +1040,8 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    // <hash-token> = '#' <ident-sequence>
+    // https://drafts.csswg.org/css-syntax-3/#consume-token
     fn scan_hash(&mut self) -> PResult<TokenWithSpan<'a>> {
         let (start, c) = self.state.chars.next().unwrap();
         debug_assert_eq!(c, '#');
@@ -1063,6 +1091,7 @@ impl<'a> Tokenizer<'a> {
         Ok(TokenWithSpan { token: Token::Hash(Hash { escaped, raw }), span: Span { start, end } })
     }
 
+    // A '$'-prefixed variable token: '$' <ident-sequence> (Sass var / Less property).
     fn scan_dollar_var(&mut self) -> PResult<TokenWithSpan<'a>> {
         let (start, c) = self.state.chars.next().expect("expect char `$`");
         debug_assert_eq!(c, '$');
@@ -1073,6 +1102,7 @@ impl<'a> Tokenizer<'a> {
         })
     }
 
+    // A Less interpolation opener: '@{' or '${' <ident-sequence> '}'
     fn scan_less_lbrace_var(&mut self) -> PResult<TokenWithSpan<'a>> {
         let (start, first_char) = self.state.chars.next().expect("expect char `@` or `$`");
         debug_assert!(matches!(first_char, '@' | '$'));
@@ -1101,6 +1131,8 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    // <at-keyword-token> = '@' <ident-sequence>
+    // https://drafts.csswg.org/css-syntax-3/#consume-token
     fn scan_at_keyword(&mut self) -> PResult<TokenWithSpan<'a>> {
         let (start, c) = self.state.chars.next().expect("expect char `@`");
         debug_assert_eq!(c, '@');
@@ -1181,6 +1213,7 @@ impl<'a> Tokenizer<'a> {
         Some(TokenWithSpan { token: Token::Placeholder(placeholder), span: Span { start, end } })
     }
 
+    // A Less inline-JavaScript token: '`' ... '`' (deprecated).
     fn scan_backtick_code(&mut self) -> PResult<TokenWithSpan<'a>> {
         debug_assert!(self.syntax == Syntax::Less);
 
@@ -1209,6 +1242,8 @@ impl<'a> Tokenizer<'a> {
         })
     }
 
+    // Delimiter and punctuation tokens: '(' ')' '[' ']' '{' '}' ',' ':' ';' plus
+    // the multi-char operators (`<=`, `>=`, `||`, `~=`, `|=`, `^=`, `$=`, `*=`, …).
     fn scan_punc(&mut self) -> PResult<TokenWithSpan<'a>> {
         match self.state.chars.next() {
             Some((start, '.')) => {

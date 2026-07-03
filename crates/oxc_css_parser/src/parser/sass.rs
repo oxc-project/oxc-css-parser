@@ -67,6 +67,8 @@ impl<'a> Parser<'a> {
         Ok(drained)
     }
 
+    // A SassScript list: space- or comma-separated <expression>s (comma binds
+    // looser than space). https://sass-lang.com/documentation/values/lists
     pub(super) fn parse_maybe_sass_list(
         &mut self,
         allow_comma: bool,
@@ -163,6 +165,9 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // A SassScript binary-operator expression, loosest tier first:
+    //   or → and → not → ==/!= → </>/<=/>= → +/- → */%// → <unary-expression>
+    // https://sass-lang.com/documentation/operators
     pub(super) fn parse_sass_bin_expr(
         &mut self,
         allow_comparison: bool,
@@ -171,6 +176,7 @@ impl<'a> Parser<'a> {
         self.parse_sass_bin_expr_with_min_precedence(PRECEDENCE_OR, allow_comparison)
     }
 
+    // Precedence-climbing worker for `parse_sass_bin_expr`.
     fn parse_sass_bin_expr_with_min_precedence(
         &mut self,
         min_precedence: u8,
@@ -464,6 +470,7 @@ impl<'a> Parser<'a> {
         Ok(left)
     }
 
+    // Trailing declaration flags: [ '!' [ default | global ] ]*
     fn parse_sass_flags(
         &mut self,
     ) -> PResult<(oxc_allocator::Vec<'a, SassFlag<'a>>, Option<usize>)> {
@@ -492,6 +499,8 @@ impl<'a> Parser<'a> {
         Ok((flags, end))
     }
 
+    // An identifier interleaving static parts with `#{ <expression> }` interpolation.
+    // https://sass-lang.com/documentation/interpolation
     pub(super) fn parse_sass_interpolated_ident(&mut self) -> PResult<InterpolableIdent<'a>> {
         debug_assert!(matches!(self.syntax, Syntax::Scss | Syntax::Sass));
 
@@ -534,6 +543,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    // The static/`#{…}` element sequence after an interpolated ident's first part.
     pub(super) fn parse_sass_interpolated_ident_rest(
         &mut self,
         end: &mut usize,
@@ -558,6 +568,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // One `#{ <expression> }` element of an interpolated ident.
     fn parse_sass_interpolated_ident_expr(
         &mut self,
     ) -> PResult<(SassInterpolatedIdentElement<'a>, Span)> {
@@ -569,6 +580,9 @@ impl<'a> Parser<'a> {
         Ok((SassInterpolatedIdentElement::Expression(expr), Span { start, end }))
     }
 
+    // Call arguments for @include / function calls:
+    //   [ <expression> | $<name> : <expression> | <expression>... ]#
+    // https://sass-lang.com/documentation/at-rules/mixin#passing-arguments
     pub(super) fn parse_sass_invocation_args(
         &mut self,
     ) -> PResult<(oxc_allocator::Vec<'a, ComponentValue<'a>>, oxc_allocator::Vec<'a, Span>)> {
@@ -618,6 +632,9 @@ impl<'a> Parser<'a> {
         Ok((values, comma_spans))
     }
 
+    // Module configuration for @use / @forward:
+    //   with ( <config-item> [ , <config-item> ]* )
+    // https://sass-lang.com/documentation/at-rules/use#configuration
     fn parse_sass_module_config(
         &mut self,
         allow_overridable: bool,
@@ -666,6 +683,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // <config-item> = $<name> : <expression> [ !default ]?
     fn parse_sass_module_config_item(
         &mut self,
         allow_overridable: bool,
@@ -686,6 +704,9 @@ impl<'a> Parser<'a> {
     }
 
     /// This method will consume `)` token.
+    // Declared @mixin / @function parameters:
+    //   [ $<name> [ : <default-expression> ]? ]#  with an optional trailing
+    //   `$<name>...` (arbitrary/rest argument).
     fn parse_sass_params(&mut self) -> PResult<SassParams<'a>> {
         let mut parameters = self.vec();
         let mut arbitrary_parameter = None;
@@ -757,6 +778,7 @@ impl<'a> Parser<'a> {
         Ok((parameters, arbitrary_parameter, comma_spans, end))
     }
 
+    // A namespaced module member: <module-ident> '.' <member>
     pub(super) fn parse_sass_qualified_name(
         &mut self,
         module: Ident<'a>,
@@ -777,6 +799,7 @@ impl<'a> Parser<'a> {
         Ok(SassQualifiedName { module, member, span })
     }
 
+    // <unary-expression> = [ '+' | '-' | not ]? <value>
     fn parse_sass_unary_expression(&mut self) -> PResult<ComponentValue<'a>> {
         // dart-sass accepts a bare `%` in declaration values (`b: %`,
         // `b: % c`, `b: c %`) as a plain token. Calculations bypass this
@@ -812,6 +835,9 @@ impl<'a> Parser<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/at-root
+//
+// @at-root [ ( <at-root-query> ) | <selector> ] { <block> }
 impl<'a> Parse<'a> for SassAtRoot<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let kind = if matches!(input.cursor.peek()?.token, Token::LParen(..)) {
@@ -825,6 +851,7 @@ impl<'a> Parse<'a> for SassAtRoot<'a> {
     }
 }
 
+// <at-root-query> = ( [ with | without ] : [ <ident> | <string> ]+ )
 impl<'a> Parse<'a> for SassAtRootQuery<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let start = input.cursor.expect_l_paren()?.1.start;
@@ -860,6 +887,7 @@ impl<'a> Parse<'a> for SassAtRootQuery<'a> {
     }
 }
 
+// A conditional clause: <expression> { <block> }  (body of @if / @else if / @while)
 impl<'a> Parse<'a> for SassConditionalClause<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         input.eat_sass_line_continuation()?;
@@ -870,6 +898,9 @@ impl<'a> Parse<'a> for SassConditionalClause<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/mixin#content-blocks
+//
+// @content [ ( <invocation-args> ) ]?
 impl<'a> Parse<'a> for SassContent<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
@@ -879,6 +910,9 @@ impl<'a> Parse<'a> for SassContent<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/control/each
+//
+// @each <variable> [ , <variable> ]* in <expression>
 impl<'a> Parse<'a> for SassEach<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
@@ -912,6 +946,9 @@ impl<'a> Parse<'a> for SassEach<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/extend
+//
+// @extend <compound-selector-list> [ !optional ]?
 impl<'a> Parse<'a> for SassExtend<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         input.eat_sass_line_continuation()?;
@@ -941,6 +978,9 @@ impl<'a> Parse<'a> for SassExtend<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/control/for
+//
+// @for <variable> from <expression> [ to | through ] <expression>
 impl<'a> Parse<'a> for SassFor<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
@@ -969,6 +1009,7 @@ impl<'a> Parse<'a> for SassFor<'a> {
     }
 }
 
+// to | through   (exclusive | inclusive upper bound of @for)
 impl<'a> Parse<'a> for SassForBoundary {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (keyword, span) = input.cursor.expect_ident()?;
@@ -980,6 +1021,9 @@ impl<'a> Parse<'a> for SassForBoundary {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/forward
+//
+// @forward <string> [ as <ident> '*' ]? [ [ show | hide ] <member># ]? [ with ( <config> ) ]?
 impl<'a> Parse<'a> for SassForward<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
@@ -1076,6 +1120,9 @@ impl<'a> Parse<'a> for SassForward<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/function
+//
+// @function <ident> <parameters> { <block> }
 impl<'a> Parse<'a> for SassFunction<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
@@ -1092,6 +1139,9 @@ impl<'a> Parse<'a> for SassFunction<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/control/if
+//
+// @if <clause> [ @else if <clause> ]* [ @else { <block> } ]?
 impl<'a> Parse<'a> for SassIfAtRule<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
@@ -1165,6 +1215,9 @@ impl<'a> Parse<'a> for SassIfAtRule<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/import
+//
+// @import <string> [ , <string> ]*   (Sass multi-path import of literal strings)
 impl<'a> Parse<'a> for SassImportPrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<Str>()?;
@@ -1185,6 +1238,9 @@ impl<'a> Parse<'a> for SassImportPrelude<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/mixin
+//
+// @include <name> [ ( <invocation-args> ) ]? [ using ( <parameters> ) ]?
 impl<'a> Parse<'a> for SassInclude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
@@ -1214,6 +1270,7 @@ impl<'a> Parse<'a> for SassInclude<'a> {
     }
 }
 
+// ( <invocation-args> )
 impl<'a> Parse<'a> for SassIncludeArgs<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
@@ -1223,6 +1280,7 @@ impl<'a> Parse<'a> for SassIncludeArgs<'a> {
     }
 }
 
+// using ( <parameters> )   (parameters the mixin passes to its @content block)
 impl<'a> Parse<'a> for SassIncludeContentBlockParams<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.bump()? {
@@ -1241,6 +1299,8 @@ impl<'a> Parse<'a> for SassIncludeContentBlockParams<'a> {
     }
 }
 
+// A quoted string containing `#{ <expression> }` interpolation.
+// https://sass-lang.com/documentation/interpolation
 impl<'a> Parse<'a> for SassInterpolatedStr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (first, first_span) = input.cursor.expect_str_template()?;
@@ -1278,6 +1338,7 @@ impl<'a> Parse<'a> for SassInterpolatedStr<'a> {
     }
 }
 
+// A `url()` body containing `#{ <expression> }` interpolation.
 impl<'a> Parse<'a> for SassInterpolatedUrl<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
@@ -1323,6 +1384,9 @@ impl<'a> Parse<'a> for SassInterpolatedUrl<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/values/lists
+//
+// <sass-list> = <expression> [ <separator> <expression> ]*   (separator: ' ' or ',')
 impl<'a> Parse<'a> for SassList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if let ComponentValue::SassList(list) =
@@ -1336,6 +1400,9 @@ impl<'a> Parse<'a> for SassList<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/values/maps
+//
+// <sass-map> = ( [ <map-item> [ , <map-item> ]* ]? )
 impl<'a> Parse<'a> for SassMap<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let start = input.cursor.expect_l_paren()?.1.start;
@@ -1369,6 +1436,7 @@ impl<'a> Parse<'a> for SassMap<'a> {
     }
 }
 
+// <map-item> = <expression> : <expression>
 impl<'a> Parse<'a> for SassMapItem<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let key = input.parse_maybe_sass_list(/* allow_comma */ false)?;
@@ -1379,6 +1447,9 @@ impl<'a> Parse<'a> for SassMapItem<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/mixin
+//
+// @mixin <ident> [ <parameters> ]? { <block> }
 impl<'a> Parse<'a> for SassMixin<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
@@ -1400,6 +1471,7 @@ impl<'a> Parse<'a> for SassMixin<'a> {
     }
 }
 
+// Declared parameters: ( [ <parameter># ]? [ , <variable>... ]? )
 impl<'a> Parse<'a> for SassParameters<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
@@ -1408,6 +1480,8 @@ impl<'a> Parse<'a> for SassParameters<'a> {
     }
 }
 
+// The nested `{ <declaration-list> }` of a Sass nested property (`font: { … }`).
+// https://sass-lang.com/documentation/style-rules/declarations#nesting
 impl<'a> Parse<'a> for SassNestingDeclaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let block = input.parse::<SimpleBlock>()?;
@@ -1417,6 +1491,7 @@ impl<'a> Parse<'a> for SassNestingDeclaration<'a> {
     }
 }
 
+// ( <expression> )   (a parenthesized SassScript expression)
 impl<'a> Parse<'a> for SassParenthesizedExpression<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let start = input.cursor.expect_l_paren()?.1.start;
@@ -1433,6 +1508,9 @@ impl<'a> Parse<'a> for SassParenthesizedExpression<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/style-rules/placeholder-selectors
+//
+// <placeholder-selector> = '%' <ident>
 impl<'a> Parse<'a> for SassPlaceholderSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, percent_span) = input.cursor.expect_percent()?;
@@ -1444,6 +1522,9 @@ impl<'a> Parse<'a> for SassPlaceholderSelector<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/at-rules/use
+//
+// @use <string> [ as [ <ident> | '*' ] ]? [ with ( <config> ) ]?
 impl<'a> Parse<'a> for SassUse<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         input.eat_sass_line_continuation()?;
@@ -1468,6 +1549,7 @@ impl<'a> Parse<'a> for SassUse<'a> {
     }
 }
 
+// as [ <ident> | '*' ]   ('*' loads members without a namespace prefix)
 impl<'a> Parse<'a> for SassUseNamespace<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let as_span = match input.cursor.peek()? {
@@ -1507,6 +1589,9 @@ impl<'a> Parse<'a> for SassUseNamespace<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/variables
+//
+// <sass-variable> = '$' <ident>
 impl<'a> Parse<'a> for SassVariable<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
@@ -1516,6 +1601,10 @@ impl<'a> Parse<'a> for SassVariable<'a> {
     }
 }
 
+// https://sass-lang.com/documentation/variables
+//
+// [ <namespace> '.' ]? '$' <ident> ':' <expression> <flag>*
+// <flag> = !default | !global
 impl<'a> Parse<'a> for SassVariableDeclaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
@@ -1561,6 +1650,8 @@ impl<'a> Parse<'a> for SassVariableDeclaration<'a> {
     }
 }
 
+// A Sass at-rule with an unrecognized (possibly interpolated) name:
+// '@' <interpolated-ident> <prelude>? [ { <block> } | ; ]
 impl<'a> Parse<'a> for UnknownSassAtRule<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
