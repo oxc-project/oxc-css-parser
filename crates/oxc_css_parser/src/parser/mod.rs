@@ -8,7 +8,7 @@ use crate::{
     config::Syntax,
     error::{Error, ErrorKind, PResult},
     pos::Span,
-    tokenizer::{Token, TokenSymbol, TokenWithSpan, Tokenizer, token},
+    tokenizer::{Token, TokenWithSpan, Tokenizer, token},
     util,
 };
 pub use builder::ParserBuilder;
@@ -93,7 +93,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_ampersand(&mut self) -> PResult<(token::Ampersand, Span)> {
-        self.expect_token(token::Ampersand::symbol(), |token| match token {
+        self.expect_token("&", |token| match token {
             Token::Ampersand(token) => Ok(token),
             token => Err(token),
         })
@@ -101,7 +101,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_at(&mut self) -> PResult<(token::At, Span)> {
-        self.expect_token(token::At::symbol(), |token| match token {
+        self.expect_token("@", |token| match token {
             Token::At(token) => Ok(token),
             token => Err(token),
         })
@@ -109,7 +109,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_at_keyword(&mut self) -> PResult<(token::AtKeyword<'a>, Span)> {
-        self.expect_token(token::AtKeyword::symbol(), |token| match token {
+        self.expect_token("<at-keyword>", |token| match token {
             Token::AtKeyword(token) => Ok(token),
             token => Err(token),
         })
@@ -117,7 +117,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_at_l_brace_var(&mut self) -> PResult<(token::AtLBraceVar<'a>, Span)> {
-        self.expect_token(token::AtLBraceVar::symbol(), |token| match token {
+        self.expect_token("@{", |token| match token {
             Token::AtLBraceVar(token) => Ok(token),
             token => Err(token),
         })
@@ -125,7 +125,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_backtick_code(&mut self) -> PResult<(token::BacktickCode<'a>, Span)> {
-        self.expect_token(token::BacktickCode::symbol(), |token| match token {
+        self.expect_token("<backtick code>", |token| match token {
             Token::BacktickCode(token) => Ok(token),
             token => Err(token),
         })
@@ -133,7 +133,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_bar(&mut self) -> PResult<(token::Bar, Span)> {
-        self.expect_token(token::Bar::symbol(), |token| match token {
+        self.expect_token("|", |token| match token {
             Token::Bar(token) => Ok(token),
             token => Err(token),
         })
@@ -141,7 +141,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_colon(&mut self) -> PResult<(token::Colon, Span)> {
-        self.expect_token(token::Colon::symbol(), |token| match token {
+        self.expect_token(":", |token| match token {
             Token::Colon(token) => Ok(token),
             token => Err(token),
         })
@@ -149,7 +149,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_colon_colon(&mut self) -> PResult<(token::ColonColon, Span)> {
-        self.expect_token(token::ColonColon::symbol(), |token| match token {
+        self.expect_token("::", |token| match token {
             Token::ColonColon(token) => Ok(token),
             token => Err(token),
         })
@@ -157,7 +157,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_comma(&mut self) -> PResult<(token::Comma, Span)> {
-        self.expect_token(token::Comma::symbol(), |token| match token {
+        self.expect_token(",", |token| match token {
             Token::Comma(token) => Ok(token),
             token => Err(token),
         })
@@ -165,7 +165,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_dimension(&mut self) -> PResult<(token::Dimension<'a>, Span)> {
-        self.expect_token(token::Dimension::symbol(), |token| match token {
+        self.expect_token("<dimension>", |token| match token {
             Token::Dimension(token) => Ok(token),
             token => Err(token),
         })
@@ -173,7 +173,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_dollar_l_brace_var(&mut self) -> PResult<(token::DollarLBraceVar<'a>, Span)> {
-        self.expect_token(token::DollarLBraceVar::symbol(), |token| match token {
+        self.expect_token("${", |token| match token {
             Token::DollarLBraceVar(token) => Ok(token),
             token => Err(token),
         })
@@ -181,7 +181,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_dollar_var(&mut self) -> PResult<(token::DollarVar<'a>, Span)> {
-        self.expect_token(token::DollarVar::symbol(), |token| match token {
+        self.expect_token("$var", |token| match token {
             Token::DollarVar(token) => Ok(token),
             token => Err(token),
         })
@@ -189,7 +189,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_dot(&mut self) -> PResult<(token::Dot, Span)> {
-        self.expect_token(token::Dot::symbol(), |token| match token {
+        self.expect_token(".", |token| match token {
             Token::Dot(token) => Ok(token),
             token => Err(token),
         })
@@ -197,7 +197,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_eof(&mut self) -> PResult<(token::Eof, Span)> {
-        self.expect_token(token::Eof::symbol(), |token| match token {
+        self.expect_token("<eof>", |token| match token {
             Token::Eof(token) => Ok(token),
             token => Err(token),
         })
@@ -205,7 +205,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_exclamation(&mut self) -> PResult<(token::Exclamation, Span)> {
-        self.expect_token(token::Exclamation::symbol(), |token| match token {
+        self.expect_token("!", |token| match token {
             Token::Exclamation(token) => Ok(token),
             token => Err(token),
         })
@@ -213,7 +213,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_hash(&mut self) -> PResult<(token::Hash<'a>, Span)> {
-        self.expect_token(token::Hash::symbol(), |token| match token {
+        self.expect_token("<hash>", |token| match token {
             Token::Hash(token) => Ok(token),
             token => Err(token),
         })
@@ -221,7 +221,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_hash_l_brace(&mut self) -> PResult<(token::HashLBrace, Span)> {
-        self.expect_token(token::HashLBrace::symbol(), |token| match token {
+        self.expect_token("#{", |token| match token {
             Token::HashLBrace(token) => Ok(token),
             token => Err(token),
         })
@@ -229,7 +229,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_ident(&mut self) -> PResult<(token::Ident<'a>, Span)> {
-        self.expect_token(token::Ident::symbol(), |token| match token {
+        self.expect_token("<ident>", |token| match token {
             Token::Ident(token) => Ok(token),
             token => Err(token),
         })
@@ -237,7 +237,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_l_brace(&mut self) -> PResult<(token::LBrace, Span)> {
-        self.expect_token(token::LBrace::symbol(), |token| match token {
+        self.expect_token("{", |token| match token {
             Token::LBrace(token) => Ok(token),
             token => Err(token),
         })
@@ -245,7 +245,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_l_bracket(&mut self) -> PResult<(token::LBracket, Span)> {
-        self.expect_token(token::LBracket::symbol(), |token| match token {
+        self.expect_token("[", |token| match token {
             Token::LBracket(token) => Ok(token),
             token => Err(token),
         })
@@ -253,7 +253,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_linebreak(&mut self) -> PResult<(token::Linebreak, Span)> {
-        self.expect_token(token::Linebreak::symbol(), |token| match token {
+        self.expect_token("<linebreak>", |token| match token {
             Token::Linebreak(token) => Ok(token),
             token => Err(token),
         })
@@ -261,7 +261,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_l_paren(&mut self) -> PResult<(token::LParen, Span)> {
-        self.expect_token(token::LParen::symbol(), |token| match token {
+        self.expect_token("(", |token| match token {
             Token::LParen(token) => Ok(token),
             token => Err(token),
         })
@@ -269,7 +269,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_minus(&mut self) -> PResult<(token::Minus, Span)> {
-        self.expect_token(token::Minus::symbol(), |token| match token {
+        self.expect_token("-", |token| match token {
             Token::Minus(token) => Ok(token),
             token => Err(token),
         })
@@ -277,7 +277,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_number(&mut self) -> PResult<(token::Number<'a>, Span)> {
-        self.expect_token(token::Number::symbol(), |token| match token {
+        self.expect_token("<number>", |token| match token {
             Token::Number(token) => Ok(token),
             token => Err(token),
         })
@@ -285,7 +285,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_percent(&mut self) -> PResult<(token::Percent, Span)> {
-        self.expect_token(token::Percent::symbol(), |token| match token {
+        self.expect_token("%", |token| match token {
             Token::Percent(token) => Ok(token),
             token => Err(token),
         })
@@ -293,7 +293,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_percentage(&mut self) -> PResult<(token::Percentage<'a>, Span)> {
-        self.expect_token(token::Percentage::symbol(), |token| match token {
+        self.expect_token("<percentage>", |token| match token {
             Token::Percentage(token) => Ok(token),
             token => Err(token),
         })
@@ -301,7 +301,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_placeholder(&mut self) -> PResult<(token::Placeholder<'a>, Span)> {
-        self.expect_token(token::Placeholder::symbol(), |token| match token {
+        self.expect_token("<placeholder>", |token| match token {
             Token::Placeholder(token) => Ok(token),
             token => Err(token),
         })
@@ -309,7 +309,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_r_brace(&mut self) -> PResult<(token::RBrace, Span)> {
-        self.expect_token(token::RBrace::symbol(), |token| match token {
+        self.expect_token("}", |token| match token {
             Token::RBrace(token) => Ok(token),
             token => Err(token),
         })
@@ -317,7 +317,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_r_bracket(&mut self) -> PResult<(token::RBracket, Span)> {
-        self.expect_token(token::RBracket::symbol(), |token| match token {
+        self.expect_token("]", |token| match token {
             Token::RBracket(token) => Ok(token),
             token => Err(token),
         })
@@ -325,7 +325,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_r_paren(&mut self) -> PResult<(token::RParen, Span)> {
-        self.expect_token(token::RParen::symbol(), |token| match token {
+        self.expect_token(")", |token| match token {
             Token::RParen(token) => Ok(token),
             token => Err(token),
         })
@@ -333,7 +333,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_semicolon(&mut self) -> PResult<(token::Semicolon, Span)> {
-        self.expect_token(token::Semicolon::symbol(), |token| match token {
+        self.expect_token(";", |token| match token {
             Token::Semicolon(token) => Ok(token),
             token => Err(token),
         })
@@ -341,7 +341,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_solidus(&mut self) -> PResult<(token::Solidus, Span)> {
-        self.expect_token(token::Solidus::symbol(), |token| match token {
+        self.expect_token("/", |token| match token {
             Token::Solidus(token) => Ok(token),
             token => Err(token),
         })
@@ -349,7 +349,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_str(&mut self) -> PResult<(token::Str<'a>, Span)> {
-        self.expect_token(token::Str::symbol(), |token| match token {
+        self.expect_token("<string>", |token| match token {
             Token::Str(token) => Ok(token),
             token => Err(token),
         })
@@ -357,7 +357,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_str_template(&mut self) -> PResult<(token::StrTemplate<'a>, Span)> {
-        self.expect_token(token::StrTemplate::symbol(), |token| match token {
+        self.expect_token("<string template>", |token| match token {
             Token::StrTemplate(token) => Ok(token),
             token => Err(token),
         })
@@ -365,7 +365,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_tilde(&mut self) -> PResult<(token::Tilde, Span)> {
-        self.expect_token(token::Tilde::symbol(), |token| match token {
+        self.expect_token("~", |token| match token {
             Token::Tilde(token) => Ok(token),
             token => Err(token),
         })
@@ -399,13 +399,13 @@ impl<'a> ParserCursor<'a> {
             self.tokenizer.scan_ident_sequence(allow_leading_digit)
         } else {
             let TokenWithSpan { token, span } = self.tokenizer.bump_without_ws_or_comments()?;
-            Err(Error { kind: ErrorKind::Unexpected(token::Ident::symbol(), token.symbol()), span })
+            Err(Error { kind: ErrorKind::Unexpected("<ident>", token.symbol()), span })
         }
     }
 
     #[inline]
     fn expect_asterisk_without_ws_or_comments(&mut self) -> PResult<(token::Asterisk, Span)> {
-        self.expect_without_ws_or_comments(token::Asterisk::symbol(), |token| match token {
+        self.expect_without_ws_or_comments("*", |token| match token {
             Token::Asterisk(token) => Ok(token),
             token => Err(token),
         })
@@ -413,7 +413,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_l_paren_without_ws_or_comments(&mut self) -> PResult<(token::LParen, Span)> {
-        self.expect_without_ws_or_comments(token::LParen::symbol(), |token| match token {
+        self.expect_without_ws_or_comments("(", |token| match token {
             Token::LParen(token) => Ok(token),
             token => Err(token),
         })
@@ -421,7 +421,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_solidus_without_ws_or_comments(&mut self) -> PResult<(token::Solidus, Span)> {
-        self.expect_without_ws_or_comments(token::Solidus::symbol(), |token| match token {
+        self.expect_without_ws_or_comments("/", |token| match token {
             Token::Solidus(token) => Ok(token),
             token => Err(token),
         })

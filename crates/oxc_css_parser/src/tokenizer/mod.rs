@@ -5,7 +5,6 @@ use crate::{
 };
 use oxc_allocator::{Allocator, Vec as ArenaVec};
 use std::{cmp::Ordering, iter::Peekable, str::CharIndices};
-pub(crate) use symbol::TokenSymbol;
 use token::*;
 pub use token::{Token, TokenWithSpan};
 

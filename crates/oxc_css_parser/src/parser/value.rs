@@ -917,11 +917,7 @@ impl<'a> Parse<'a> for Function<'a> {
                 }
             }
             TokenWithSpan { token, span } => {
-                use crate::{token::LParen, tokenizer::TokenSymbol};
-                Err(Error {
-                    kind: ErrorKind::Unexpected(LParen::symbol(), token.symbol()),
-                    span: span.clone(),
-                })
+                Err(Error { kind: ErrorKind::Unexpected("(", token.symbol()), span: span.clone() })
             }
         }
     }
@@ -953,9 +949,8 @@ impl<'a> Parse<'a> for FunctionName<'a> {
                 input.parse().map(FunctionName::LessListFunction)
             }
             _ => {
-                use crate::{token::Ident, tokenizer::TokenSymbol};
                 let TokenWithSpan { token, span } = input.cursor.bump()?;
-                Err(Error { kind: ErrorKind::Unexpected(Ident::symbol(), token.symbol()), span })
+                Err(Error { kind: ErrorKind::Unexpected("<ident>", token.symbol()), span })
             }
         }
     }
