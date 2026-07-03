@@ -204,7 +204,7 @@ impl<'a> crate::pos::Spanned for ComponentValue<'a> {
             Self::SassParentSelector(value) => value.span(),
             Self::SassUnaryExpression(value) => value.span(),
             Self::SassVariable(value) => value.span(),
-            Self::TokenWithSpan(value) => value.span(),
+            Self::TokenWithSpan(value) => &value.span,
             Self::UnicodeRange(value) => value.span(),
             Self::Url(value) => value.span(),
         }
