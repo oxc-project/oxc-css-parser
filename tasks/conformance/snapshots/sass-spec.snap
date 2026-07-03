@@ -1,7 +1,7 @@
 suite: sass-spec
 sha: a2ead9225786d49e91f5cc36755b7713596a2338
-files: 26787   success: 26492   failed: 2   expected: 293
-clean: 26492  recovered: 0  hard_error: 2  panic: 0
+files: 26787   success: 26493   failed: 2   expected: 292
+clean: 26493  recovered: 0  hard_error: 2  panic: 0
 
 failures:
 ERROR    spec/non_conformant/extend-tests/selector_list.hrx::input.scss    expect token `;`, but found `#{`
@@ -62,7 +62,6 @@ ERROR    spec/css/plain/error/statement/style_rule.hrx::interpolation/declaratio
 ERROR    spec/css/plain/error/statement/style_rule.hrx::interpolation/selector/plain.css    expect token `<ident>`, but found `{`
 ERROR    spec/css/plain/error/statement/style_rule.hrx::nested_property/no_value/plain.css    component value is expected
 ERROR    spec/css/plain/error/statement/style_rule.hrx::nested_property/value/plain.css    component value is expected
-ERROR    spec/css/plain/error/statement/style_rule.hrx::placeholder_selector/plain.css    CSS rule is expected
 ERROR    spec/css/plain/import/whitespace.hrx::error/after_import/sass/input.sass    expect token `<string>`, but found `<linebreak>`
 ERROR    spec/css/plain/import/whitespace.hrx::error/after_import_indented/sass/input.sass    expect token `<string>`, but found `<indent>`
 ERROR    spec/css/propset.hrx::error/value_after_propset/input.scss    expect token `:`, but found `}`
