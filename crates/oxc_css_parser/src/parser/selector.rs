@@ -3,7 +3,6 @@ use crate::{
     Parse, Syntax,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan, token},
     util,
@@ -14,7 +13,7 @@ impl<'a> Parse<'a> for AnPlusB {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.peek()? {
             TokenWithSpan { token: Token::Dimension(..), .. } => {
-                let (token::Dimension { value, unit }, span) = expect!(input, Dimension);
+                let (token::Dimension { value, unit }, span) = input.cursor.expect_dimension()?;
                 let value_span = Span { start: span.start, end: span.start + value.raw.len() };
                 let unit_name = unit.name();
                 if unit_name.eq_ignore_ascii_case("n") {
@@ -40,7 +39,7 @@ impl<'a> Parse<'a> for AnPlusB {
                         // syntax: <n-dimension> <signed-integer>
                         // examples: '1n +1', '1n -1'
                         Token::Number(..) => {
-                            let (number, number_span) = expect!(input, Number);
+                            let (number, number_span) = input.cursor.expect_number()?;
                             let span = Span { start: span.start, end: number_span.end };
                             Ok(AnPlusB {
                                 a: value
@@ -121,7 +120,7 @@ impl<'a> Parse<'a> for AnPlusB {
                         // syntax: +n <signed-integer>
                         // examples: '+n +1', '+n -1'
                         Token::Number(..) => {
-                            let (number, number_span) = expect!(input, Number);
+                            let (number, number_span) = input.cursor.expect_number()?;
                             let span = Span { start: plus_span.start, end: number_span.end };
                             Ok(AnPlusB {
                                 a: 1,
@@ -177,7 +176,7 @@ impl<'a> Parse<'a> for AnPlusB {
             }
 
             TokenWithSpan { token: Token::Ident(..), .. } => {
-                let (ident, ident_span) = expect!(input, Ident);
+                let (ident, ident_span) = input.cursor.expect_ident()?;
                 let ident_name = ident.name();
                 if ident_name.eq_ignore_ascii_case("n") {
                     match &input.cursor.peek()?.token {
@@ -200,7 +199,7 @@ impl<'a> Parse<'a> for AnPlusB {
                         // syntax: n <signed-integer>
                         // examples: 'n +1', 'n -1'
                         Token::Number(..) => {
-                            let (number, number_span) = expect!(input, Number);
+                            let (number, number_span) = input.cursor.expect_number()?;
                             let span = Span { start: ident_span.start, end: number_span.end };
                             Ok(AnPlusB {
                                 a: 1,
@@ -260,7 +259,7 @@ impl<'a> Parse<'a> for AnPlusB {
                         // syntax: -n <signed-integer>
                         // examples: '-n +1', '-n -1'
                         Token::Number(..) => {
-                            let (number, number_span) = expect!(input, Number);
+                            let (number, number_span) = input.cursor.expect_number()?;
                             let span = Span { start: ident_span.start, end: number_span.end };
                             Ok(AnPlusB {
                                 a: -1,
@@ -313,7 +312,7 @@ impl<'a> Parse<'a> for AnPlusB {
 
 impl<'a> Parse<'a> for AttributeSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let start = expect!(input, LBracket).1.start;
+        let start = input.cursor.expect_l_bracket()?.1.start;
 
         let name = match input.cursor.peek()? {
             TokenWithSpan {
@@ -343,7 +342,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
             }
             TokenWithSpan { token: Token::Asterisk(..), .. } => {
                 let asterisk_span = input.cursor.bump()?.span;
-                let bar_token_span = expect!(input, Bar).1;
+                let bar_token_span = input.cursor.expect_bar()?.1;
                 let name = input.parse::<InterpolableIdent>()?;
 
                 let start = asterisk_span.start;
@@ -494,14 +493,14 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
             None
         };
 
-        let end = expect!(input, RBracket).1.end;
+        let end = input.cursor.expect_r_bracket()?.1.end;
         Ok(AttributeSelector { name, matcher, value, modifier, span: Span { start, end } })
     }
 }
 
 impl<'a> Parse<'a> for ClassSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, dot_span) = expect!(input, Dot);
+        let (_, dot_span) = input.cursor.expect_dot()?;
         let start = dot_span.start;
         let end;
         // Detect an adjacent placeholder without `peek()`: `peek()` skips
@@ -780,7 +779,7 @@ impl<'a> Parse<'a> for LanguageRangeList<'a> {
 
 impl<'a> Parse<'a> for NestingSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, mut span) = expect!(input, Ampersand);
+        let (_, mut span) = input.cursor.expect_ampersand()?;
         let suffix = match input.syntax {
             Syntax::Css => {
                 if let Some((ident, ident_span)) = input.cursor.tokenizer.scan_ident_template()? {
@@ -865,7 +864,7 @@ impl<'a> Parse<'a> for NthIndex<'a> {
 
 impl<'a> Parse<'a> for NthMatcher<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (ident, mut span) = expect!(input, Ident);
+        let (ident, mut span) = input.cursor.expect_ident()?;
         if !ident.name().eq_ignore_ascii_case("of") {
             return Err(Error { kind: ErrorKind::ExpectNthOf, span });
         }
@@ -884,7 +883,7 @@ impl<'a> Parse<'a> for NthMatcher<'a> {
 
 impl<'a> Parse<'a> for PseudoClassSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, colon_span) = expect!(input, Colon);
+        let (_, colon_span) = input.cursor.expect_colon()?;
         let name = input.parse::<InterpolableIdent>()?;
         let name_span = name.span();
         util::assert_no_ws(input.source, &colon_span, name_span)?;
@@ -989,7 +988,7 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
                     }
                 };
 
-                let r_paren = expect!(input, RParen).1;
+                let r_paren = input.cursor.expect_r_paren()?.1;
                 end = r_paren.end;
                 let span = Span { start: l_paren.start, end: r_paren.end };
                 Some(PseudoClassSelectorArg { kind, l_paren, r_paren, span })
@@ -1004,10 +1003,10 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
 
 impl<'a> Parse<'a> for PseudoElementSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, colon_colon_span) = expect!(input, ColonColon);
+        let (_, colon_colon_span) = input.cursor.expect_colon_colon()?;
         let mut end;
         let name = if input.syntax == Syntax::Css {
-            let (ident, ident_span) = expect!(input, Ident);
+            let (ident, ident_span) = input.cursor.expect_ident()?;
             end = ident_span.end;
             util::assert_no_ws(input.source, &colon_colon_span, &ident_span)?;
             InterpolableIdent::Literal(input.ident(ident, ident_span))
@@ -1047,7 +1046,7 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
                         .map(PseudoElementSelectorArgKind::TokenSeq)?,
                 };
 
-                let r_paren = expect!(input, RParen).1;
+                let r_paren = input.cursor.expect_r_paren()?.1;
                 end = r_paren.end;
                 let span = Span { start: l_paren.start, end: r_paren.end };
                 Some(PseudoElementSelectorArg { kind, l_paren, r_paren, span })
@@ -1420,7 +1419,7 @@ impl<'a> Parser<'a> {
 }
 
 fn expect_unsigned_int<'a>(input: &mut Parser<'a>) -> PResult<(token::Number<'a>, Span)> {
-    let (number, span) = expect!(input, Number);
+    let (number, span) = input.cursor.expect_number()?;
     if number.raw.chars().any(|c| !c.is_ascii_digit()) {
         Err(Error { kind: ErrorKind::ExpectUnsignedInteger, span })
     } else {

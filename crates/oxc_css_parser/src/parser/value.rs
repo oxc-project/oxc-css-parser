@@ -3,7 +3,6 @@ use crate::{
     Parse, Syntax,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
     util,
@@ -48,7 +47,7 @@ impl<'a> Parser<'a> {
         let mut left = if precedence >= PRECEDENCE_MULTIPLY {
             if self.cursor.eat_l_paren()?.is_some() {
                 let expr = self.parse_calc_expr(allow_modulo)?;
-                expect!(self, RParen);
+                self.cursor.expect_r_paren()?;
                 expr
             } else if matches!(self.syntax, Syntax::Scss | Syntax::Sass)
                 && matches!(&self.cursor.peek()?.token, Token::Minus(..) | Token::Plus(..))
@@ -143,7 +142,7 @@ impl<'a> Parser<'a> {
                             // (`url(fn("s"))`, multi-line data: URIs), so fall
                             // back to a function parse, keeping the original
                             // error if even that shape doesn't fit.
-                            let (function_name, function_name_span) = expect!(self, Ident);
+                            let (function_name, function_name_span) = self.cursor.expect_ident()?;
                             let function_name = self.ident(function_name, function_name_span);
                             return self
                                 .parse_function_typed_or_raw(function_name)
@@ -208,10 +207,10 @@ impl<'a> Parser<'a> {
                                 ..
                             } = name
                             {
-                                let (_, lparen_span) = expect!(self, LParen);
+                                let (_, lparen_span) = self.cursor.expect_l_paren()?;
                                 util::assert_no_ws_or_comment(&name.span, &lparen_span)?;
                                 let args = self.parse_function_args()?;
-                                let (_, Span { end, .. }) = expect!(self, RParen);
+                                let (_, Span { end, .. }) = self.cursor.expect_r_paren()?;
                                 let span = Span { start: name.span.start, end };
                                 Ok(ComponentValue::Function(Function {
                                     name: FunctionName::SassQualifiedName(self.alloc(name)),
@@ -349,7 +348,7 @@ impl<'a> Parser<'a> {
                 self.parse().map(ComponentValue::LessJavaScriptSnippet)
             }
             Token::Placeholder(..) => {
-                let (placeholder, span) = expect!(self, Placeholder);
+                let (placeholder, span) = self.cursor.expect_placeholder()?;
                 Ok(ComponentValue::Placeholder((placeholder, span).into()))
             }
             _ => Err(Error {
@@ -372,7 +371,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn parse_function(&mut self, name: InterpolableIdent<'a>) -> PResult<Function<'a>> {
-        expect!(self, LParen);
+        self.cursor.expect_l_paren()?;
         let args = if let Token::RParen(..) = &self.cursor.peek()?.token {
             self.vec()
         } else {
@@ -472,7 +471,7 @@ impl<'a> Parser<'a> {
                 _ => self.parse_function_args()?,
             }
         };
-        let end = expect!(self, RParen).1.end;
+        let end = self.cursor.expect_r_paren()?.1.end;
         let span = Span { start: name.span().start, end };
         Ok(Function { name: FunctionName::Ident(name), args, span })
     }
@@ -533,10 +532,10 @@ impl<'a> Parser<'a> {
         &mut self,
         name: InterpolableIdent<'a>,
     ) -> PResult<Function<'a>> {
-        expect!(self, LParen);
+        self.cursor.expect_l_paren()?;
         let mut args = self.vec_with_capacity(4);
         self.parse_raw_function_args_into(&mut args)?;
-        let end = expect!(self, RParen).1.end;
+        let end = self.cursor.expect_r_paren()?.1.end;
         let span = Span { start: name.span().start, end };
         Ok(Function { name: FunctionName::Ident(name), args, span })
     }
@@ -559,9 +558,9 @@ impl<'a> Parser<'a> {
                 _ => args.push(ComponentValue::TokenWithSpan(self.cursor.bump()?)),
             }
         }
-        expect!(self, LParen);
+        self.cursor.expect_l_paren()?;
         self.parse_raw_function_args_into(&mut args)?;
-        let end = expect!(self, RParen).1.end;
+        let end = self.cursor.expect_r_paren()?.1.end;
         let span = Span { start: name.span.start, end };
         Ok(Function { name: FunctionName::Ident(InterpolableIdent::Literal(name)), args, span })
     }
@@ -672,7 +671,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn parse_ratio(&mut self, numerator: Number<'a>) -> PResult<Ratio<'a>> {
-        let (_, solidus_span) = expect!(self, Solidus);
+        let (_, solidus_span) = self.cursor.expect_solidus()?;
         let denominator = self.parse::<Number>()?;
         if denominator.value <= 0.0 {
             self.recoverable_errors.push(Error {
@@ -687,7 +686,7 @@ impl<'a> Parser<'a> {
 
     fn parse_src_url(&mut self, name: Ident<'a>) -> PResult<Url<'a>> {
         // caller of `parse_src_url` should make sure there're no whitespaces before paren
-        expect!(self, LParen);
+        self.cursor.expect_l_paren()?;
         let value = match &self.cursor.peek()?.token {
             Token::Str(..) | Token::StrTemplate(..) => {
                 Some(UrlValue::Str(self.parse::<InterpolableStr>()?))
@@ -707,7 +706,7 @@ impl<'a> Parser<'a> {
             }
             _ => self.vec(),
         };
-        let end = expect!(self, RParen).1.end;
+        let end = self.cursor.expect_r_paren()?.1.end;
         let span = Span { start: name.span.start, end };
         Ok(Url { name, value, modifiers, span })
     }
@@ -825,7 +824,7 @@ fn replace_unicode_range_wildcards(source: &str, replacement: char) -> String {
 
 impl<'a> Parse<'a> for BracketBlock<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let start = expect!(input, LBracket).1.start;
+        let start = input.cursor.expect_l_bracket()?.1.start;
         let mut value = input.vec_with_capacity(3);
         loop {
             match &input.cursor.peek()?.token {
@@ -833,7 +832,7 @@ impl<'a> Parse<'a> for BracketBlock<'a> {
                 _ => value.push(input.parse()?),
             }
         }
-        let end = expect!(input, RBracket).1.end;
+        let end = input.cursor.expect_r_bracket()?.1.end;
         Ok(BracketBlock { value, span: Span { start, end } })
     }
 }
@@ -895,7 +894,7 @@ impl<'a> Parse<'a> for Delimiter {
 
 impl<'a> Parse<'a> for Dimension<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (dimension, span) = expect!(input, Dimension);
+        let (dimension, span) = input.cursor.expect_dimension()?;
         input.dimension(dimension, span)
     }
 }
@@ -911,7 +910,7 @@ impl<'a> Parse<'a> for Function<'a> {
                     name => {
                         input.cursor.bump()?;
                         let args = input.parse_function_args()?;
-                        let (_, Span { end, .. }) = expect!(input, RParen);
+                        let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
                         let span = Span { start: name.span().start, end };
                         Ok(Function { name, args, span })
                     }
@@ -964,7 +963,7 @@ impl<'a> Parse<'a> for FunctionName<'a> {
 
 impl<'a> Parse<'a> for HexColor<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (token, span) = expect!(input, Hash);
+        let (token, span) = input.cursor.expect_hash()?;
         let raw = token.raw;
         let value =
             if token.escaped { util::handle_escape_in(raw, input.allocator()) } else { raw };
@@ -974,7 +973,7 @@ impl<'a> Parse<'a> for HexColor<'a> {
 
 impl<'a> Parse<'a> for Ident<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (ident, span) = expect!(input, Ident);
+        let (ident, span) = input.cursor.expect_ident()?;
         Ok(input.ident(ident, span))
     }
 }
@@ -984,7 +983,7 @@ impl<'a> Parse<'a> for InterpolableIdent<'a> {
         // A css-in-js placeholder stands in for an interpolated ident anywhere one
         // is expected (id selector `#${x}`, attribute value `[a=${x}]`, ...).
         if let Token::Placeholder(..) = input.cursor.peek()?.token {
-            let (placeholder, span) = expect!(input, Placeholder);
+            let (placeholder, span) = input.cursor.expect_placeholder()?;
             return Ok(InterpolableIdent::Placeholder((placeholder, span).into()));
         }
         match input.syntax {
@@ -1027,7 +1026,7 @@ impl<'a> Parse<'a> for InterpolableStr<'a> {
 
 impl<'a> Parse<'a> for Number<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (number, span) = expect!(input, Number);
+        let (number, span) = input.cursor.expect_number()?;
         number
             .raw
             .parse()
@@ -1038,7 +1037,7 @@ impl<'a> Parse<'a> for Number<'a> {
 
 impl<'a> Parse<'a> for Percentage<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (token, span) = expect!(input, Percentage);
+        let (token, span) = input.cursor.expect_percentage()?;
         Ok(Percentage {
             value: (token.value, Span { start: span.start, end: span.end - 1 }).try_into()?,
             span,
@@ -1048,14 +1047,14 @@ impl<'a> Parse<'a> for Percentage<'a> {
 
 impl<'a> Parse<'a> for Str<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (str, span) = expect!(input, Str);
+        let (str, span) = input.cursor.expect_str()?;
         Ok(input.str(str, span))
     }
 }
 
 impl<'a> Parse<'a> for Url<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (prefix, prefix_span) = expect!(input, Ident);
+        let (prefix, prefix_span) = input.cursor.expect_ident()?;
         // `url-prefix(...)` and `domain(...)` (Gecko `@document` matchers)
         // take the same unquoted-URL contents as `url(...)` — token-level
         // scanning would mis-lex `//` in `https://` as a comment.
@@ -1094,7 +1093,7 @@ impl<'a> Parse<'a> for Url<'a> {
                 }
                 _ => input.vec(),
             };
-            let end = expect!(input, RParen).1.end;
+            let end = input.cursor.expect_r_paren()?.1.end;
             let span = Span { start: prefix_start, end };
             Ok(Url { name, value: Some(UrlValue::Str(value)), modifiers, span })
         } else if let Ok(value) = input.try_parse(UrlRaw::parse) {
@@ -1123,7 +1122,7 @@ impl<'a> Parse<'a> for Url<'a> {
                 }
                 Syntax::Less => {
                     let value = UrlValue::LessEscapedStr(input.parse()?);
-                    let (_, Span { end, .. }) = expect!(input, RParen);
+                    let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
                     let span = Span { start: prefix_start, end };
                     Ok(Url { name, value: Some(value), modifiers: input.vec(), span })
                 }

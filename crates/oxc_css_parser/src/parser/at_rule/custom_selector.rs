@@ -1,5 +1,5 @@
 use super::Parser;
-use crate::{Parse, ast::*, error::PResult, expect, pos::Span, tokenizer::Token, util};
+use crate::{Parse, ast::*, error::PResult, pos::Span, tokenizer::Token, util};
 
 impl<'a> Parse<'a> for CustomSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
@@ -9,7 +9,7 @@ impl<'a> Parse<'a> for CustomSelector<'a> {
             None
         };
 
-        let (_, colon_span) = expect!(input, Colon);
+        let (_, colon_span) = input.cursor.expect_colon()?;
         if let Some(prefix_arg) = &prefix_arg {
             util::assert_no_ws_or_comment(&prefix_arg.span, &colon_span)?;
         }
@@ -35,7 +35,7 @@ impl<'a> Parse<'a> for CustomSelector<'a> {
 
 impl<'a> Parse<'a> for CustomSelectorArg<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (dollar_var, dollar_var_span) = expect!(input, DollarVar);
+        let (dollar_var, dollar_var_span) = input.cursor.expect_dollar_var()?;
         Ok(CustomSelectorArg {
             name: input.ident(
                 dollar_var.ident,
@@ -48,18 +48,18 @@ impl<'a> Parse<'a> for CustomSelectorArg<'a> {
 
 impl<'a> Parse<'a> for CustomSelectorArgs<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, Span { start, .. }) = expect!(input, LParen);
+        let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
 
         let mut args = input.vec();
         let mut comma_spans = input.vec();
         while !matches!(input.cursor.peek()?.token, Token::RParen(..)) {
             args.push(input.parse()?);
             if !matches!(input.cursor.peek()?.token, Token::RParen(..)) {
-                comma_spans.push(expect!(input, Comma).1);
+                comma_spans.push(input.cursor.expect_comma()?.1);
             }
         }
 
-        let (_, Span { end, .. }) = expect!(input, RParen);
+        let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
         Ok(CustomSelectorArgs { args, comma_spans, span: Span { start, end } })
     }
 }

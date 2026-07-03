@@ -3,7 +3,6 @@ use crate::{
     Parse,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect,
     pos::Span,
     tokenizer::{Token, TokenWithSpan},
 };
@@ -21,9 +20,9 @@ impl<'a> Parse<'a> for ScopeEnd<'a> {
             }
         };
 
-        let (_, lparen_span) = expect!(input, LParen);
+        let (_, lparen_span) = input.cursor.expect_l_paren()?;
         let selector = input.parse()?;
-        let (_, Span { end, .. }) = expect!(input, RParen);
+        let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
 
         let span = Span { start: to_span.start, end };
         Ok(ScopeEnd { to_span, lparen_span, selector, span })
@@ -63,9 +62,9 @@ impl<'a> Parse<'a> for ScopePrelude<'a> {
 
 impl<'a> Parse<'a> for ScopeStart<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, Span { start, .. }) = expect!(input, LParen);
+        let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
         let selector = input.parse()?;
-        let (_, Span { end, .. }) = expect!(input, RParen);
+        let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
 
         Ok(ScopeStart { selector, span: Span { start, end } })
     }

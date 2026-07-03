@@ -3,7 +3,6 @@ use crate::{
     Parse, Syntax,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
@@ -39,7 +38,7 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
                 // is not a parsable URL, e.g. `@import url($dir+"/path");`.
                 // Mirrors the fallback in `parse_component_value_atom`.
                 Err(error) if matches!(input.syntax, Syntax::Scss | Syntax::Sass) => {
-                    let (function_name, function_name_span) = expect!(input, Ident);
+                    let (function_name, function_name_span) = input.cursor.expect_ident()?;
                     let function_name = input.ident(function_name, function_name_span);
                     if !function_name.name.eq_ignore_ascii_case("url") {
                         return Err(error);
@@ -117,7 +116,7 @@ impl<'a> ImportPrelude<'a> {
                         input.cursor.bump()?;
                         let layer_name = input.parse().map(ComponentValue::LayerName)?;
                         let args = input.vec1(layer_name);
-                        let end = expect!(input, RParen).1.end;
+                        let end = input.cursor.expect_r_paren()?.1.end;
                         let span = Span { start: ident.span.start, end };
                         ImportPreludeLayer::WithName(Function {
                             name: FunctionName::Ident(InterpolableIdent::Literal(ident)),
@@ -134,7 +133,7 @@ impl<'a> ImportPrelude<'a> {
 
         let supports = input.try_parse(|parser| {
             // (kept as its own try so a non-`supports` ident rolls back)
-            let (ident, span) = expect!(parser, Ident);
+            let (ident, span) = parser.cursor.expect_ident()?;
             if !ident.name().eq_ignore_ascii_case("supports") {
                 return Err(Error { kind: ErrorKind::TryParseError, span });
             }
@@ -146,7 +145,7 @@ impl<'a> ImportPrelude<'a> {
             } else {
                 parser.parse().map(ImportPreludeSupportsKind::Declaration)?
             };
-            let (_, Span { end, .. }) = expect!(parser, RParen);
+            let (_, Span { end, .. }) = parser.cursor.expect_r_paren()?;
             Ok(ImportPreludeSupports { kind, span: Span { start: span.start, end } })
         });
         // `}` ends the at-rule too, so an `@import` nested in a style rule needs no

@@ -6,7 +6,6 @@ use crate::{
     Parse, Syntax,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
@@ -41,7 +40,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
         // A css-in-js `${}` placeholder may stand in for the property name
         // (`${foo}: ${bar}`); it is not a real ident, so accept it directly.
         let name = if let Token::Placeholder(..) = input.cursor.peek()?.token {
-            let (placeholder, span) = expect!(input, Placeholder);
+            let (placeholder, span) = input.cursor.expect_placeholder()?;
             InterpolableIdent::Placeholder((placeholder, span).into())
         } else if input.state.allow_ie_star_hack
             && input.syntax == Syntax::Less
@@ -97,7 +96,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
         let less_property_merge =
             if matches!(input.syntax, Syntax::Less | Syntax::Css) { input.parse()? } else { None };
 
-        let (_, colon_span) = expect!(input, Colon);
+        let (_, colon_span) = input.cursor.expect_colon()?;
         let (mut value, mut important) = {
             let mut parser = input.with_state(ParserState {
                 qualified_rule_ctx: Some(QualifiedRuleContext::DeclarationValue),
@@ -239,7 +238,7 @@ fn at_declaration_value_end(token: &Token) -> bool {
 
 impl<'a> Parse<'a> for ImportantAnnotation<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, span) = expect!(input, Exclamation);
+        let (_, span) = input.cursor.expect_exclamation()?;
         input.eat_sass_line_continuation()?;
         let ident: Ident = input.parse::<Ident>()?;
         let span = Span { start: span.start, end: ident.span.end };
@@ -296,7 +295,7 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
                 });
             }
         } else {
-            expect!(input, LBrace).1.start
+            input.cursor.expect_l_brace()?.1.start
         };
 
         let statements = input.parse_statements(/* is_top_level */ false)?;
@@ -320,7 +319,7 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
                 }
             }
         } else {
-            let end = expect!(input, RBrace).1.end;
+            let end = input.cursor.expect_r_brace()?.1.end;
             Ok(SimpleBlock { statements, span: Span { start, end } })
         }
     }
@@ -329,7 +328,7 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
 impl<'a> Parse<'a> for Stylesheet<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let statements = input.parse_statements(/* is_top_level */ true)?;
-        expect!(input, Eof);
+        input.cursor.expect_eof()?;
         Ok(Stylesheet { statements, span: Span { start: 0, end: input.source.len() } })
     }
 }
@@ -692,7 +691,7 @@ impl<'a> Parser<'a> {
                         statements.push(Statement::Declaration(declaration));
                         is_block_element = true;
                     } else {
-                        let (placeholder, span) = expect!(self, Placeholder);
+                        let (placeholder, span) = self.cursor.expect_placeholder()?;
                         statements.push(Statement::Placeholder((placeholder, span).into()));
                         is_block_element = true;
                     }
@@ -850,12 +849,12 @@ impl<'a> Parser<'a> {
                                 self.cursor.eat_linebreak()?;
                             }
                         } else if self.cursor.eat_semicolon()?.is_none() {
-                            expect!(self, Linebreak);
+                            self.cursor.expect_linebreak()?;
                         }
                     } else if is_block_element {
                         self.cursor.eat_semicolon()?;
                     } else {
-                        expect!(self, Semicolon);
+                        self.cursor.expect_semicolon()?;
                     }
                 }
             }

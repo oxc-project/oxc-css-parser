@@ -3,7 +3,6 @@ use crate::{
     Parse,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
@@ -77,9 +76,9 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                 })
                 .or_else(|_| {
                     input.try_parse(|parser| {
-                        let (_, Span { start, .. }) = expect!(parser, LParen);
+                        let (_, Span { start, .. }) = parser.cursor.expect_l_paren()?;
                         let condition = parser.parse::<SupportsCondition>()?;
-                        let (_, Span { end, .. }) = expect!(parser, RParen);
+                        let (_, Span { end, .. }) = parser.cursor.expect_r_paren()?;
                         Ok(SupportsInParens {
                             kind: SupportsInParensKind::SupportsCondition(condition),
                             span: Span { start, end },
@@ -89,9 +88,9 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                 .or_else(|_| {
                     // <general-enclosed>: MQ L4 catch-all (referenced from <supports-condition>),
                     // evaluates false at runtime.
-                    let (_, Span { start, .. }) = expect!(input, LParen);
+                    let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
                     let tokens = input.parse_tokens_in_parens()?;
-                    let (_, Span { end, .. }) = expect!(input, RParen);
+                    let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
                     Ok(SupportsInParens {
                         kind: SupportsInParensKind::GeneralEnclosed(tokens),
                         span: Span { start, end },
@@ -107,9 +106,9 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                     InterpolableIdent::Literal(function_ident)
                         if function_ident.name.eq_ignore_ascii_case("selector") =>
                     {
-                        expect!(input, LParen);
+                        input.cursor.expect_l_paren()?;
                         let selector_list = input.parse::<SelectorList>()?;
-                        expect!(input, RParen);
+                        input.cursor.expect_r_paren()?;
                         let span = selector_list.span.clone();
                         Ok(SupportsInParens {
                             kind: SupportsInParensKind::Selector(selector_list),
@@ -168,9 +167,9 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
 
 impl<'a> Parse<'a> for SupportsDecl<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let start = expect!(input, LParen).1.start;
+        let start = input.cursor.expect_l_paren()?.1.start;
         let decl = input.parse()?;
-        let end = expect!(input, RParen).1.end;
+        let end = input.cursor.expect_r_paren()?.1.end;
         Ok(SupportsDecl { decl, span: Span { start, end } })
     }
 }

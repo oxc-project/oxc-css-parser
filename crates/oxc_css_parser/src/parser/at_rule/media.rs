@@ -3,7 +3,6 @@ use crate::{
     Parse, Syntax,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
@@ -126,9 +125,9 @@ impl<'a> Parse<'a> for MediaInParens<'a> {
                 span,
             });
         }
-        let (_, Span { start, .. }) = expect!(input, LParen);
+        let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
         let kind = input.parse()?;
-        let (_, Span { end, .. }) = expect!(input, RParen);
+        let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
         Ok(MediaInParens { kind, span: Span { start, end } })
     }
 }
@@ -375,7 +374,7 @@ impl<'a> Parser<'a> {
         &mut self,
         ident: InterpolableIdent<'a>,
     ) -> PResult<MediaFeaturePlain<'a>> {
-        let (_, colon_span) = expect!(self, Colon);
+        let (_, colon_span) = self.cursor.expect_colon()?;
         let value = self.parse_media_feature_value()?;
         let span = Span { start: ident.span().start, end: value.span().end };
         Ok(MediaFeaturePlain { name: MediaFeatureName::Ident(ident), colon_span, value, span })
@@ -468,7 +467,7 @@ impl<'a> Parser<'a> {
             ) if mq_span.end == lparen_span.start => {
                 self.cursor.bump()?;
                 let args = self.parse_function_args()?;
-                let (_, Span { end, .. }) = expect!(self, RParen);
+                let (_, Span { end, .. }) = self.cursor.expect_r_paren()?;
                 Ok(MediaQuery::Function(Function {
                     name: FunctionName::Ident(name),
                     args,

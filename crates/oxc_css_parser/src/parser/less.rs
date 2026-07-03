@@ -7,7 +7,6 @@ use crate::{
     ast::*,
     config::Syntax,
     error::{Error, ErrorKind, PResult},
-    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
     util,
@@ -102,7 +101,7 @@ impl<'a> Parser<'a> {
                 ..self.state.clone()
             })
             .parse_less_condition_inside_parens(needs_parens)?;
-        let (_, Span { end, .. }) = expect!(self, RParen);
+        let (_, Span { end, .. }) = self.cursor.expect_r_paren()?;
         Ok((condition, end))
     }
 
@@ -228,7 +227,7 @@ impl<'a> Parser<'a> {
 
         let (first, Span { start, mut end }) = match self.cursor.peek()? {
             TokenWithSpan { token: Token::Ident(..), .. } => {
-                let (ident, ident_span) = expect!(self, Ident);
+                let (ident, ident_span) = self.cursor.expect_ident()?;
                 (
                     LessInterpolatedIdentElement::Static(
                         self.interpolable_ident_static_part(ident, ident_span.clone()),
@@ -347,7 +346,7 @@ impl<'a> Parser<'a> {
             // a detached-ruleset call in value position: `a: @a();`
             TokenWithSpan { token: Token::LParen(..), span } if variable.span.end == span.start => {
                 self.cursor.bump()?;
-                let (_, Span { end, .. }) = expect!(self, RParen);
+                let (_, Span { end, .. }) = self.cursor.expect_r_paren()?;
                 let span = Span { start: variable.span.start, end };
                 Ok(ComponentValue::LessVariableCall(LessVariableCall { variable, span }))
             }
@@ -477,7 +476,7 @@ impl<'a> Parser<'a> {
                         && (token.raw.starts_with('+')
                             || token.raw.starts_with('-') && span.start == left.span().end) =>
                 {
-                    let (number, number_span) = expect!(self, Number);
+                    let (number, number_span) = self.cursor.expect_number()?;
                     let op = LessOperationOperator {
                         kind: if number.raw.starts_with('+') {
                             LessOperationOperatorKind::Plus
@@ -511,7 +510,7 @@ impl<'a> Parser<'a> {
                             || token.value.raw.starts_with('-')
                                 && span.start == left.span().end) =>
                 {
-                    let (dimension, dimension_span) = expect!(self, Dimension);
+                    let (dimension, dimension_span) = self.cursor.expect_dimension()?;
                     let op = LessOperationOperator {
                         kind: if dimension.value.raw.starts_with('+') {
                             LessOperationOperatorKind::Plus
@@ -592,14 +591,14 @@ impl<'a> Parser<'a> {
         &mut self,
         allow_mixin_call: bool,
     ) -> PResult<LessParenthesizedOperation<'a>> {
-        let (_, Span { start, .. }) = expect!(self, LParen);
+        let (_, Span { start, .. }) = self.cursor.expect_l_paren()?;
         let operation = self
             .with_state(ParserState {
                 less_ctx: self.state.less_ctx | LESS_CTX_ALLOW_DIV,
                 ..self.state.clone()
             })
             .parse_less_operation(allow_mixin_call)?;
-        let (_, Span { end, .. }) = expect!(self, RParen);
+        let (_, Span { end, .. }) = self.cursor.expect_r_paren()?;
         Ok(LessParenthesizedOperation {
             operation: self.alloc(operation),
             span: Span { start, end },
@@ -781,7 +780,7 @@ impl<'a> Parse<'a> for LessConditions<'a> {
         // condition actually follows.
         while matches!(input.cursor.peek()?.token, Token::Comma(..)) {
             let Ok((comma_span, condition)) = input.try_parse(|p| {
-                let (_, comma_span) = expect!(p, Comma);
+                let (_, comma_span) = p.cursor.expect_comma()?;
                 let condition = p.parse_less_condition(true)?;
                 Ok((comma_span, condition))
             }) else {
@@ -809,7 +808,7 @@ impl<'a> Parse<'a> for LessDetachedRuleset<'a> {
 
 impl<'a> Parse<'a> for LessEscapedStr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, Span { start, .. }) = expect!(input, Tilde);
+        let (_, Span { start, .. }) = input.cursor.expect_tilde()?;
         let str = {
             let (str, span) = input.cursor.tokenizer.scan_string_only()?;
             input.str(str, span)
@@ -915,14 +914,14 @@ impl<'a> Parse<'a> for LessExtendRule<'a> {
 
 impl<'a> Parse<'a> for LessFormatFunction {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, span) = expect!(input, Percent);
+        let (_, span) = input.cursor.expect_percent()?;
         Ok(LessFormatFunction { span })
     }
 }
 
 impl<'a> Parse<'a> for LessImportOptions<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, Span { start, .. }) = expect!(input, LParen);
+        let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
 
         let mut names = input.vec_with_capacity(1);
         let mut comma_spans = input.vec();
@@ -933,12 +932,12 @@ impl<'a> Parse<'a> for LessImportOptions<'a> {
         {
             names.push(input.parse()?);
             if !matches!(input.cursor.peek()?.token, Token::RParen(..)) {
-                comma_spans.push(expect!(input, Comma).1);
+                comma_spans.push(input.cursor.expect_comma()?.1);
             }
         }
         debug_assert!(names.len() - comma_spans.len() <= 1);
 
-        let (_, Span { end, .. }) = expect!(input, RParen);
+        let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
 
         Ok(LessImportOptions { names, comma_spans, span: Span { start, end } })
     }
@@ -969,7 +968,7 @@ impl<'a> Parse<'a> for LessImportPrelude<'a> {
 
 impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (first, first_span) = expect!(input, StrTemplate);
+        let (first, first_span) = input.cursor.expect_str_template()?;
         let quote = first.raw.chars().next().unwrap();
         debug_assert!(quote == '\'' || quote == '"');
         let mut span = first_span.clone();
@@ -992,11 +991,11 @@ impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
                 }
             } else {
                 // '@' or '$' is consumed, so '{' left only
-                let start = expect!(input, LBrace).1.start - 1;
+                let start = input.cursor.expect_l_brace()?.1.start - 1;
                 // Less interpolation names may start with a digit (`@{3}`).
                 let (name, name_span) = input.cursor.expect_ident_without_ws_or_comments(true)?;
 
-                let end = expect!(input, RBrace).1.end;
+                let end = input.cursor.expect_r_brace()?.1.end;
                 elements.push(match input.source.as_bytes().get(start) {
                     Some(b'@') => LessInterpolatedStrElement::Variable(LessVariableInterpolation {
                         name: input.ident(name, name_span),
@@ -1019,7 +1018,7 @@ impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
 impl<'a> Parse<'a> for LessJavaScriptSnippet<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let tilde = input.cursor.eat_tilde()?;
-        let (token, span) = expect!(input, BacktickCode);
+        let (token, span) = input.cursor.expect_backtick_code()?;
 
         Ok(LessJavaScriptSnippet {
             code: &token.raw[1..token.raw.len() - 1],
@@ -1035,7 +1034,7 @@ impl<'a> Parse<'a> for LessJavaScriptSnippet<'a> {
 
 impl<'a> Parse<'a> for LessListFunction {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, span) = expect!(input, Tilde);
+        let (_, span) = input.cursor.expect_tilde()?;
         Ok(LessListFunction { span })
     }
 }
@@ -1044,13 +1043,13 @@ impl<'a> Parse<'a> for LessLookup<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert_eq!(input.syntax, Syntax::Less);
 
-        let (_, Span { start, .. }) = expect!(input, LBracket);
+        let (_, Span { start, .. }) = input.cursor.expect_l_bracket()?;
         let name = if let Token::RBracket(..) = input.cursor.peek()?.token {
             None
         } else {
             Some(input.parse()?)
         };
-        let (_, Span { end, .. }) = expect!(input, RBracket);
+        let (_, Span { end, .. }) = input.cursor.expect_r_bracket()?;
         Ok(LessLookup { name, span: Span { start, end } })
     }
 }
@@ -1265,7 +1264,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
 
 impl<'a> Parser<'a> {
     fn parse_less_mixin_parameters(&mut self) -> PResult<LessMixinParameters<'a>> {
-        let (_, lparen_span) = expect!(self, LParen);
+        let (_, lparen_span) = self.cursor.expect_l_paren()?;
         let rparen_span;
         let mut semicolon_comes_at = 0;
         let mut params = self.vec();
@@ -1284,7 +1283,7 @@ impl<'a> Parser<'a> {
                         span,
                     }));
                     self.cursor.eat_semicolon()?;
-                    (_, rparen_span) = expect!(self, RParen);
+                    (_, rparen_span) = self.cursor.expect_r_paren()?;
                     break;
                 }
                 Token::Comma(..) => {
@@ -1348,7 +1347,7 @@ impl<'a> Parser<'a> {
                         if let Some((_, semicolon_span)) = self.cursor.eat_semicolon()? {
                             semicolon_spans.push(semicolon_span);
                         };
-                        (_, rparen_span) = expect!(self, RParen);
+                        (_, rparen_span) = self.cursor.expect_r_paren()?;
                         break 'params;
                     } else {
                         let span = name_span.clone();
@@ -1599,7 +1598,7 @@ impl<'a> Parse<'a> for LessNamespaceValueCallee<'a> {
 
 impl<'a> Parse<'a> for LessNegativeValue<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, minus_span) = expect!(input, Minus);
+        let (_, minus_span) = input.cursor.expect_minus()?;
         let value = match input.cursor.peek()? {
             TokenWithSpan {
                 token: Token::AtKeyword(..) | Token::At(..) | Token::DollarVar(..),
@@ -1636,7 +1635,7 @@ impl<'a> Parse<'a> for LessNegativeValue<'a> {
 
 impl<'a> Parse<'a> for LessPercentKeyword {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, span) = expect!(input, Percent);
+        let (_, span) = input.cursor.expect_percent()?;
         Ok(LessPercentKeyword { span })
     }
 }
@@ -1650,7 +1649,7 @@ impl<'a> Parse<'a> for LessPlugin<'a> {
         let args = if let Some((_, span)) = input.cursor.eat_l_paren()? {
             start = Some(span.start);
             let args = input.parse_tokens_in_parens()?;
-            expect!(input, RParen);
+            input.cursor.expect_r_paren()?;
             Some(args)
         } else {
             None
@@ -1676,7 +1675,7 @@ impl<'a> Parse<'a> for LessPluginPath<'a> {
 
 impl<'a> Parse<'a> for LessPropertyInterpolation<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (dollar_lbrace_var, span) = expect!(input, DollarLBraceVar);
+        let (dollar_lbrace_var, span) = input.cursor.expect_dollar_l_brace_var()?;
         Ok(LessPropertyInterpolation {
             name: input
                 .ident(dollar_lbrace_var.ident, Span { start: span.start + 2, end: span.end - 1 }),
@@ -1705,7 +1704,7 @@ impl<'a> Parse<'a> for Option<LessPropertyMerge> {
 
 impl<'a> Parse<'a> for LessPropertyVariable<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (dollar_var, span) = expect!(input, DollarVar);
+        let (dollar_var, span) = input.cursor.expect_dollar_var()?;
         Ok(LessPropertyVariable {
             name: input.ident(dollar_var.ident, Span { start: span.start + 1, end: span.end }),
             span,
@@ -1715,7 +1714,7 @@ impl<'a> Parse<'a> for LessPropertyVariable<'a> {
 
 impl<'a> Parse<'a> for LessVariable<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (at_keyword, span) = expect!(input, AtKeyword);
+        let (at_keyword, span) = input.cursor.expect_at_keyword()?;
         Ok(LessVariable {
             name: input.ident(at_keyword.ident, Span { start: span.start + 1, end: span.end }),
             span,
@@ -1727,7 +1726,7 @@ impl<'a> Parse<'a> for LessVariableCall<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let variable = input.parse::<LessVariable>()?;
         input.cursor.expect_l_paren_without_ws_or_comments()?;
-        let (_, Span { end, .. }) = expect!(input, RParen);
+        let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
 
         let span = Span { start: variable.span.start, end };
         Ok(LessVariableCall { variable, span })
@@ -1739,7 +1738,7 @@ impl<'a> Parse<'a> for LessVariableDeclaration<'a> {
         debug_assert_eq!(input.syntax, Syntax::Less);
 
         let name = input.parse::<LessVariable>()?;
-        let (_, colon_span) = expect!(input, Colon);
+        let (_, colon_span) = input.cursor.expect_colon()?;
         let value = if matches!(input.cursor.peek()?.token, Token::LBrace(..)) {
             ComponentValue::LessDetachedRuleset(input.parse()?)
         } else {
@@ -1794,7 +1793,7 @@ impl<'a> Parse<'a> for LessVariableDeclaration<'a> {
 
 impl<'a> Parse<'a> for LessVariableInterpolation<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (at_lbrace_var, span) = expect!(input, AtLBraceVar);
+        let (at_lbrace_var, span) = input.cursor.expect_at_l_brace_var()?;
         Ok(LessVariableInterpolation {
             name: input
                 .ident(at_lbrace_var.ident, Span { start: span.start + 2, end: span.end - 1 }),
@@ -1805,7 +1804,7 @@ impl<'a> Parse<'a> for LessVariableInterpolation<'a> {
 
 impl<'a> Parse<'a> for LessVariableVariable<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, at_span) = expect!(input, At);
+        let (_, at_span) = input.cursor.expect_at()?;
         let variable = input.parse::<LessVariable>()?;
         util::assert_no_ws_or_comment(&at_span, &variable.span)?;
 
