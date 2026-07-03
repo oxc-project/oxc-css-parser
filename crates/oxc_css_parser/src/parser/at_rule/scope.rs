@@ -52,9 +52,8 @@ impl<'a> Parse<'a> for ScopePrelude<'a> {
             (Some(start), None) => Ok(ScopePrelude::StartOnly(start)),
             (None, Some(end)) => Ok(ScopePrelude::EndOnly(end)),
             (None, None) => {
-                use crate::{token::LParen, tokenizer::TokenSymbol};
                 let TokenWithSpan { token, span } = input.cursor.bump()?;
-                Err(Error { kind: ErrorKind::Unexpected(LParen::symbol(), token.symbol()), span })
+                Err(Error { kind: ErrorKind::Unexpected("(", token.symbol()), span })
             }
         }
     }

@@ -175,10 +175,9 @@ impl<'a> Parser<'a> {
                 }
                 _ => {
                     if needs_parens {
-                        use crate::{token::LParen, tokenizer::TokenSymbol};
                         let TokenWithSpan { token, span } = self.cursor.bump()?;
                         return Err(Error {
-                            kind: ErrorKind::Unexpected(LParen::symbol(), token.symbol()),
+                            kind: ErrorKind::Unexpected("(", token.symbol()),
                             span,
                         });
                     } else {
@@ -251,15 +250,8 @@ impl<'a> Parser<'a> {
                 (LessInterpolatedIdentElement::Property(interpolation), span)
             }
             TokenWithSpan { token, span } => {
-                use crate::{
-                    token::{AtLBraceVar, Ident},
-                    tokenizer::TokenSymbol,
-                };
                 return Err(Error {
-                    kind: ErrorKind::ExpectOneOf(
-                        vec![Ident::symbol(), AtLBraceVar::symbol()],
-                        token.symbol(),
-                    ),
+                    kind: ErrorKind::ExpectOneOf(vec!["<ident>", "@{"], token.symbol()),
                     span: span.clone(),
                 });
             }
@@ -1222,9 +1214,9 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                     }
                     _ => {
                         let TokenWithSpan { token, span } = input.cursor.bump()?;
-                        use crate::{token::RParen, tokenizer::TokenSymbol};
+
                         return Err(Error {
-                            kind: ErrorKind::Unexpected(RParen::symbol(), token.symbol()),
+                            kind: ErrorKind::Unexpected(")", token.symbol()),
                             span,
                         });
                     }
@@ -1546,19 +1538,10 @@ impl<'a> Parse<'a> for LessMixinName<'a> {
                     span,
                 }))
             }
-            TokenWithSpan { token, span } => {
-                use crate::{
-                    token::{Dot, Hash},
-                    tokenizer::TokenSymbol,
-                };
-                Err(Error {
-                    kind: ErrorKind::ExpectOneOf(
-                        vec![Dot::symbol(), Hash::symbol()],
-                        token.symbol(),
-                    ),
-                    span,
-                })
-            }
+            TokenWithSpan { token, span } => Err(Error {
+                kind: ErrorKind::ExpectOneOf(vec![".", "<hash>"], token.symbol()),
+                span,
+            }),
         }
     }
 }
@@ -1614,15 +1597,8 @@ impl<'a> Parse<'a> for LessNegativeValue<'a> {
                 input.alloc(value)
             }
             TokenWithSpan { token, span } => {
-                use crate::{
-                    token::{AtKeyword, DollarVar, LParen},
-                    tokenizer::TokenSymbol,
-                };
                 return Err(Error {
-                    kind: ErrorKind::ExpectOneOf(
-                        vec![AtKeyword::symbol(), DollarVar::symbol(), LParen::symbol()],
-                        token.symbol(),
-                    ),
+                    kind: ErrorKind::ExpectOneOf(vec!["<at-keyword>", "$var", "("], token.symbol()),
                     span: span.clone(),
                 });
             }

@@ -509,15 +509,8 @@ impl<'a> Parser<'a> {
                 self.parse_sass_interpolated_ident_expr()?
             }
             TokenWithSpan { token, span } => {
-                use crate::{
-                    token::{HashLBrace, Ident},
-                    tokenizer::TokenSymbol,
-                };
                 return Err(Error {
-                    kind: ErrorKind::ExpectOneOf(
-                        vec![Ident::symbol(), HashLBrace::symbol()],
-                        token.symbol(),
-                    ),
+                    kind: ErrorKind::ExpectOneOf(vec!["<ident>", "#{"], token.symbol()),
                     span: span.clone(),
                 });
             }
@@ -1337,9 +1330,8 @@ impl<'a> Parse<'a> for SassList<'a> {
         {
             Ok(list)
         } else {
-            use crate::{token::Comma, tokenizer::TokenSymbol};
             let TokenWithSpan { token, span } = input.cursor.bump()?;
-            Err(Error { kind: ErrorKind::Unexpected(Comma::symbol(), token.symbol()), span })
+            Err(Error { kind: ErrorKind::Unexpected(",", token.symbol()), span })
         }
     }
 }
