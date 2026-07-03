@@ -116,19 +116,6 @@ impl crate::pos::Spanned for CalcOperator {
     }
 }
 
-impl crate::pos::Spanned for CalcOperatorKind {
-    #[inline]
-    fn span(&self) -> &Span {
-        match self {
-            Self::Plus => panic!("not implemented"),
-            Self::Minus => panic!("not implemented"),
-            Self::Multiply => panic!("not implemented"),
-            Self::Division => panic!("not implemented"),
-            Self::Modulo => panic!("not implemented"),
-        }
-    }
-}
-
 impl<'a> crate::pos::Spanned for ClassSelector<'a> {
     #[inline]
     fn span(&self) -> &Span {
@@ -356,21 +343,6 @@ impl<'a> crate::pos::Spanned for Dimension<'a> {
     #[inline]
     fn span(&self) -> &Span {
         &self.span
-    }
-}
-
-impl crate::pos::Spanned for DimensionKind {
-    #[inline]
-    fn span(&self) -> &Span {
-        match self {
-            Self::Length => panic!("not implemented"),
-            Self::Angle => panic!("not implemented"),
-            Self::Duration => panic!("not implemented"),
-            Self::Frequency => panic!("not implemented"),
-            Self::Resolution => panic!("not implemented"),
-            Self::Flex => panic!("not implemented"),
-            Self::Unknown => panic!("not implemented"),
-        }
     }
 }
 
@@ -1014,16 +986,6 @@ impl crate::pos::Spanned for LessPropertyMerge {
     }
 }
 
-impl crate::pos::Spanned for LessPropertyMergeKind {
-    #[inline]
-    fn span(&self) -> &Span {
-        match self {
-            Self::Comma => panic!("not implemented"),
-            Self::Space => panic!("not implemented"),
-        }
-    }
-}
-
 impl<'a> crate::pos::Spanned for LessPropertyVariable<'a> {
     #[inline]
     fn span(&self) -> &Span {
@@ -1563,16 +1525,6 @@ impl crate::pos::Spanned for SassForBoundary {
     }
 }
 
-impl crate::pos::Spanned for SassForBoundaryKind {
-    #[inline]
-    fn span(&self) -> &Span {
-        match self {
-            Self::Inclusive => panic!("not implemented"),
-            Self::Exclusive => panic!("not implemented"),
-        }
-    }
-}
-
 impl<'a> crate::pos::Spanned for SassForward<'a> {
     #[inline]
     fn span(&self) -> &Span {
@@ -1608,16 +1560,6 @@ impl crate::pos::Spanned for SassForwardVisibilityModifier {
     #[inline]
     fn span(&self) -> &Span {
         &self.span
-    }
-}
-
-impl crate::pos::Spanned for SassForwardVisibilityModifierKind {
-    #[inline]
-    fn span(&self) -> &Span {
-        match self {
-            Self::Hide => panic!("not implemented"),
-            Self::Show => panic!("not implemented"),
-        }
     }
 }
 
