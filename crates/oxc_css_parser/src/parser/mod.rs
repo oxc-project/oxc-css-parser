@@ -587,11 +587,6 @@ impl<'a> Parser<'a> {
     }
 
     #[inline]
-    pub(crate) fn allocator(&self) -> &'a Allocator {
-        self.allocator
-    }
-
-    #[inline]
     pub(crate) fn alloc<T>(&self, value: T) -> oxc_allocator::Box<'a, T> {
         oxc_allocator::Box::new_in(value, &self.allocator)
     }

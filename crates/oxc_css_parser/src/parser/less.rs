@@ -1114,7 +1114,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                         if semicolon_comes_at > 0 {
                             let comma_spans = mem::replace(&mut comma_spans, input.vec());
                             wrap_less_mixin_args_into_less_list(
-                                input.allocator(),
+                                input.allocator,
                                 &mut args,
                                 comma_spans,
                                 semicolon_comes_at,
@@ -1203,7 +1203,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                         let TokenWithSpan { span, .. } = input.cursor.bump()?;
                         let comma_spans = mem::replace(&mut comma_spans, input.vec());
                         wrap_less_mixin_args_into_less_list(
-                            input.allocator(),
+                            input.allocator,
                             &mut args,
                             comma_spans,
                             semicolon_comes_at,
@@ -1358,7 +1358,7 @@ impl<'a> Parser<'a> {
                     if semicolon_comes_at > 0 {
                         let comma_spans = mem::replace(&mut comma_spans, self.vec());
                         wrap_less_mixin_params_into_less_list(
-                            self.allocator(),
+                            self.allocator,
                             &mut params,
                             comma_spans,
                             semicolon_comes_at,
@@ -1383,7 +1383,7 @@ impl<'a> Parser<'a> {
                     let span = self.cursor.bump()?.span;
                     let comma_spans = mem::replace(&mut comma_spans, self.vec());
                     wrap_less_mixin_params_into_less_list(
-                        self.allocator(),
+                        self.allocator,
                         &mut params,
                         comma_spans,
                         semicolon_comes_at,
@@ -1531,7 +1531,7 @@ impl<'a> Parse<'a> for LessMixinName<'a> {
                         .push(Error { kind: ErrorKind::InvalidIdSelectorName, span: span.clone() });
                 }
                 let name =
-                    if hash.escaped { util::handle_escape_in(raw, input.allocator()) } else { raw };
+                    if hash.escaped { util::handle_escape_in(raw, input.allocator) } else { raw };
                 let name_span = Span { start: span.start + 1, end: span.end };
                 Ok(LessMixinName::IdSelector(IdSelector {
                     name: InterpolableIdent::Literal(Ident { name, raw, span: name_span }),

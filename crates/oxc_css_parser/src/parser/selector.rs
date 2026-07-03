@@ -705,11 +705,8 @@ impl<'a> Parse<'a> for IdSelector<'a> {
                         .recoverable_errors
                         .push(Error { kind: ErrorKind::InvalidIdSelectorName, span: span.clone() });
                 }
-                let value = if token.escaped {
-                    util::handle_escape_in(raw, input.allocator())
-                } else {
-                    raw
-                };
+                let value =
+                    if token.escaped { util::handle_escape_in(raw, input.allocator) } else { raw };
                 let first = Ident { name: value, raw: token.raw, span: first_span };
                 let name = match input.cursor.peek()? {
                     TokenWithSpan { token: Token::HashLBrace(..), span }

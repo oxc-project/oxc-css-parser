@@ -960,8 +960,7 @@ impl<'a> Parse<'a> for HexColor<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (token, span) = input.cursor.expect_hash()?;
         let raw = token.raw;
-        let value =
-            if token.escaped { util::handle_escape_in(raw, input.allocator()) } else { raw };
+        let value = if token.escaped { util::handle_escape_in(raw, input.allocator) } else { raw };
         Ok(HexColor { value, raw, span })
     }
 }
@@ -1143,7 +1142,7 @@ impl<'a> Parse<'a> for UrlRaw<'a> {
         match input.cursor.tokenizer.scan_url_raw_or_template()? {
             TokenWithSpan { token: Token::UrlRaw(url), span } => {
                 let value = if url.escaped {
-                    util::handle_escape_in(url.raw, input.allocator())
+                    util::handle_escape_in(url.raw, input.allocator)
                 } else {
                     url.raw
                 };
