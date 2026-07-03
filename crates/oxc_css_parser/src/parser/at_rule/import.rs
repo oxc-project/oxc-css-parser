@@ -3,7 +3,7 @@ use crate::{
     Parse, Syntax,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect, expect_without_ws_or_comments,
+    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
 };
@@ -139,7 +139,7 @@ impl<'a> ImportPrelude<'a> {
                 return Err(Error { kind: ErrorKind::TryParseError, span });
             }
 
-            expect_without_ws_or_comments!(parser, LParen);
+            parser.cursor.expect_l_paren_without_ws_or_comments()?;
 
             let kind = if let Ok(supports_condition) = parser.try_parse(SupportsCondition::parse) {
                 ImportPreludeSupportsKind::SupportsCondition(supports_condition)

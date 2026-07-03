@@ -6,10 +6,10 @@ use crate::{
         InterpolableUrlStaticPart, Str,
     },
     config::Syntax,
-    error::{Error, PResult},
+    error::{Error, ErrorKind, PResult},
     expect,
     pos::Span,
-    tokenizer::{Token, TokenWithSpan, Tokenizer, token},
+    tokenizer::{Token, TokenSymbol, TokenWithSpan, Tokenizer, token},
     util,
 };
 pub use builder::ParserBuilder;
@@ -76,6 +76,62 @@ impl<'a> ParserCursor<'a> {
                 Ok(None)
             }
         }
+    }
+
+    #[inline]
+    fn expect_without_ws_or_comments<T>(
+        &mut self,
+        expected: &'static str,
+        extract: impl FnOnce(Token<'a>) -> Result<T, Token<'a>>,
+    ) -> PResult<(T, Span)> {
+        debug_assert!(self.cached_token.is_none());
+        let TokenWithSpan { token, span } = self.tokenizer.bump_without_ws_or_comments()?;
+        match extract(token) {
+            Ok(token) => Ok((token, span)),
+            Err(token) => {
+                Err(Error { kind: ErrorKind::Unexpected(expected, token.symbol()), span })
+            }
+        }
+    }
+
+    #[inline]
+    fn expect_ident_without_ws_or_comments(
+        &mut self,
+        allow_leading_digit: bool,
+    ) -> PResult<(token::Ident<'a>, Span)> {
+        debug_assert!(self.cached_token.is_none());
+        if self.tokenizer.is_start_of_ident()
+            || (allow_leading_digit && self.tokenizer.is_start_of_digit())
+        {
+            self.tokenizer.scan_ident_sequence(allow_leading_digit)
+        } else {
+            let TokenWithSpan { token, span } = self.tokenizer.bump_without_ws_or_comments()?;
+            Err(Error { kind: ErrorKind::Unexpected(token::Ident::symbol(), token.symbol()), span })
+        }
+    }
+
+    #[inline]
+    fn expect_asterisk_without_ws_or_comments(&mut self) -> PResult<(token::Asterisk, Span)> {
+        self.expect_without_ws_or_comments(token::Asterisk::symbol(), |token| match token {
+            Token::Asterisk(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn expect_l_paren_without_ws_or_comments(&mut self) -> PResult<(token::LParen, Span)> {
+        self.expect_without_ws_or_comments(token::LParen::symbol(), |token| match token {
+            Token::LParen(token) => Ok(token),
+            token => Err(token),
+        })
+    }
+
+    #[inline]
+    fn expect_solidus_without_ws_or_comments(&mut self) -> PResult<(token::Solidus, Span)> {
+        self.expect_without_ws_or_comments(token::Solidus::symbol(), |token| match token {
+            Token::Solidus(token) => Ok(token),
+            token => Err(token),
+        })
     }
 
     #[inline]

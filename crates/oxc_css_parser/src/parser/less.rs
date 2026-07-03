@@ -7,7 +7,7 @@ use crate::{
     ast::*,
     config::Syntax,
     error::{Error, ErrorKind, PResult},
-    expect, expect_without_ws_or_comments,
+    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan},
     util,
@@ -441,7 +441,8 @@ impl<'a> Parser<'a> {
                 {
                     // `./` is also division
                     let Span { start, .. } = self.cursor.bump()?.span;
-                    let (_, Span { end, .. }) = expect_without_ws_or_comments!(self, Solidus);
+                    let (_, Span { end, .. }) =
+                        self.cursor.expect_solidus_without_ws_or_comments()?;
                     LessOperationOperator {
                         kind: LessOperationOperatorKind::Division,
                         span: Span { start, end },
@@ -993,9 +994,7 @@ impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
                 // '@' or '$' is consumed, so '{' left only
                 let start = expect!(input, LBrace).1.start - 1;
                 // Less interpolation names may start with a digit (`@{3}`).
-                let (name, name_span) = expect_without_ws_or_comments!(
-                    input, Ident, /* allow_leading_digit */ true
-                );
+                let (name, name_span) = input.cursor.expect_ident_without_ws_or_comments(true)?;
 
                 let end = expect!(input, RBrace).1.end;
                 elements.push(match input.source.as_bytes().get(start) {
@@ -1522,7 +1521,8 @@ impl<'a> Parse<'a> for LessMixinName<'a> {
                 }))
             }
             TokenWithSpan { token: Token::Dot(..), span: dot_span } => {
-                let (ident, ident_span) = expect_without_ws_or_comments!(input, Ident);
+                let (ident, ident_span) =
+                    input.cursor.expect_ident_without_ws_or_comments(false)?;
                 let ident = input.ident(ident, ident_span);
                 let span = Span { start: dot_span.start, end: ident.span.end };
                 Ok(LessMixinName::ClassSelector(ClassSelector {
@@ -1726,7 +1726,7 @@ impl<'a> Parse<'a> for LessVariable<'a> {
 impl<'a> Parse<'a> for LessVariableCall<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let variable = input.parse::<LessVariable>()?;
-        expect_without_ws_or_comments!(input, LParen);
+        input.cursor.expect_l_paren_without_ws_or_comments()?;
         let (_, Span { end, .. }) = expect!(input, RParen);
 
         let span = Span { start: variable.span.start, end };

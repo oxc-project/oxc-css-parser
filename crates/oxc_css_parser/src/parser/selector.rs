@@ -3,7 +3,7 @@ use crate::{
     Parse, Syntax,
     ast::*,
     error::{Error, ErrorKind, PResult},
-    expect, expect_without_ws_or_comments,
+    expect,
     pos::{Span, Spanned},
     tokenizer::{Token, TokenWithSpan, token},
     util,
@@ -97,7 +97,8 @@ impl<'a> Parse<'a> for AnPlusB {
 
             TokenWithSpan { token: Token::Plus(..), .. } => {
                 let plus_span = input.cursor.bump()?.span;
-                let (ident, ident_span) = expect_without_ws_or_comments!(input, Ident);
+                let (ident, ident_span) =
+                    input.cursor.expect_ident_without_ws_or_comments(false)?;
                 let ident_name = ident.name();
                 if ident_name.eq_ignore_ascii_case("n") {
                     match &input.cursor.peek()?.token {
@@ -506,7 +507,7 @@ impl<'a> Parse<'a> for ClassSelector<'a> {
         // Detect an adjacent placeholder without `peek()`: `peek()` skips
         // whitespace and caches a token, which would both break the no-ws rule
         // (the name must immediately follow the dot) and trip the empty-cache
-        // assertion in the `expect_without_ws_or_comments!` fallback. `scan_placeholder`
+        // assertion in the `expect_ident_without_ws_or_comments` fallback. `scan_placeholder`
         // returns `None` (leaving the tokenizer untouched) unless a placeholder
         // begins exactly here, so the fallback paths run with an empty cache.
         let placeholder = if input.options.template_placeholder.is_some() {
@@ -520,7 +521,7 @@ impl<'a> Parse<'a> for ClassSelector<'a> {
             end = span.end;
             InterpolableIdent::Placeholder((placeholder, span).into())
         } else if input.syntax == Syntax::Css {
-            let (ident, ident_span) = expect_without_ws_or_comments!(input, Ident);
+            let (ident, ident_span) = input.cursor.expect_ident_without_ws_or_comments(false)?;
             end = ident_span.end;
             InterpolableIdent::Literal(input.ident(ident, ident_span))
         } else {
