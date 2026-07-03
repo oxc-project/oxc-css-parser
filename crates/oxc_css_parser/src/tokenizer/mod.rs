@@ -625,7 +625,7 @@ impl<'a> Tokenizer<'a> {
                 }
 
                 loop {
-                    match self.state.chars.clone().peek() {
+                    match self.state.chars.peek() {
                         Some((_, c)) if c.is_ascii_digit() => {
                             self.state.chars.next();
                         }

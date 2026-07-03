@@ -738,16 +738,10 @@ impl<'a> Parser<'a> {
 
     // The `src()` value function: src( [ <string> ]? <url-modifier>* )
     // https://drafts.csswg.org/css-values-4/#funcdef-src
-    fn parse_src_url(&mut self, name: Ident<'a>) -> PResult<Url<'a>> {
-        // caller of `parse_src_url` should make sure there're no whitespaces before paren
-        self.cursor.expect_l_paren()?;
-        let value = match &self.cursor.peek()?.token {
-            Token::Str(..) | Token::StrTemplate(..) => {
-                Some(UrlValue::Str(self.parse::<InterpolableStr>()?))
-            }
-            _ => None,
-        };
-        let modifiers = match &self.cursor.peek()?.token {
+    /// Parse the trailing modifier list inside `url(...)`, shared by
+    /// [`parse_src_url`](Self::parse_src_url) and the `Url` `Parse` impl.
+    fn parse_url_modifiers(&mut self) -> PResult<oxc_allocator::Vec<'a, UrlModifier<'a>>> {
+        Ok(match &self.cursor.peek()?.token {
             Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..) => {
                 let mut modifiers = self.vec_with_capacity(1);
                 loop {
@@ -759,7 +753,19 @@ impl<'a> Parser<'a> {
                 modifiers
             }
             _ => self.vec(),
+        })
+    }
+
+    fn parse_src_url(&mut self, name: Ident<'a>) -> PResult<Url<'a>> {
+        // caller of `parse_src_url` should make sure there're no whitespaces before paren
+        self.cursor.expect_l_paren()?;
+        let value = match &self.cursor.peek()?.token {
+            Token::Str(..) | Token::StrTemplate(..) => {
+                Some(UrlValue::Str(self.parse::<InterpolableStr>()?))
+            }
+            _ => None,
         };
+        let modifiers = self.parse_url_modifiers()?;
         let end = self.cursor.expect_r_paren()?.1.end;
         let span = Span { start: name.span.start, end };
         Ok(Url { name, value, modifiers, span })
@@ -1156,19 +1162,7 @@ impl<'a> Parse<'a> for Url<'a> {
 
         if input.cursor.tokenizer.is_start_of_url_string() {
             let value = input.parse()?;
-            let modifiers = match &input.cursor.peek()?.token {
-                Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..) => {
-                    let mut modifiers = input.vec_with_capacity(1);
-                    loop {
-                        modifiers.push(input.parse()?);
-                        if let Token::RParen(..) = &input.cursor.peek()?.token {
-                            break;
-                        }
-                    }
-                    modifiers
-                }
-                _ => input.vec(),
-            };
+            let modifiers = input.parse_url_modifiers()?;
             let end = input.cursor.expect_r_paren()?.1.end;
             let span = Span { start: prefix_start, end };
             Ok(Url { name, value: Some(UrlValue::Str(value)), modifiers, span })
