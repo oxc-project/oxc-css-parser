@@ -164,7 +164,7 @@
 pub use config::{ParserOptions, Syntax, TemplatePlaceholder};
 pub use oxc_allocator::Allocator;
 pub use parser::{Parse, Parser, ParserBuilder};
-pub use pos::{Span, Spanned};
+pub use pos::Span;
 pub use tokenizer::token;
 
 pub mod ast;

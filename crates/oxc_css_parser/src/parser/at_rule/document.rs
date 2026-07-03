@@ -1,5 +1,5 @@
 use super::Parser;
-use crate::{Parse, Spanned, ast::*, error::PResult};
+use crate::{Parse, ast::*, error::PResult};
 
 // https://developer.mozilla.org/en-US/docs/Web/CSS/@document
 impl<'a> Parse<'a> for DocumentPrelude<'a> {

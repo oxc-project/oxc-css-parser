@@ -3,7 +3,7 @@ use crate::{
     Parse,
     ast::*,
     error::{Error, PResult},
-    pos::{Span, Spanned},
+    pos::Span,
     tokenizer::{Token, TokenWithSpan},
     util,
 };

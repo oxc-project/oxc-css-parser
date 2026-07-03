@@ -11,7 +11,3 @@ pub struct Span {
     /// End offset. (Exclusive)
     pub end: usize,
 }
-
-pub trait Spanned {
-    fn span(&self) -> &Span;
-}
