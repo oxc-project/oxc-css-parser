@@ -315,9 +315,14 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
 
         // CSS Syntax: EOF closes all open constructs (a parse error, but the
         // tree is valid — browsers accept unclosed blocks at EOF). The
-        // dialects' reference compilers reject them.
+        // dialects' reference compilers reject them. Recovery is unchanged; the
+        // parse error is surfaced via `recoverable_errors` so downstream
+        // consumers can tell it apart from a properly closed block.
         if input.syntax == Syntax::Css && matches!(input.cursor.peek()?.token, Token::Eof(..)) {
             let end = input.cursor.peek()?.span.start;
+            input
+                .recoverable_errors
+                .push(Error { kind: ErrorKind::EofInBlock, span: Span { start, end: start + 1 } });
             return Ok(SimpleBlock { statements, span: Span { start, end } });
         }
 
@@ -369,12 +374,38 @@ impl<'a> Parser<'a> {
         let mut pairs = Vec::with_capacity(1);
         loop {
             match &self.cursor.peek()?.token {
-                Token::Dedent(..) | Token::Linebreak(..) | Token::Eof(..) => break,
+                Token::Dedent(..) | Token::Linebreak(..) => break,
+                // CSS Syntax: EOF closes any still-open `(`/`[` group; recovery is
+                // unchanged, but record the parse error so downstream consumers can
+                // tell it apart from a balanced value.
+                Token::Eof(..) => {
+                    if !pairs.is_empty() {
+                        let span = self.cursor.peek()?.span.clone();
+                        self.recoverable_errors
+                            .push(Error { kind: ErrorKind::UnclosedParen, span });
+                    }
+                    break;
+                }
                 Token::Semicolon(..) if pairs.is_empty() => {
                     break;
                 }
                 Token::LBrace(..) if stop_at_top_level_brace && pairs.is_empty() => {
                     break;
+                }
+                // An unterminated string survives as a preserved token (a parse
+                // error kept verbatim; CSS Syntax §4.3.5). The tokenizer emits a
+                // `BadStr` for both recoverable forms; recover the spec's split
+                // from where the string stopped — at EOF it is a `<string-token>`
+                // (canonically closable by appending the quote), at a newline a
+                // `<bad-string-token>`.
+                Token::BadStr(..) => {
+                    let span = self.cursor.peek()?.span.clone();
+                    let kind = if span.end == self.source.len() {
+                        ErrorKind::UnterminatedString
+                    } else {
+                        ErrorKind::BadString
+                    };
+                    self.recoverable_errors.push(Error { kind, span });
                 }
                 // An interpolated string (e.g. `'#{$expr}'` inside
                 // `filter: progid:...`) must be parsed structurally:

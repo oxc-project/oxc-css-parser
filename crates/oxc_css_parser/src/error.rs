@@ -90,6 +90,19 @@ pub enum ErrorKind {
     UnexpectedLessMixinCall,
     UnexpectedSimpleBlock,
     TopLevelDeclaration,
+
+    // Spec parse errors that CSS Syntax recovers from at EOF / newline. The AST
+    // and recovery stay conformant; these are recorded in `recoverable_errors()`
+    // so downstream consumers can tell recovered-from-broken input apart from
+    // valid CSS. See <https://drafts.csswg.org/css-syntax-3/>.
+    /// A `{}`-block left open at end of file (§5.4.4); `UnterminatedString`
+    /// (already defined) covers the EOF-terminated string (§4.3.5).
+    EofInBlock,
+    /// A string terminated by a newline instead of its quote — a
+    /// `<bad-string-token>` (§4.3.5).
+    BadString,
+    /// A `(`/`[` group left open at end of file.
+    UnclosedParen,
 }
 
 impl Display for ErrorKind {
@@ -203,6 +216,10 @@ impl Display for ErrorKind {
             Self::UnexpectedLessMixinCall => write!(f, "Less mixin call is disallowed"),
             Self::UnexpectedSimpleBlock => write!(f, "simple block is disallowed"),
             Self::TopLevelDeclaration => write!(f, "declaration at top level is disallowed"),
+
+            Self::EofInBlock => write!(f, "unclosed block before end of file"),
+            Self::BadString => write!(f, "unterminated string before line break"),
+            Self::UnclosedParen => write!(f, "unclosed parenthesis before end of file"),
         }
     }
 }
