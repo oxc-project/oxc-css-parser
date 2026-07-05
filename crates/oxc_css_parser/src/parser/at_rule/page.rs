@@ -50,7 +50,7 @@ impl<'a> Parse<'a> for PageSelector<'a> {
 impl<'a> Parse<'a> for PageSelectorList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<PageSelector>()?;
-        let mut span = first.span.clone();
+        let mut span = first.span;
 
         let mut selectors = input.vec1(first);
         let mut comma_spans = input.vec();

@@ -138,7 +138,7 @@ impl<'a> Parser<'a> {
                         // special case:
                         // `when ((8 + 6) > 13)`
                         // the `(8 + 6)` above is operation, not condition
-                        Err(Error { kind: ErrorKind::TryParseError, span: span.clone() })
+                        Err(Error { kind: ErrorKind::TryParseError, span: *span })
                     }
                     _ => condition,
                 },
@@ -231,14 +231,14 @@ impl<'a> Parser<'a> {
                 let (ident, ident_span) = self.cursor.expect_ident()?;
                 (
                     LessInterpolatedIdentElement::Static(
-                        self.interpolable_ident_static_part(ident, ident_span.clone()),
+                        self.interpolable_ident_static_part(ident, ident_span),
                     ),
                     ident_span,
                 )
             }
             TokenWithSpan { token: Token::AtLBraceVar(..), .. } => {
                 let interpolation = self.parse::<LessVariableInterpolation>()?;
-                let span = interpolation.span.clone();
+                let span = interpolation.span;
                 (LessInterpolatedIdentElement::Variable(interpolation), span)
             }
             TokenWithSpan { token: Token::DollarLBraceVar(..), .. }
@@ -248,13 +248,13 @@ impl<'a> Parser<'a> {
                 ) =>
             {
                 let interpolation = self.parse::<LessPropertyInterpolation>()?;
-                let span = interpolation.span.clone();
+                let span = interpolation.span;
                 (LessInterpolatedIdentElement::Property(interpolation), span)
             }
             TokenWithSpan { token, span } => {
                 return Err(Error {
                     kind: ErrorKind::ExpectOneOf(vec!["<ident>", "@{"], token.symbol()),
-                    span: span.clone(),
+                    span: *span,
                 });
             }
         };
@@ -406,7 +406,7 @@ impl<'a> Parser<'a> {
                     {
                         self.recoverable_errors.push(Error {
                             kind: ErrorKind::UnexpectedLessMixinCall,
-                            span: mixin_call.span.clone(),
+                            span: mixin_call.span,
                         });
                     }
                     value
@@ -493,10 +493,7 @@ impl<'a> Parser<'a> {
                         let span = Span { start: number_span.start + 1, end: number_span.end };
                         let raw = unsafe { number.raw.get_unchecked(1..number.raw.len()) };
                         raw.parse()
-                            .map_err(|_| Error {
-                                kind: ErrorKind::InvalidNumber,
-                                span: span.clone(),
-                            })
+                            .map_err(|_| Error { kind: ErrorKind::InvalidNumber, span })
                             .map(|value| ComponentValue::Number(Number { value, raw, span }))?
                     };
                     left = ComponentValue::LessBinaryOperation(LessBinaryOperation {
@@ -627,7 +624,7 @@ impl<'a> Parser<'a> {
             // selector." — a guard on a selector list is rejected whether
             // the comma comes before or after the `when`.
             if selector_list.selectors.len() > 1 {
-                let span = self.cursor.peek()?.span.clone();
+                let span = self.cursor.peek()?.span;
                 return Err(Error { kind: ErrorKind::LessGuardOnMultipleComplexSelectors, span });
             }
             let guard = self.parse::<LessConditions>()?;
@@ -656,13 +653,13 @@ impl<'a> Parser<'a> {
             let hex_color = parser.parse::<HexColor>()?;
             match parser.cursor.peek()? {
                 TokenWithSpan { token: Token::LParen(..), span } => {
-                    Err(Error { kind: ErrorKind::TryParseError, span: span.clone() })
+                    Err(Error { kind: ErrorKind::TryParseError, span: *span })
                 }
                 TokenWithSpan {
                     token: Token::LBracket(..) | Token::Dot(..) | Token::Hash(..),
                     span,
                 } if hex_color.span.end == span.start => {
-                    Err(Error { kind: ErrorKind::TryParseError, span: span.clone() })
+                    Err(Error { kind: ErrorKind::TryParseError, span: *span })
                 }
                 _ => Ok(hex_color),
             }
@@ -777,7 +774,7 @@ impl<'a> Parse<'a> for LessConditions<'a> {
         };
 
         let first = input.parse_less_condition(true)?;
-        let mut span = first.span().clone();
+        let mut span = *first.span();
 
         let mut conditions = input.vec1(first);
         let mut comma_spans = input.vec();
@@ -810,7 +807,7 @@ impl<'a> Parse<'a> for LessConditions<'a> {
 impl<'a> Parse<'a> for LessDetachedRuleset<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let block = input.parse::<SimpleBlock>()?;
-        let span = block.span.clone();
+        let span = block.span;
         Ok(LessDetachedRuleset { block, span })
     }
 }
@@ -837,7 +834,7 @@ impl<'a> Parse<'a> for LessExtend<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let mut selector = input.parse::<ComplexSelector>()?;
 
-        let span = selector.span.clone();
+        let span = selector.span;
         let mut all = None;
 
         if let [
@@ -860,11 +857,7 @@ impl<'a> Parse<'a> for LessExtend<'a> {
                 })),
             ] = &children[..]
         {
-            all = Some(Ident {
-                name: token_all.name,
-                raw: token_all.raw,
-                span: token_all.span.clone(),
-            });
+            all = Some(Ident { name: token_all.name, raw: token_all.raw, span: token_all.span });
             selector.span.end = complex_child.span().end;
             let len = selector.children.len();
             selector.children.truncate(len - 2);
@@ -880,7 +873,7 @@ impl<'a> Parse<'a> for LessExtendList<'a> {
         debug_assert_eq!(input.syntax, Syntax::Less);
 
         let first = input.parse::<LessExtend>()?;
-        let mut span = first.span.clone();
+        let mut span = first.span;
 
         let mut elements = input.vec1(first);
         let mut comma_spans = input.vec();
@@ -997,7 +990,7 @@ impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
         let (first, first_span) = input.cursor.expect_str_template()?;
         let quote = first.raw.bytes().next().unwrap();
         debug_assert!(quote == b'\'' || quote == b'"');
-        let mut span = first_span.clone();
+        let mut span = first_span;
         let mut elements = input.vec1(LessInterpolatedStrElement::Static(
             input.interpolable_str_static_part(first, first_span),
         ));
@@ -1122,7 +1115,7 @@ impl<'a> Parse<'a> for LessLookups<'a> {
         debug_assert_eq!(input.syntax, Syntax::Less);
 
         let first = input.parse::<LessLookup>()?;
-        let mut span = first.span.clone();
+        let mut span = first.span;
 
         let mut lookups = input.vec1(first);
         while let Token::LBracket(..) = input.cursor.peek()?.token {
@@ -1252,7 +1245,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                             comma_spans,
                             semicolon_comes_at,
                         )
-                        .map_err(|kind| Error { kind, span: span.clone() })?;
+                        .map_err(|kind| Error { kind, span })?;
                         semicolon_comes_at = args.len();
                         semicolon_spans.push(span);
                     }
@@ -1346,7 +1339,7 @@ impl<'a> Parser<'a> {
                                 LessMixinParameterName::PropertyVariable(property)
                             }
                             value => {
-                                let span = value.span().clone();
+                                let span = *value.span();
                                 params.push(LessMixinParameter::Unnamed(
                                     LessMixinUnnamedParameter { value, span },
                                 ));
@@ -1388,7 +1381,7 @@ impl<'a> Parser<'a> {
                         (_, rparen_span) = self.cursor.expect_r_paren()?;
                         break 'params;
                     } else {
-                        let span = name_span.clone();
+                        let span = *name_span;
                         params.push(LessMixinParameter::Named(LessMixinNamedParameter {
                             name,
                             value: None,
@@ -1434,7 +1427,7 @@ impl<'a> Parser<'a> {
                         comma_spans,
                         semicolon_comes_at,
                     )
-                    .map_err(|kind| Error { kind, span: span.clone() })?;
+                    .map_err(|kind| Error { kind, span })?;
                     semicolon_comes_at = params.len();
                     semicolon_spans.push(span);
                 }
@@ -1477,13 +1470,10 @@ impl<'a> Parser<'a> {
 impl<'a> Parse<'a> for LessMixinCallee<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first_name = input.parse::<LessMixinName>()?;
-        let mut span = first_name.span().clone();
+        let mut span = *first_name.span();
 
-        let mut children = input.vec1(LessMixinCalleeChild {
-            name: first_name,
-            combinator: None,
-            span: span.clone(),
-        });
+        let mut children =
+            input.vec1(LessMixinCalleeChild { name: first_name, combinator: None, span });
         loop {
             let combinator = input
                 .cursor
@@ -1579,7 +1569,7 @@ impl<'a> Parse<'a> for LessMixinName<'a> {
                 {
                     input
                         .recoverable_errors
-                        .push(Error { kind: ErrorKind::InvalidIdSelectorName, span: span.clone() });
+                        .push(Error { kind: ErrorKind::InvalidIdSelectorName, span });
                 }
                 let name =
                     if hash.escaped { util::handle_escape_in(raw, input.allocator) } else { raw };
@@ -1654,7 +1644,7 @@ impl<'a> Parse<'a> for LessNegativeValue<'a> {
             TokenWithSpan { token, span } => {
                 return Err(Error {
                     kind: ErrorKind::ExpectOneOf(vec!["<at-keyword>", "$var", "("], token.symbol()),
-                    span: span.clone(),
+                    span: *span,
                 });
             }
         };
@@ -1804,7 +1794,7 @@ impl<'a> Parse<'a> for LessVariableDeclaration<'a> {
                     &p.cursor.peek()?.token,
                     Token::Semicolon(..) | Token::RBrace(..) | Token::Eof(..)
                 ) {
-                    let span = p.cursor.peek()?.span.clone();
+                    let span = p.cursor.peek()?.span;
                     return Err(Error { kind: ErrorKind::TryParseError, span });
                 }
                 Ok(value)
@@ -1909,7 +1899,7 @@ fn wrap_less_mixin_params_into_less_list<'a>(
         let list = ComponentValue::LessList(LessList {
             elements,
             comma_spans: Some(comma_spans),
-            span: list_span.clone(),
+            span: list_span,
         });
         params.push(match head {
             Some((name, colon_span)) => LessMixinParameter::Named(LessMixinNamedParameter {

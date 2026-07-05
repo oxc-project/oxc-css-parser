@@ -77,14 +77,14 @@ impl<'a> Parse<'a> for AtRule<'a> {
                             if has_substitution {
                                 Ok(raw)
                             } else {
-                                let span = p.cursor.peek()?.span.clone();
+                                let span = p.cursor.peek()?.span;
                                 Err(Error { kind: ErrorKind::TryParseError, span })
                             }
                         })
                     } else {
                         Err(Error {
                             kind: ErrorKind::TryParseError,
-                            span: input.cursor.peek()?.span.clone(),
+                            span: input.cursor.peek()?.span,
                         })
                     };
                     match raw {
@@ -146,10 +146,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                         if prelude.paths.len() > 1 {
                             Ok(prelude)
                         } else {
-                            Err(Error {
-                                kind: ErrorKind::TryParseError,
-                                span: prelude.span.clone(),
-                            })
+                            Err(Error { kind: ErrorKind::TryParseError, span: prelude.span })
                         }
                     });
                     if let Ok(prelude) = multi_path {
@@ -224,10 +221,9 @@ impl<'a> Parse<'a> for AtRule<'a> {
             if let Some(block) = &block
                 && matches!(&prelude, Some(AtRulePrelude::Layer(names)) if names.names.len() > 1)
             {
-                input.recoverable_errors.push(Error {
-                    kind: ErrorKind::UnexpectedSimpleBlock,
-                    span: block.span.clone(),
-                });
+                input
+                    .recoverable_errors
+                    .push(Error { kind: ErrorKind::UnexpectedSimpleBlock, span: block.span });
             }
             let end = block
                 .as_ref()
@@ -250,7 +246,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                                 if matches!(p.cursor.peek()?.token, Token::Comma(..)) {
                                     Ok(())
                                 } else {
-                                    let span = p.cursor.peek()?.span.clone();
+                                    let span = p.cursor.peek()?.span;
                                     Err(Error { kind: ErrorKind::TryParseError, span })
                                 }
                             })
@@ -607,7 +603,7 @@ impl<'a> Parser<'a> {
                 | Token::Linebreak(..)
                 | Token::Eof(..) => Ok(value),
                 _ => {
-                    let span = p.cursor.peek()?.span.clone();
+                    let span = p.cursor.peek()?.span;
                     Err(Error { kind: ErrorKind::TryParseError, span })
                 }
             }

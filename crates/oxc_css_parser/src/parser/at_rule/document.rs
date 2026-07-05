@@ -8,7 +8,7 @@ use crate::{Parse, ast::*, error::PResult};
 impl<'a> Parse<'a> for DocumentPrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<DocumentPreludeMatcher>()?;
-        let mut span = first.span().clone();
+        let mut span = *first.span();
 
         let mut matchers = input.vec1(first);
         let mut comma_spans = input.vec();

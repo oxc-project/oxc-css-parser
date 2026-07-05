@@ -22,13 +22,13 @@ impl<'a> Parse<'a> for SupportsCondition<'a> {
                 conditions: input.vec1(SupportsConditionKind::Not(SupportsNot {
                     keyword,
                     condition,
-                    span: span.clone(),
+                    span,
                 })),
                 span,
             })
         } else {
             let first = input.parse::<SupportsInParens>()?;
-            let mut span = first.span().clone();
+            let mut span = *first.span();
             let mut conditions = input.vec1(SupportsConditionKind::SupportsInParens(first));
             while input.cursor.peek()?.ident(input.source).is_some() {
                 if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "and") {
@@ -76,7 +76,7 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
             TokenWithSpan { token: Token::LParen(..), .. } => input
                 .try_parse(|parser| {
                     parser.parse::<SupportsDecl>().map(|supports_decl| {
-                        let span = supports_decl.span.clone();
+                        let span = supports_decl.span;
                         SupportsInParens {
                             kind: SupportsInParensKind::Feature(parser.alloc(supports_decl)),
                             span,
@@ -118,7 +118,7 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                         input.cursor.expect_l_paren()?;
                         let selector_list = input.parse::<SelectorList>()?;
                         input.cursor.expect_r_paren()?;
-                        let span = selector_list.span.clone();
+                        let span = selector_list.span;
                         Ok(SupportsInParens {
                             kind: SupportsInParensKind::Selector(selector_list),
                             span,
@@ -145,13 +145,13 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                             // An unknown function here is `<general-enclosed>`
                             // (css-conditional): its contents are raw tokens.
                             let function = input.parse_raw_function(name)?;
-                            let span = function.span.clone();
+                            let span = function.span;
                             Ok(SupportsInParens {
                                 kind: SupportsInParensKind::Function(function),
                                 span,
                             })
                         } else if pure_interpolation {
-                            let span = name.span().clone();
+                            let span = *name.span();
                             Ok(SupportsInParens {
                                 kind: SupportsInParensKind::Interpolation(name),
                                 span,
@@ -160,16 +160,15 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                             let TokenWithSpan { token, span } = input.cursor.peek()?;
                             Err(Error {
                                 kind: ErrorKind::Unexpected("'('", token.symbol()),
-                                span: span.clone(),
+                                span: *span,
                             })
                         }
                     }
                 }
             }
-            TokenWithSpan { token, span } => Err(Error {
-                kind: ErrorKind::Unexpected("'('", token.symbol()),
-                span: span.clone(),
-            }),
+            TokenWithSpan { token, span } => {
+                Err(Error { kind: ErrorKind::Unexpected("'('", token.symbol()), span: *span })
+            }
         }
     }
 }

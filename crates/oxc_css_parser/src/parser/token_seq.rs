@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
                 // preprocessor dialects give it real syntax (`$var`, Less
                 // `^`), and their reference compilers reject it here.
                 Token::Unknown(..) if self.syntax != Syntax::Css => {
-                    let span = self.cursor.peek()?.span.clone();
+                    let span = self.cursor.peek()?.span;
                     return Err(Error { kind: ErrorKind::UnknownToken, span });
                 }
                 // An interpolated string (`("min-width:#{$foo}")`) must be

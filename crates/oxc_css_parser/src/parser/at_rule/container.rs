@@ -17,14 +17,14 @@ impl<'a> Parse<'a> for ContainerCondition<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "not") {
             let container_condition_not = input.parse::<ContainerConditionNot>()?;
-            let span = container_condition_not.span.clone();
+            let span = container_condition_not.span;
             Ok(ContainerCondition {
                 conditions: input.vec1(ContainerConditionKind::Not(container_condition_not)),
                 span,
             })
         } else {
             let first = input.parse::<QueryInParens>()?;
-            let mut span = first.span.clone();
+            let mut span = first.span;
             let mut conditions = input.vec1(ContainerConditionKind::QueryInParens(first));
             // formally `and`/`or` may not mix without parens and `not`
             // is leading-only, but real-world code (less.js) chains them
@@ -139,14 +139,14 @@ impl<'a> Parse<'a> for StyleCondition<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "not") {
             let style_condition_not = input.parse::<StyleConditionNot>()?;
-            let span = style_condition_not.span.clone();
+            let span = style_condition_not.span;
             Ok(StyleCondition {
                 conditions: input.vec1(StyleConditionKind::Not(style_condition_not)),
                 span,
             })
         } else {
             let first = input.parse::<StyleInParens>()?;
-            let mut span = first.span.clone();
+            let mut span = first.span;
             let mut conditions = input.vec1(StyleConditionKind::StyleInParens(first));
             let peek = input.cursor.peek()?;
             if peek.ident(input.source).is_some() {
@@ -262,7 +262,7 @@ impl<'a> Parse<'a> for StyleQuery<'a> {
                     Ok(name)
                 }
                 _ => {
-                    let span = p.cursor.peek()?.span.clone();
+                    let span = p.cursor.peek()?.span;
                     Err(Error { kind: ErrorKind::TryParseError, span })
                 }
             }
@@ -302,7 +302,7 @@ impl<'a> Parse<'a> for ContainerPrelude<'a> {
             ident => Ok(ident),
         });
         let condition = input.parse::<ContainerCondition>()?;
-        let mut span = condition.span().clone();
+        let mut span = *condition.span();
         if let Ok(name) = &name {
             span.start = name.span().start;
         }

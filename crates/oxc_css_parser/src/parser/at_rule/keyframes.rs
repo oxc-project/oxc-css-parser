@@ -49,7 +49,7 @@ impl<'a> Parse<'a> for KeyframeSelector<'a> {
                     {
                         input.recoverable_errors.push(Error {
                             kind: ErrorKind::UnknownKeyframeSelectorIdent,
-                            span: ident.span.clone(),
+                            span: ident.span,
                         });
                     }
                     _ => {}
@@ -76,7 +76,7 @@ impl<'a> Parse<'a> for KeyframesName<'a> {
                     {
                         input.recoverable_errors.push(Error {
                             kind: ErrorKind::CSSWideKeywordDisallowed,
-                            span: ident.span.clone(),
+                            span: ident.span,
                         });
                     }
                     _ => {}

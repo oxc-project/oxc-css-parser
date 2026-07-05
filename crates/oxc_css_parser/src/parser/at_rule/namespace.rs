@@ -27,7 +27,7 @@ impl<'a> Parse<'a> for NamespacePrelude<'a> {
             _ => input.parse().map(NamespacePreludeUri::Url)?,
         };
 
-        let mut span = uri.span().clone();
+        let mut span = *uri.span();
         if let Some(prefix) = &prefix {
             span.start = prefix.span().start;
         }
