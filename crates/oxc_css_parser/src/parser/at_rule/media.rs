@@ -25,15 +25,13 @@ impl<'a> Parse<'a> for MediaAnd<'a> {
 // [ and <media-condition-without-or> ]
 impl<'a> Parse<'a> for MediaConditionAfterMediaType<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let and: Ident = match input.cursor.bump()? {
-            TokenWithSpan { token: Token::Ident(ident), span }
-                if ident.name().eq_ignore_ascii_case("and") =>
-            {
-                input.ident(ident, span)
-            }
-            TokenWithSpan { span, .. } => {
-                return Err(Error { kind: ErrorKind::ExpectMediaAnd, span });
-            }
+        let token = input.cursor.bump()?;
+        let and: Ident = if let Some(ident) = token.ident(input.source)
+            && ident.name().eq_ignore_ascii_case("and")
+        {
+            input.ident(ident, token.span)
+        } else {
+            return Err(Error { kind: ErrorKind::ExpectMediaAnd, span: token.span });
         };
 
         let condition = input.parse_media_condition(
@@ -273,15 +271,15 @@ impl<'a> Parse<'a> for MediaQueryList<'a> {
 // <media-type> = <ident>   (not `only` / `not` / `and` / `or` / `layer`)
 impl<'a> Parse<'a> for MediaQueryWithType<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let modifier = if let Token::Ident(ident) = &input.cursor.peek()?.token {
-            let name = ident.name();
-            if name.eq_ignore_ascii_case("not") || name.eq_ignore_ascii_case("only") {
+        let modifier = {
+            let peek = input.cursor.peek()?;
+            if peek.is_ident_name_eq_ignore_ascii_case(input.source, "not")
+                || peek.is_ident_name_eq_ignore_ascii_case(input.source, "only")
+            {
                 Some(input.parse::<Ident>()?)
             } else {
                 None
             }
-        } else {
-            None
         };
         let media_type = input.parse::<InterpolableIdent>()?;
         if let InterpolableIdent::Literal(Ident { name, span, .. }) = &media_type
@@ -296,12 +294,12 @@ impl<'a> Parse<'a> for MediaQueryWithType<'a> {
                 span: span.clone(),
             });
         }
-        let condition = match &input.cursor.peek()?.token {
-            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("and") => {
+        let condition =
+            if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "and") {
                 input.parse::<MediaConditionAfterMediaType>().map(Some)?
-            }
-            _ => None,
-        };
+            } else {
+                None
+            };
 
         let mut span = media_type.span().clone();
         if let Some(modifier) = &modifier {
@@ -321,11 +319,14 @@ impl<'a> Parser<'a> {
     /// it like `<general-enclosed>` raw tokens. Only this position is safe to
     /// relax: elsewhere an ident is a media type (`@media print`).
     fn parse_media_in_parens_after_logic(&mut self) -> PResult<MediaInParens<'a>> {
-        if self.syntax == Syntax::Css
-            && let TokenWithSpan { token: Token::Ident(ident), span } = self.cursor.peek()?
-            && !ident.name().eq_ignore_ascii_case("not")
-            && self.source.as_bytes().get(span.end) != Some(&b'(')
-        {
+        let relax_bare_ident = {
+            let peek = self.cursor.peek()?;
+            self.syntax == Syntax::Css
+                && peek.ident(self.source).is_some()
+                && !peek.is_ident_name_eq_ignore_ascii_case(self.source, "not")
+                && self.source.as_bytes().get(peek.span.end) != Some(&b'(')
+        };
+        if relax_bare_ident {
             let token = self.cursor.bump()?;
             let span = token.span.clone();
             return Ok(MediaInParens {
@@ -346,50 +347,49 @@ impl<'a> Parser<'a> {
         allow_or: bool,
         after_logic_keyword: bool,
     ) -> PResult<MediaCondition<'a>> {
-        match &self.cursor.peek()?.token {
-            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("not") => {
-                let media_not = self.parse::<MediaNot>()?;
-                let span = media_not.span.clone();
-                Ok(MediaCondition {
-                    conditions: self.vec1(MediaConditionKind::Not(media_not)),
-                    span,
-                })
-            }
-            _ => {
-                let first = if after_logic_keyword {
-                    self.parse_media_in_parens_after_logic()?
-                } else {
-                    self.parse::<MediaInParens>()?
-                };
-                let mut span = first.span.clone();
-                let mut conditions = self.vec1(MediaConditionKind::MediaInParens(first));
-                if let Token::Ident(ident) = &self.cursor.peek()?.token {
-                    let name = ident.name();
-                    if name.eq_ignore_ascii_case("and") {
-                        loop {
-                            conditions.push(MediaConditionKind::And(self.parse()?));
-                            match &self.cursor.peek()?.token {
-                                Token::Ident(ident) if ident.name().eq_ignore_ascii_case("and") => {
-                                }
-                                _ => break,
-                            }
+        if self.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(self.source, "not") {
+            let media_not = self.parse::<MediaNot>()?;
+            let span = media_not.span.clone();
+            Ok(MediaCondition { conditions: self.vec1(MediaConditionKind::Not(media_not)), span })
+        } else {
+            let first = if after_logic_keyword {
+                self.parse_media_in_parens_after_logic()?
+            } else {
+                self.parse::<MediaInParens>()?
+            };
+            let mut span = first.span.clone();
+            let mut conditions = self.vec1(MediaConditionKind::MediaInParens(first));
+            let peek = self.cursor.peek()?;
+            if peek.ident(self.source).is_some() {
+                if peek.is_ident_name_eq_ignore_ascii_case(self.source, "and") {
+                    loop {
+                        conditions.push(MediaConditionKind::And(self.parse()?));
+                        if !self
+                            .cursor
+                            .peek()?
+                            .is_ident_name_eq_ignore_ascii_case(self.source, "and")
+                        {
+                            break;
                         }
-                    } else if allow_or && name.eq_ignore_ascii_case("or") {
-                        loop {
-                            conditions.push(MediaConditionKind::Or(self.parse()?));
-                            match &self.cursor.peek()?.token {
-                                Token::Ident(ident) if ident.name().eq_ignore_ascii_case("or") => {}
-                                _ => break,
-                            }
+                    }
+                } else if allow_or && peek.is_ident_name_eq_ignore_ascii_case(self.source, "or") {
+                    loop {
+                        conditions.push(MediaConditionKind::Or(self.parse()?));
+                        if !self
+                            .cursor
+                            .peek()?
+                            .is_ident_name_eq_ignore_ascii_case(self.source, "or")
+                        {
+                            break;
                         }
                     }
                 }
-
-                if let Some(last) = conditions.last() {
-                    span.end = last.span().end;
-                }
-                Ok(MediaCondition { conditions, span })
             }
+
+            if let Some(last) = conditions.last() {
+                span.end = last.span().end;
+            }
+            Ok(MediaCondition { conditions, span })
         }
     }
 

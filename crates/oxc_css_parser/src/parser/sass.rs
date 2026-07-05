@@ -192,9 +192,11 @@ impl<'a> Parser<'a> {
         loop {
             if PRECEDENCE_PLUS >= min_precedence {
                 match self.cursor.peek()? {
-                    TokenWithSpan { token: Token::Number(token), span }
-                        if token.raw.starts_with('+')
-                            || token.raw.starts_with('-') && span.start == left.span().end =>
+                    token @ TokenWithSpan { token: Token::Number(..), span }
+                        if token.number_raw(self.source).is_some_and(|raw| {
+                            raw.starts_with('+')
+                                || raw.starts_with('-') && span.start == left.span().end
+                        }) =>
                     {
                         let (number, number_span) = self.cursor.expect_number()?;
                         let op = SassBinaryOperator {
@@ -224,10 +226,11 @@ impl<'a> Parser<'a> {
                         });
                         continue;
                     }
-                    TokenWithSpan { token: Token::Dimension(token), span }
-                        if token.value.raw.starts_with('+')
-                            || token.value.raw.starts_with('-')
-                                && span.start == left.span().end =>
+                    token @ TokenWithSpan { token: Token::Dimension(..), span }
+                        if token.dimension_value_raw(self.source).is_some_and(|raw| {
+                            raw.starts_with('+')
+                                || raw.starts_with('-') && span.start == left.span().end
+                        }) =>
                     {
                         let (dimension, dimension_span) = self.cursor.expect_dimension()?;
                         let op = SassBinaryOperator {
@@ -424,8 +427,9 @@ impl<'a> Parser<'a> {
                         PRECEDENCE_EQUALITY,
                     )
                 }
-                TokenWithSpan { token: Token::Ident(token), .. }
-                    if token.raw == "and" && PRECEDENCE_AND >= min_precedence =>
+                token @ TokenWithSpan { token: Token::Ident(..), .. }
+                    if token.is_ident_raw(self.source, "and")
+                        && PRECEDENCE_AND >= min_precedence =>
                 {
                     (
                         SassBinaryOperator {
@@ -435,8 +439,8 @@ impl<'a> Parser<'a> {
                         PRECEDENCE_AND,
                     )
                 }
-                TokenWithSpan { token: Token::Ident(token), .. }
-                    if token.raw == "or" && PRECEDENCE_OR >= min_precedence =>
+                token @ TokenWithSpan { token: Token::Ident(..), .. }
+                    if token.is_ident_raw(self.source, "or") && PRECEDENCE_OR >= min_precedence =>
                 {
                     (
                         SassBinaryOperator {
@@ -639,47 +643,46 @@ impl<'a> Parser<'a> {
         &mut self,
         allow_overridable: bool,
     ) -> PResult<Option<SassModuleConfig<'a>>> {
-        match &self.cursor.peek()?.token {
-            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("with") => {
-                let TokenWithSpan { span: with_span, .. } = self.cursor.bump()?;
-                let start = with_span.start;
-                let end;
-                self.eat_sass_line_continuation()?;
-                let (_, lparen_span) = self.cursor.expect_l_paren()?;
+        if self.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(self.source, "with") {
+            let TokenWithSpan { span: with_span, .. } = self.cursor.bump()?;
+            let start = with_span.start;
+            let end;
+            self.eat_sass_line_continuation()?;
+            let (_, lparen_span) = self.cursor.expect_l_paren()?;
 
-                let item = self.parse_sass_module_config_item(allow_overridable)?;
-                let mut items = self.vec1(item);
-                let mut comma_spans = self.vec();
-                if let Some((_, span)) = self.cursor.eat_r_paren()? {
-                    end = span.end;
-                } else {
-                    comma_spans.push(self.cursor.expect_comma()?.1);
-                    loop {
-                        if let Some((_, span)) = self.cursor.eat_r_paren()? {
-                            end = span.end;
-                            break;
-                        }
+            let item = self.parse_sass_module_config_item(allow_overridable)?;
+            let mut items = self.vec1(item);
+            let mut comma_spans = self.vec();
+            if let Some((_, span)) = self.cursor.eat_r_paren()? {
+                end = span.end;
+            } else {
+                comma_spans.push(self.cursor.expect_comma()?.1);
+                loop {
+                    if let Some((_, span)) = self.cursor.eat_r_paren()? {
+                        end = span.end;
+                        break;
+                    }
 
-                        items.push(self.parse_sass_module_config_item(allow_overridable)?);
-                        if let Some((_, span)) = self.cursor.eat_r_paren()? {
-                            end = span.end;
-                            break;
-                        } else {
-                            comma_spans.push(self.cursor.expect_comma()?.1);
-                        }
+                    items.push(self.parse_sass_module_config_item(allow_overridable)?);
+                    if let Some((_, span)) = self.cursor.eat_r_paren()? {
+                        end = span.end;
+                        break;
+                    } else {
+                        comma_spans.push(self.cursor.expect_comma()?.1);
                     }
                 }
-                debug_assert!(items.len() - comma_spans.len() <= 1);
-
-                Ok(Some(SassModuleConfig {
-                    with_span,
-                    lparen_span,
-                    items,
-                    comma_spans,
-                    span: Span { start, end },
-                }))
             }
-            _ => Ok(None),
+            debug_assert!(items.len() - comma_spans.len() <= 1);
+
+            Ok(Some(SassModuleConfig {
+                with_span,
+                lparen_span,
+                items,
+                comma_spans,
+                span: Span { start, end },
+            }))
+        } else {
+            Ok(None)
         }
     }
 
@@ -807,16 +810,16 @@ impl<'a> Parser<'a> {
         if let Token::Percent(..) = &self.cursor.peek()?.token {
             return Ok(ComponentValue::TokenWithSpan(self.cursor.bump()?));
         }
-        let op = match &self.cursor.peek()?.token {
-            Token::Plus(..) => SassUnaryOperator {
+        let op = match self.cursor.peek()? {
+            TokenWithSpan { token: Token::Plus(..), .. } => SassUnaryOperator {
                 kind: SassUnaryOperatorKind::Plus,
                 span: self.cursor.bump()?.span,
             },
-            Token::Minus(..) => SassUnaryOperator {
+            TokenWithSpan { token: Token::Minus(..), .. } => SassUnaryOperator {
                 kind: SassUnaryOperatorKind::Minus,
                 span: self.cursor.bump()?.span,
             },
-            Token::Ident(token) if token.raw == "not" => SassUnaryOperator {
+            token if token.is_ident_raw(self.source, "not") => SassUnaryOperator {
                 kind: SassUnaryOperatorKind::Not,
                 span: self.cursor.bump()?.span,
             },
@@ -1032,22 +1035,20 @@ impl<'a> Parse<'a> for SassForward<'a> {
         let path = input.parse::<InterpolableStr>()?;
         let mut span = path.span().clone();
 
-        let prefix = match &input.cursor.peek()?.token {
-            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("as") => {
-                let TokenWithSpan { span: as_span, .. } = input.cursor.bump()?;
-                input.eat_sass_line_continuation()?;
-                let name = input.parse()?;
-                let (_, Span { end, .. }) =
-                    input.cursor.expect_asterisk_without_ws_or_comments()?;
-                let span = Span { start: as_span.start, end };
-                Some(SassForwardPrefix { as_span, name, span })
-            }
-            _ => None,
+        let prefix = if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "as")
+        {
+            let TokenWithSpan { span: as_span, .. } = input.cursor.bump()?;
+            input.eat_sass_line_continuation()?;
+            let name = input.parse()?;
+            let (_, Span { end, .. }) = input.cursor.expect_asterisk_without_ws_or_comments()?;
+            let span = Span { start: as_span.start, end };
+            Some(SassForwardPrefix { as_span, name, span })
+        } else {
+            None
         };
 
-        let visibility = if let TokenWithSpan { token: Token::Ident(keyword), span: keyword_span } =
-            input.cursor.peek()?
-        {
+        let visibility = if let Some(keyword) = input.cursor.peek()?.ident(input.source) {
+            let keyword_span = input.cursor.peek()?.span;
             let start = keyword_span.start;
             let name = keyword.name();
             if name.eq_ignore_ascii_case("hide") {
@@ -1162,15 +1163,18 @@ impl<'a> Parse<'a> for SassIfAtRule<'a> {
             fn else_keyword<'a>(p: &mut Parser<'a>) -> PResult<(Span, bool)> {
                 while p.cursor.eat_linebreak()?.is_some() {}
                 let is_else = match &p.cursor.peek()?.token {
-                    Token::AtKeyword(at_keyword) => match &*at_keyword.ident.name() {
-                        "else" => true,
-                        // `elseif` is deprecated by Sass
-                        "elseif" => false,
-                        _ => {
-                            let span = p.cursor.peek()?.span.clone();
-                            return Err(Error { kind: ErrorKind::TryParseError, span });
+                    Token::AtKeyword(..) => {
+                        let at_keyword = p.cursor.peek()?.at_keyword(p.source).unwrap();
+                        match &*at_keyword.ident.name() {
+                            "else" => true,
+                            // `elseif` is deprecated by Sass
+                            "elseif" => false,
+                            _ => {
+                                let span = p.cursor.peek()?.span.clone();
+                                return Err(Error { kind: ErrorKind::TryParseError, span });
+                            }
                         }
-                    },
+                    }
                     _ => {
                         let span = p.cursor.peek()?.span.clone();
                         return Err(Error { kind: ErrorKind::TryParseError, span });
@@ -1187,15 +1191,12 @@ impl<'a> Parse<'a> for SassIfAtRule<'a> {
             else_spans.push(else_span);
             if is_else {
                 input.eat_sass_line_continuation()?;
-                match &input.cursor.peek()?.token {
-                    Token::Ident(ident) if ident.name() == "if" => {
-                        input.cursor.bump()?;
-                        else_if_clauses.push(input.parse()?);
-                    }
-                    _ => {
-                        else_clause = Some(input.parse()?);
-                        break;
-                    }
+                if input.cursor.peek()?.is_ident_raw(input.source, "if") {
+                    input.cursor.bump()?;
+                    else_if_clauses.push(input.parse()?);
+                } else {
+                    else_clause = Some(input.parse()?);
+                    break;
                 }
             } else {
                 else_if_clauses.push(input.parse()?);
@@ -1257,14 +1258,14 @@ impl<'a> Parse<'a> for SassInclude<'a> {
             None
         };
 
-        let content_block_params = match &input.cursor.peek()?.token {
-            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("using") => {
+        let content_block_params =
+            if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "using") {
                 let content_block_params = input.parse::<SassIncludeContentBlockParams>()?;
                 span.end = content_block_params.span.end;
                 Some(content_block_params)
-            }
-            _ => None,
-        };
+            } else {
+                None
+            };
 
         Ok(SassInclude { name, arguments, content_block_params, span })
     }
@@ -1283,18 +1284,15 @@ impl<'a> Parse<'a> for SassIncludeArgs<'a> {
 // using ( <parameters> )   (parameters the mixin passes to its @content block)
 impl<'a> Parse<'a> for SassIncludeContentBlockParams<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match input.cursor.bump()? {
-            TokenWithSpan { token: Token::Ident(ident), span: using_span }
-                if ident.name().eq_ignore_ascii_case("using") =>
-            {
-                input.eat_sass_line_continuation()?;
-                let params = input.parse::<SassParameters>()?;
-                let span = Span { start: using_span.start, end: params.span.end };
-                Ok(SassIncludeContentBlockParams { using_span, params, span })
-            }
-            TokenWithSpan { span, .. } => {
-                Err(Error { kind: ErrorKind::ExpectSassKeyword("using"), span })
-            }
+        let token = input.cursor.bump()?;
+        if token.is_ident_name_eq_ignore_ascii_case(input.source, "using") {
+            let using_span = token.span;
+            input.eat_sass_line_continuation()?;
+            let params = input.parse::<SassParameters>()?;
+            let span = Span { start: using_span.start, end: params.span.end };
+            Ok(SassIncludeContentBlockParams { using_span, params, span })
+        } else {
+            Err(Error { kind: ErrorKind::ExpectSassKeyword("using"), span: token.span })
         }
     }
 }
@@ -1343,12 +1341,13 @@ impl<'a> Parse<'a> for SassInterpolatedUrl<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         debug_assert!(matches!(input.syntax, Syntax::Scss | Syntax::Sass));
 
-        let (first, first_span) = match input.cursor.tokenizer.scan_url_raw_or_template()? {
-            TokenWithSpan { token: Token::UrlTemplate(template), span } => (template, span),
-            TokenWithSpan { token, span } => {
+        let token_with_span = input.cursor.tokenizer.scan_url_raw_or_template()?;
+        let (first, first_span) = match token_with_span.url_template(input.source) {
+            Some(template) => (template, token_with_span.span),
+            None => {
                 return Err(Error {
-                    kind: ErrorKind::Unexpected("<url template>", token.symbol()),
-                    span,
+                    kind: ErrorKind::Unexpected("<url template>", token_with_span.token.symbol()),
+                    span: token_with_span.span,
                 });
             }
         };
@@ -1531,14 +1530,14 @@ impl<'a> Parse<'a> for SassUse<'a> {
         let path = input.parse::<InterpolableStr>()?;
         let mut span = path.span().clone();
 
-        let namespace = match &input.cursor.peek()?.token {
-            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("as") => {
+        let namespace =
+            if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "as") {
                 let namespace = input.parse::<SassUseNamespace>()?;
                 span.end = namespace.span.end;
                 Some(namespace)
-            }
-            _ => None,
-        };
+            } else {
+                None
+            };
 
         let config = input.parse_sass_module_config(/* allow_overridable */ false)?;
         if let Some(config) = &config {
@@ -1552,15 +1551,11 @@ impl<'a> Parse<'a> for SassUse<'a> {
 // as [ <ident> | '*' ]   ('*' loads members without a namespace prefix)
 impl<'a> Parse<'a> for SassUseNamespace<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let as_span = match input.cursor.peek()? {
-            TokenWithSpan { token: Token::Ident(ident), .. }
-                if ident.name().eq_ignore_ascii_case("as") =>
-            {
-                input.cursor.bump()?.span
-            }
-            TokenWithSpan { span, .. } => {
-                return Err(Error { kind: ErrorKind::ExpectSassKeyword("as"), span: span.clone() });
-            }
+        let token = input.cursor.peek()?;
+        let as_span = if token.is_ident_name_eq_ignore_ascii_case(input.source, "as") {
+            input.cursor.bump()?.span
+        } else {
+            return Err(Error { kind: ErrorKind::ExpectSassKeyword("as"), span: token.span });
         };
         input.eat_sass_line_continuation()?;
         match input.cursor.bump()? {
@@ -1574,7 +1569,8 @@ impl<'a> Parse<'a> for SassUseNamespace<'a> {
                     span,
                 })
             }
-            TokenWithSpan { token: Token::Ident(ident), span: ident_span } => {
+            token @ TokenWithSpan { token: Token::Ident(..), span: ident_span } => {
+                let ident = token.ident(input.source).unwrap();
                 let span = Span { start: as_span.start, end: ident_span.end };
                 Ok(SassUseNamespace {
                     as_span,

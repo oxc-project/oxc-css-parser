@@ -70,13 +70,16 @@ impl<'a> ParserBuilder<'a> {
             source: self.source,
             syntax: self.syntax,
             options,
-            cursor: ParserCursor::new(Tokenizer::new(
-                self.allocator,
+            cursor: ParserCursor::new(
+                Tokenizer::new(
+                    self.allocator,
+                    self.source,
+                    self.syntax,
+                    options.template_placeholder,
+                    self.collect_comments,
+                ),
                 self.source,
-                self.syntax,
-                options.template_placeholder,
-                self.collect_comments,
-            )),
+            ),
             state: Default::default(),
             recoverable_errors: vec![],
             sass_pending_indents: 0,

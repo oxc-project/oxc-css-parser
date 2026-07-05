@@ -698,28 +698,31 @@ impl<'a> Tokenizer<'a> {
                 self.scan_dimension(number, span)
             }
             (Some((_, b'%')), ..) => self.scan_percentage(number, span),
-            _ => Ok(TokenWithSpan { token: Token::Number(number), span }),
+            _ => Ok(TokenWithSpan { token: Token::Number(NumberMeta {}), span }),
         }
     }
 
     // <dimension-token> = <number-token> <ident-sequence>
     fn scan_dimension(
         &mut self,
-        value: Number<'a>,
+        _value: Number<'a>,
         value_span: Span,
     ) -> PResult<TokenWithSpan<'a>> {
         let (unit, unit_span) = self.scan_ident_sequence(false)?;
         Ok(TokenWithSpan {
-            token: Token::Dimension(Dimension { value, unit }),
+            token: Token::Dimension(DimensionMeta {
+                number_end: compact_offset(value_span.end),
+                unit_escaped: unit.escaped,
+            }),
             span: Span { start: value_span.start, end: unit_span.end },
         })
     }
 
     // <percentage-token> = <number-token> '%'
-    fn scan_percentage(&mut self, value: Number<'a>, span: Span) -> PResult<TokenWithSpan<'a>> {
+    fn scan_percentage(&mut self, _value: Number<'a>, span: Span) -> PResult<TokenWithSpan<'a>> {
         self.state.chars.next();
         Ok(TokenWithSpan {
-            token: Token::Percentage(Percentage { value }),
+            token: Token::Percentage(PercentageMeta {}),
             span: Span { start: span.start, end: span.end + 1 },
         })
     }
@@ -792,11 +795,9 @@ impl<'a> Tokenizer<'a> {
                 Some((end, c @ b'#' | c @ b'@' | c @ b'$'))
                     if self.is_start_of_interpolation_in_str_template(c) =>
                 {
-                    let raw = unsafe { self.source.get_unchecked(start..end) };
                     let span = Span { start, end };
                     return Ok(TokenWithSpan {
-                        token: Token::StrTemplate(StrTemplate {
-                            raw,
+                        token: Token::StrTemplate(StrTemplateMeta {
                             escaped,
                             head: true,
                             tail: false,
@@ -809,9 +810,8 @@ impl<'a> Tokenizer<'a> {
                     // `<bad-string-token>` (parse error, not a lexer failure);
                     // the dialects' reference compilers reject it outright.
                     if self.syntax == Syntax::Css {
-                        let raw = unsafe { self.source.get_unchecked(start..end) };
                         return Ok(TokenWithSpan {
-                            token: Token::BadStr(BadStr { raw }),
+                            token: Token::BadStr(BadStrMeta {}),
                             span: Span { start, end },
                         });
                     }
@@ -824,9 +824,8 @@ impl<'a> Tokenizer<'a> {
                 None => {
                     let end = self.source.len();
                     if self.syntax == Syntax::Css {
-                        let raw = unsafe { self.source.get_unchecked(start..end) };
                         return Ok(TokenWithSpan {
-                            token: Token::BadStr(BadStr { raw }),
+                            token: Token::BadStr(BadStrMeta {}),
                             span: Span { start, end },
                         });
                     }
@@ -839,8 +838,7 @@ impl<'a> Tokenizer<'a> {
         }
 
         debug_assert!(start + 1 < end);
-        let raw = unsafe { self.source.get_unchecked(start..end) };
-        Ok(TokenWithSpan { token: Token::Str(Str { raw, escaped }), span: Span { start, end } })
+        Ok(TokenWithSpan { token: Token::Str(StrMeta { escaped }), span: Span { start, end } })
     }
 
     // Resume a string template after an interpolation, yielding the next static
@@ -899,8 +897,10 @@ impl<'a> Tokenizer<'a> {
     // An ident-like token: <ident-token>, <function-token> (`name(`), or <url-token>.
     // https://drafts.csswg.org/css-syntax-3/#consume-ident-like-token
     fn scan_ident(&mut self) -> PResult<TokenWithSpan<'a>> {
-        self.scan_ident_sequence(false)
-            .map(|(ident, span)| TokenWithSpan { token: Token::Ident(ident), span })
+        self.scan_ident_sequence(false).map(|(ident, span)| TokenWithSpan {
+            token: Token::Ident(IdentMeta { escaped: ident.escaped }),
+            span,
+        })
     }
 
     // The next static piece of an ident interleaved with interpolation (Sass/Less).
@@ -945,7 +945,7 @@ impl<'a> Tokenizer<'a> {
             Some((start, c)) => {
                 debug_assert_eq!(c, b'-');
                 Ok(TokenWithSpan {
-                    token: Token::Ident(Ident { escaped: false, raw: "-" }),
+                    token: Token::Ident(IdentMeta { escaped: false }),
                     span: Span { start, end: start + 1 },
                 })
             }
@@ -973,10 +973,9 @@ impl<'a> Tokenizer<'a> {
                     break;
                 }
                 Some((end, b'#')) if self.is_start_of_interpolation_in_url_template() => {
-                    let raw = unsafe { self.source.get_unchecked(start..end) };
                     let span = Span { start, end };
                     return Ok(TokenWithSpan {
-                        token: Token::UrlTemplate(UrlTemplate { raw, escaped, tail: false }),
+                        token: Token::UrlTemplate(UrlTemplateMeta { escaped, tail: false }),
                         span,
                     });
                 }
@@ -1009,9 +1008,8 @@ impl<'a> Tokenizer<'a> {
         }
 
         debug_assert!(start <= end);
-        let raw = unsafe { self.source.get_unchecked(start..end) };
         let span = Span { start, end };
-        Ok(TokenWithSpan { token: Token::UrlRaw(UrlRaw { raw, escaped }), span })
+        Ok(TokenWithSpan { token: Token::UrlRaw(UrlRawMeta { escaped }), span })
     }
 
     // The next static piece of an unquoted url() body interleaved with interpolation.
@@ -1127,8 +1125,7 @@ impl<'a> Tokenizer<'a> {
         }
 
         debug_assert!(end > start + 1);
-        let raw = unsafe { self.source.get_unchecked(start + 1..end) };
-        Ok(TokenWithSpan { token: Token::Hash(Hash { escaped, raw }), span: Span { start, end } })
+        Ok(TokenWithSpan { token: Token::Hash(HashMeta { escaped }), span: Span { start, end } })
     }
 
     // A '$'-prefixed variable token: '$' <ident-sequence> (Sass var / Less property).
@@ -1137,7 +1134,7 @@ impl<'a> Tokenizer<'a> {
         debug_assert_eq!(c, b'$');
         let (ident, span) = self.scan_ident_sequence(false)?;
         Ok(TokenWithSpan {
-            token: Token::DollarVar(DollarVar { ident }),
+            token: Token::DollarVar(IdentMeta { escaped: ident.escaped }),
             span: Span { start, end: span.end },
         })
     }
@@ -1155,10 +1152,13 @@ impl<'a> Tokenizer<'a> {
             Some((i, b'}')) => {
                 let span = Span { start, end: i + 1 };
                 if first_char == b'@' {
-                    Ok(TokenWithSpan { token: Token::AtLBraceVar(AtLBraceVar { ident }), span })
+                    Ok(TokenWithSpan {
+                        token: Token::AtLBraceVar(IdentMeta { escaped: ident.escaped }),
+                        span,
+                    })
                 } else {
                     Ok(TokenWithSpan {
-                        token: Token::DollarLBraceVar(DollarLBraceVar { ident }),
+                        token: Token::DollarLBraceVar(IdentMeta { escaped: ident.escaped }),
                         span,
                     })
                 }
@@ -1180,7 +1180,7 @@ impl<'a> Tokenizer<'a> {
         // Less allows digit-led variable names like `@3`.
         let (ident, span) = self.scan_ident_sequence(self.syntax == Syntax::Less)?;
         Ok(TokenWithSpan {
-            token: Token::AtKeyword(AtKeyword { ident }),
+            token: Token::AtKeyword(IdentMeta { escaped: ident.escaped }),
             span: Span { start, end: span.end },
         })
     }
@@ -1208,11 +1208,8 @@ impl<'a> Tokenizer<'a> {
     /// the closing backtick and any glued suffix), or `None` when the option is
     /// unset or the shape doesn't match. An index that overflows `u32` doesn't
     /// match (so the caller errors) instead of panicking. Does not advance.
-    fn match_placeholder(&self, at: usize) -> Option<(Placeholder<'a>, usize)> {
-        // Bind `source` as `&'a str` so the suffix slice has lifetime `'a`
-        // (independent of `&self`), letting callers mutate the tokenizer while
-        // holding the returned token.
-        let source: &'a str = self.source;
+    fn match_placeholder(&self, at: usize) -> Option<(PlaceholderMeta, usize)> {
+        let source = self.source;
         let ph = self.template_placeholder?;
         // `at` is the opening backtick.
         let after_open = source[at + 1..].strip_prefix(ph.prefix)?;
@@ -1233,7 +1230,7 @@ impl<'a> Tokenizer<'a> {
             .take_while(|&b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b >= 0x80)
             .count();
         let end = close_end + suffix_len;
-        Some((Placeholder { index, suffix: &source[close_end..end] }, end))
+        Some((PlaceholderMeta { index, suffix_start: compact_offset(close_end) }, end))
     }
 
     /// If a placeholder begins exactly at the current position, scan and return
@@ -1275,9 +1272,8 @@ impl<'a> Tokenizer<'a> {
         }
 
         debug_assert!(start + 1 < end);
-        let raw = unsafe { self.source.get_unchecked(start..end) };
         Ok(TokenWithSpan {
-            token: Token::BacktickCode(BacktickCode { raw }),
+            token: Token::BacktickCode(BacktickCodeMeta {}),
             span: Span { start, end },
         })
     }
@@ -1628,6 +1624,11 @@ impl<'a> Tokenizer<'a> {
 #[inline]
 fn is_start_of_ident(c: u8) -> bool {
     c.is_ascii_alphabetic() || c == b'-' || c == b'_' || !c.is_ascii() || c == b'\\'
+}
+
+#[inline]
+fn compact_offset(offset: usize) -> u32 {
+    u32::try_from(offset).expect("source is too large for compact token offsets")
 }
 
 /// Whether an identifier starts at byte offset `at` of `source`, using the

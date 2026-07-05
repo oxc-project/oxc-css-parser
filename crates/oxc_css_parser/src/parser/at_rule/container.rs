@@ -15,43 +15,38 @@ use crate::{
 //                   | <query-in-parens> [ [ and <query-in-parens> ]* | [ or <query-in-parens> ]* ]
 impl<'a> Parse<'a> for ContainerCondition<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &input.cursor.peek()?.token {
-            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("not") => {
-                let container_condition_not = input.parse::<ContainerConditionNot>()?;
-                let span = container_condition_not.span.clone();
-                Ok(ContainerCondition {
-                    conditions: input.vec1(ContainerConditionKind::Not(container_condition_not)),
-                    span,
-                })
+        if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "not") {
+            let container_condition_not = input.parse::<ContainerConditionNot>()?;
+            let span = container_condition_not.span.clone();
+            Ok(ContainerCondition {
+                conditions: input.vec1(ContainerConditionKind::Not(container_condition_not)),
+                span,
+            })
+        } else {
+            let first = input.parse::<QueryInParens>()?;
+            let mut span = first.span.clone();
+            let mut conditions = input.vec1(ContainerConditionKind::QueryInParens(first));
+            // formally `and`/`or` may not mix without parens and `not`
+            // is leading-only, but real-world code (less.js) chains them
+            // freely: `(a) or (b) and (c)`, `(a) not (b)`.
+            loop {
+                let peek = input.cursor.peek()?;
+                let kind = if peek.is_ident_name_eq_ignore_ascii_case(input.source, "and") {
+                    ContainerConditionKind::And(input.parse()?)
+                } else if peek.is_ident_name_eq_ignore_ascii_case(input.source, "or") {
+                    ContainerConditionKind::Or(input.parse()?)
+                } else if peek.is_ident_name_eq_ignore_ascii_case(input.source, "not") {
+                    ContainerConditionKind::Not(input.parse()?)
+                } else {
+                    break;
+                };
+                conditions.push(kind);
             }
-            _ => {
-                let first = input.parse::<QueryInParens>()?;
-                let mut span = first.span.clone();
-                let mut conditions = input.vec1(ContainerConditionKind::QueryInParens(first));
-                // formally `and`/`or` may not mix without parens and `not`
-                // is leading-only, but real-world code (less.js) chains them
-                // freely: `(a) or (b) and (c)`, `(a) not (b)`.
-                loop {
-                    let kind = match &input.cursor.peek()?.token {
-                        Token::Ident(ident) if ident.name().eq_ignore_ascii_case("and") => {
-                            ContainerConditionKind::And(input.parse()?)
-                        }
-                        Token::Ident(ident) if ident.name().eq_ignore_ascii_case("or") => {
-                            ContainerConditionKind::Or(input.parse()?)
-                        }
-                        Token::Ident(ident) if ident.name().eq_ignore_ascii_case("not") => {
-                            ContainerConditionKind::Not(input.parse()?)
-                        }
-                        _ => break,
-                    };
-                    conditions.push(kind);
-                }
 
-                if let Some(last) = conditions.last() {
-                    span.end = last.span().end;
-                }
-                Ok(ContainerCondition { conditions, span })
+            if let Some(last) = conditions.last() {
+                span.end = last.span().end;
             }
+            Ok(ContainerCondition { conditions, span })
         }
     }
 }
@@ -142,46 +137,48 @@ impl<'a> Parse<'a> for QueryInParens<'a> {
 //                   | <style-in-parens> [ [ and <style-in-parens> ]* | [ or <style-in-parens> ]* ]
 impl<'a> Parse<'a> for StyleCondition<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &input.cursor.peek()?.token {
-            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("not") => {
-                let style_condition_not = input.parse::<StyleConditionNot>()?;
-                let span = style_condition_not.span.clone();
-                Ok(StyleCondition {
-                    conditions: input.vec1(StyleConditionKind::Not(style_condition_not)),
-                    span,
-                })
-            }
-            _ => {
-                let first = input.parse::<StyleInParens>()?;
-                let mut span = first.span.clone();
-                let mut conditions = input.vec1(StyleConditionKind::StyleInParens(first));
-                if let Token::Ident(ident) = &input.cursor.peek()?.token {
-                    let name = ident.name();
-                    if name.eq_ignore_ascii_case("and") {
-                        loop {
-                            conditions.push(StyleConditionKind::And(input.parse()?));
-                            match &input.cursor.peek()?.token {
-                                Token::Ident(ident) if ident.name().eq_ignore_ascii_case("and") => {
-                                }
-                                _ => break,
-                            }
+        if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "not") {
+            let style_condition_not = input.parse::<StyleConditionNot>()?;
+            let span = style_condition_not.span.clone();
+            Ok(StyleCondition {
+                conditions: input.vec1(StyleConditionKind::Not(style_condition_not)),
+                span,
+            })
+        } else {
+            let first = input.parse::<StyleInParens>()?;
+            let mut span = first.span.clone();
+            let mut conditions = input.vec1(StyleConditionKind::StyleInParens(first));
+            let peek = input.cursor.peek()?;
+            if peek.ident(input.source).is_some() {
+                if peek.is_ident_name_eq_ignore_ascii_case(input.source, "and") {
+                    loop {
+                        conditions.push(StyleConditionKind::And(input.parse()?));
+                        if !input
+                            .cursor
+                            .peek()?
+                            .is_ident_name_eq_ignore_ascii_case(input.source, "and")
+                        {
+                            break;
                         }
-                    } else if name.eq_ignore_ascii_case("or") {
-                        loop {
-                            conditions.push(StyleConditionKind::Or(input.parse()?));
-                            match &input.cursor.peek()?.token {
-                                Token::Ident(ident) if ident.name().eq_ignore_ascii_case("or") => {}
-                                _ => break,
-                            }
+                    }
+                } else if peek.is_ident_name_eq_ignore_ascii_case(input.source, "or") {
+                    loop {
+                        conditions.push(StyleConditionKind::Or(input.parse()?));
+                        if !input
+                            .cursor
+                            .peek()?
+                            .is_ident_name_eq_ignore_ascii_case(input.source, "or")
+                        {
+                            break;
                         }
                     }
                 }
-
-                if let Some(last) = conditions.last() {
-                    span.end = last.span().end;
-                }
-                Ok(StyleCondition { conditions, span })
             }
+
+            if let Some(last) = conditions.last() {
+                span.end = last.span().end;
+            }
+            Ok(StyleCondition { conditions, span })
         }
     }
 }

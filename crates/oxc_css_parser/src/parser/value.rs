@@ -140,8 +140,9 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_component_value_atom(&mut self) -> PResult<ComponentValue<'a>> {
         let token_with_span = self.cursor.peek()?;
         match &token_with_span.token {
-            Token::Ident(token) => {
-                if unvendored(&token.name()).eq_ignore_ascii_case("url") {
+            Token::Ident(..) => {
+                let ident = token_with_span.ident(self.source).unwrap();
+                if unvendored(&ident.name()).eq_ignore_ascii_case("url") {
                     match self.try_parse(Url::parse) {
                         Ok(url) => return Ok(ComponentValue::Url(self.alloc(url))),
                         Err(Error { kind: ErrorKind::TryParseError, .. }) => {}
@@ -262,13 +263,19 @@ impl<'a> Parser<'a> {
                             {
                                 self.parse_unicode_range(ident).map(ComponentValue::UnicodeRange)
                             }
-                            TokenWithSpan { token: Token::Number(token), span }
-                                if token.raw.starts_with('+') && span.start == ident_end =>
+                            token @ TokenWithSpan { token: Token::Number(..), span }
+                                if token
+                                    .number_raw(self.source)
+                                    .is_some_and(|raw| raw.starts_with('+'))
+                                    && span.start == ident_end =>
                             {
                                 self.parse_unicode_range(ident).map(ComponentValue::UnicodeRange)
                             }
-                            TokenWithSpan { token: Token::Dimension(token), span }
-                                if token.value.raw.starts_with('+') && span.start == ident_end =>
+                            token @ TokenWithSpan { token: Token::Dimension(..), span }
+                                if token
+                                    .dimension_value_raw(self.source)
+                                    .is_some_and(|raw| raw.starts_with('+'))
+                                    && span.start == ident_end =>
                             {
                                 self.parse_unicode_range(ident).map(ComponentValue::UnicodeRange)
                             }
@@ -1217,8 +1224,10 @@ impl<'a> Parse<'a> for UrlModifier<'a> {
 // The unquoted URL body of a <url-token> (raw text up to the closing `)`).
 impl<'a> Parse<'a> for UrlRaw<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match input.cursor.tokenizer.scan_url_raw_or_template()? {
-            TokenWithSpan { token: Token::UrlRaw(url), span } => {
+        let token = input.cursor.tokenizer.scan_url_raw_or_template()?;
+        match token.url_raw(input.source) {
+            Some(url) => {
+                let span = token.span;
                 let value = if url.escaped {
                     util::handle_escape_in(url.raw, input.allocator)
                 } else {
@@ -1226,9 +1235,10 @@ impl<'a> Parse<'a> for UrlRaw<'a> {
                 };
                 Ok(UrlRaw { value, raw: url.raw, span })
             }
-            TokenWithSpan { token, span } => {
-                Err(Error { kind: ErrorKind::Unexpected("<url>", token.symbol()), span })
-            }
+            None => Err(Error {
+                kind: ErrorKind::Unexpected("<url>", token.token.symbol()),
+                span: token.span,
+            }),
         }
     }
 }

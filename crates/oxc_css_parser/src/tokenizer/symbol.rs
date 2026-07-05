@@ -2,7 +2,7 @@ use super::token::*;
 
 impl Token<'_> {
     pub(crate) fn symbol(&self) -> &'static str {
-        use Token::*;
+        use TokenData::*;
         match self {
             Eof(..) => "<eof>",
             Ampersand(..) => "&",
