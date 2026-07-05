@@ -20,14 +20,14 @@ pub mod token;
 /// scanning byte-by-byte consumes whole code points and never stops mid-char.
 #[derive(Clone)]
 struct ByteIndices<'a> {
-    bytes: &'a [u8],
+    iter: std::slice::Iter<'a, u8>,
     offset: usize,
 }
 
 impl<'a> ByteIndices<'a> {
     #[inline]
     fn new(source: &'a str) -> Self {
-        Self { bytes: source.as_bytes(), offset: 0 }
+        Self { iter: source.as_bytes().iter(), offset: 0 }
     }
 }
 
@@ -36,7 +36,7 @@ impl Iterator for ByteIndices<'_> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let &byte = self.bytes.get(self.offset)?;
+        let &byte = self.iter.next()?;
         let offset = self.offset;
         self.offset += 1;
         Some((offset, byte))
