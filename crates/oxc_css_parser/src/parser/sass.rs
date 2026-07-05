@@ -1048,34 +1048,14 @@ impl<'a> Parse<'a> for SassForward<'a> {
             let keyword_span = input.cursor.peek()?.span;
             let start = keyword_span.start;
             let name = keyword.name();
-            if name.eq_ignore_ascii_case("hide") {
-                let keyword_span = input.cursor.bump()?.span;
-                let mut members = input.vec();
-                let mut comma_spans = input.vec();
-                loop {
-                    input.eat_sass_line_continuation()?;
-                    match &input.cursor.peek()?.token {
-                        Token::Ident(..) => {
-                            members.push(input.parse().map(SassForwardMember::Ident)?)
-                        }
-                        _ => members.push(input.parse().map(SassForwardMember::Variable)?),
-                    }
-                    if let Some((_, span)) = input.cursor.eat_comma()? {
-                        comma_spans.push(span);
-                    } else {
-                        break;
-                    }
-                }
-                Some(SassForwardVisibility {
-                    modifier: SassForwardVisibilityModifier {
-                        kind: SassForwardVisibilityModifierKind::Hide,
-                        span: keyword_span,
-                    },
-                    members,
-                    comma_spans,
-                    span: Span { start, end: input.cursor.tokenizer.current_offset() },
-                })
+            let kind = if name.eq_ignore_ascii_case("hide") {
+                Some(SassForwardVisibilityModifierKind::Hide)
             } else if name.eq_ignore_ascii_case("show") {
+                Some(SassForwardVisibilityModifierKind::Show)
+            } else {
+                None
+            };
+            if let Some(kind) = kind {
                 let keyword_span = input.cursor.bump()?.span;
                 let mut members = input.vec();
                 let mut comma_spans = input.vec();
@@ -1094,10 +1074,7 @@ impl<'a> Parse<'a> for SassForward<'a> {
                     }
                 }
                 Some(SassForwardVisibility {
-                    modifier: SassForwardVisibilityModifier {
-                        kind: SassForwardVisibilityModifierKind::Show,
-                        span: keyword_span,
-                    },
+                    modifier: SassForwardVisibilityModifier { kind, span: keyword_span },
                     members,
                     comma_spans,
                     span: Span { start, end: input.cursor.tokenizer.current_offset() },

@@ -408,12 +408,11 @@ impl<'a> Parser<'a> {
     // <dashed-ident> = <ident-token> whose name starts with '--'
     pub(super) fn parse_dashed_ident(&mut self) -> PResult<InterpolableIdent<'a>> {
         let ident = self.parse()?;
-        match &ident {
-            InterpolableIdent::Literal(ident) if !ident.name.starts_with("--") => {
-                self.recoverable_errors
-                    .push(Error { kind: ErrorKind::ExpectDashedIdent, span: ident.span });
-            }
-            _ => {}
+        if let InterpolableIdent::Literal(ident) = &ident
+            && !ident.name.starts_with("--")
+        {
+            self.recoverable_errors
+                .push(Error { kind: ErrorKind::ExpectDashedIdent, span: ident.span });
         }
         Ok(ident)
     }
@@ -770,6 +769,20 @@ impl<'a> Parser<'a> {
         Ok(Url { name, value, modifiers, span })
     }
 
+    // Consume `?` tokens glued directly onto `end` (no whitespace gap),
+    // advancing `end` past each — the wildcard run in `<urange>` (`U+4??`).
+    fn consume_glued_questions(&mut self, end: &mut usize) -> PResult<()> {
+        loop {
+            match self.cursor.peek()? {
+                TokenWithSpan { token: Token::Question(..), span } if span.start == *end => {
+                    *end = self.cursor.bump()?.span.end;
+                }
+                _ => break,
+            }
+        }
+        Ok(())
+    }
+
     // <urange> = u '+' <ident-token> '?'* | u <dimension-token> '?'* | u <number-token> …
     // Written `U+0-10FFFF`, `U+4??`, etc. https://drafts.csswg.org/css-syntax-3/#urange-syntax
     fn parse_unicode_range(&mut self, prefix_ident: Ident<'a>) -> PResult<UnicodeRange<'a>> {
@@ -788,27 +801,13 @@ impl<'a> Parser<'a> {
                         });
                     }
                 };
-                loop {
-                    match self.cursor.peek()? {
-                        TokenWithSpan { token: Token::Question(..), span } if span.start == end => {
-                            end = self.cursor.bump()?.span.end;
-                        }
-                        _ => break,
-                    }
-                }
+                self.consume_glued_questions(&mut end)?;
                 (start, end)
             }
             TokenWithSpan { token: Token::Dimension(..), span: dimension_token_span } => {
                 let start = dimension_token_span.start;
                 let mut end = dimension_token_span.end;
-                loop {
-                    match self.cursor.peek()? {
-                        TokenWithSpan { token: Token::Question(..), span } if span.start == end => {
-                            end = self.cursor.bump()?.span.end;
-                        }
-                        _ => break,
-                    }
-                }
+                self.consume_glued_questions(&mut end)?;
                 (start, end)
             }
             TokenWithSpan { token: Token::Number(..), span: number_token_span } => {
@@ -817,16 +816,7 @@ impl<'a> Parser<'a> {
                 match &self.cursor.peek()?.token {
                     Token::Question(..) => {
                         end = self.cursor.bump()?.span.end;
-                        loop {
-                            match self.cursor.peek()? {
-                                TokenWithSpan { token: Token::Question(..), span }
-                                    if span.start == end =>
-                                {
-                                    end = self.cursor.bump()?.span.end;
-                                }
-                                _ => break,
-                            }
-                        }
+                        self.consume_glued_questions(&mut end)?;
                     }
                     Token::Dimension(..) | Token::Number(..) => {
                         end = self.cursor.bump()?.span.end;

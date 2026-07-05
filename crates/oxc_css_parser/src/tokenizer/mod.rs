@@ -486,7 +486,6 @@ impl<'a> Tokenizer<'a> {
         allow_leading_digit: bool,
     ) -> PResult<(Ident<'a>, Span)> {
         let start;
-        let end;
         let mut escaped = false;
         match self.state.chars.peek() {
             Some((i, c)) if c.is_ascii_alphabetic() || *c == b'_' || !c.is_ascii() => {
@@ -515,27 +514,7 @@ impl<'a> Tokenizer<'a> {
             _ => unreachable!(),
         }
 
-        loop {
-            match self.state.chars.peek() {
-                Some((_, c))
-                    if c.is_ascii_alphanumeric() || *c == b'-' || *c == b'_' || !c.is_ascii() =>
-                {
-                    self.state.chars.next();
-                }
-                Some((_, b'\\')) => {
-                    escaped = true;
-                    self.scan_escape(/* backslash_consumed */ false)?;
-                }
-                Some((i, _)) => {
-                    end = *i;
-                    break;
-                }
-                None => {
-                    end = self.source.len();
-                    break;
-                }
-            }
-        }
+        let end = self.consume_name_run(&mut escaped)?;
 
         debug_assert!(start < end);
         let raw = unsafe { self.source.get_unchecked(start..end) };
@@ -580,6 +559,43 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    // Consume a run of ASCII digits, returning the offset just past them
+    // (the source length if the run reaches EOF).
+    #[inline]
+    fn consume_digits(&mut self) -> usize {
+        loop {
+            match self.state.chars.peek() {
+                Some((_, c)) if c.is_ascii_digit() => {
+                    self.state.chars.next();
+                }
+                Some((i, _)) => return *i,
+                None => return self.source.len(),
+            }
+        }
+    }
+
+    // Consume a run of name code points (`-`, `_`, ASCII alphanumerics,
+    // non-ASCII, or escapes), returning the offset just past them (the source
+    // length at EOF). Sets `escaped` if any escape sequence was consumed.
+    #[inline]
+    fn consume_name_run(&mut self, escaped: &mut bool) -> PResult<usize> {
+        loop {
+            match self.state.chars.peek() {
+                Some((_, c))
+                    if c.is_ascii_alphanumeric() || *c == b'-' || *c == b'_' || !c.is_ascii() =>
+                {
+                    self.state.chars.next();
+                }
+                Some((_, b'\\')) => {
+                    *escaped = true;
+                    self.scan_escape(/* backslash_consumed */ false)?;
+                }
+                Some((i, _)) => return Ok(*i),
+                None => return Ok(self.source.len()),
+            }
+        }
+    }
+
     // <number-token> = [ '+' | '-' ]? <digits> [ '.' <digits> ]? [ e [ '+' | '-' ]? <digits> ]?
     // https://drafts.csswg.org/css-syntax-3/#consume-number
     fn scan_number(&mut self) -> PResult<(Number<'a>, Span)> {
@@ -603,21 +619,7 @@ impl<'a> Tokenizer<'a> {
             _ => unreachable!(),
         }
 
-        loop {
-            match self.state.chars.peek() {
-                Some((_, c)) if c.is_ascii_digit() => {
-                    self.state.chars.next();
-                }
-                Some((i, _)) => {
-                    end = *i;
-                    break;
-                }
-                None => {
-                    end = self.source.len();
-                    break;
-                }
-            }
-        }
+        end = self.consume_digits();
         if !is_start_with_dot && matches!(self.state.chars.peek(), Some((_, b'.'))) {
             // Length of the dot run right after the digits decides who owns
             // the first `.`:
@@ -631,21 +633,7 @@ impl<'a> Tokenizer<'a> {
             if dot_run == 1 || dot_run == 4 {
                 // bump '.'
                 self.state.chars.next();
-                loop {
-                    match self.state.chars.peek() {
-                        Some((_, c)) if c.is_ascii_digit() => {
-                            self.state.chars.next();
-                        }
-                        Some((i, _)) => {
-                            end = *i;
-                            break;
-                        }
-                        None => {
-                            end = self.source.len();
-                            break;
-                        }
-                    }
-                }
+                end = self.consume_digits();
             }
         }
 
@@ -659,21 +647,7 @@ impl<'a> Tokenizer<'a> {
                     self.state.chars.next();
                 }
 
-                loop {
-                    match self.state.chars.peek() {
-                        Some((_, c)) if c.is_ascii_digit() => {
-                            self.state.chars.next();
-                        }
-                        Some((i, _)) => {
-                            end = *i;
-                            break;
-                        }
-                        None => {
-                            end = self.source.len();
-                            break;
-                        }
-                    }
-                }
+                end = self.consume_digits();
             }
             _ => {}
         }
@@ -908,28 +882,7 @@ impl<'a> Tokenizer<'a> {
         let start = self.current_offset();
         let mut escaped = false;
 
-        let end;
-        loop {
-            match self.state.chars.peek() {
-                Some((_, c))
-                    if c.is_ascii_alphanumeric() || *c == b'-' || *c == b'_' || !c.is_ascii() =>
-                {
-                    self.state.chars.next();
-                }
-                Some((_, b'\\')) => {
-                    escaped = true;
-                    self.scan_escape(/* backslash_consumed */ false)?;
-                }
-                Some((i, _)) => {
-                    end = *i;
-                    break;
-                }
-                None => {
-                    end = self.source.len();
-                    break;
-                }
-            }
-        }
+        let end = self.consume_name_run(&mut escaped)?;
         if end > start {
             let raw = unsafe { self.source.get_unchecked(start..end) };
             Ok(Some((Ident { escaped, raw }, Span { start, end })))
@@ -1083,7 +1036,6 @@ impl<'a> Tokenizer<'a> {
         let (start, c) = self.state.chars.next().unwrap();
         debug_assert_eq!(c, b'#');
 
-        let end;
         let mut escaped = false;
         match self.state.chars.next() {
             Some((_, c))
@@ -1102,27 +1054,7 @@ impl<'a> Tokenizer<'a> {
                 return Err(self.build_eof_error());
             }
         }
-        loop {
-            match self.state.chars.peek() {
-                Some((_, c))
-                    if c.is_ascii_alphanumeric() || *c == b'-' || *c == b'_' || !c.is_ascii() =>
-                {
-                    self.state.chars.next();
-                }
-                Some((_, b'\\')) => {
-                    escaped = true;
-                    self.scan_escape(/* backslash_consumed */ false)?;
-                }
-                Some((i, _)) => {
-                    end = *i;
-                    break;
-                }
-                None => {
-                    end = self.source.len();
-                    break;
-                }
-            }
-        }
+        let end = self.consume_name_run(&mut escaped)?;
 
         debug_assert!(end > start + 1);
         Ok(TokenWithSpan { token: Token::Hash(HashMeta { escaped }), span: Span { start, end } })
