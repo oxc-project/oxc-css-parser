@@ -7,15 +7,15 @@ use crate::{Parse, ast::*, error::PResult, tokenizer::Token};
 // <namespace-prefix> = <ident>
 impl<'a> Parse<'a> for NamespacePrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let prefix = match &input.cursor.peek()?.token {
-            Token::Ident(ident) => {
-                if ident.name().eq_ignore_ascii_case("url") {
+        let prefix = match input.cursor.peek()? {
+            token if token.ident(input.source).is_some() => {
+                if token.is_ident_name_eq_ignore_ascii_case(input.source, "url") {
                     None
                 } else {
                     Some(InterpolableIdent::Literal(input.parse::<Ident>()?))
                 }
             }
-            Token::HashLBrace(..) | Token::AtLBraceVar(..) => {
+            token if matches!(token.token, Token::HashLBrace(..) | Token::AtLBraceVar(..)) => {
                 input.parse::<InterpolableIdent>().map(Some)?
             }
             _ => None,

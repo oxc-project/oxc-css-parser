@@ -115,8 +115,8 @@ impl<'a> ImportPrelude<'a> {
         Option<ImportPreludeSupports<'a>>,
         Option<MediaQueryList<'a>>,
     )> {
-        let layer = match &input.cursor.peek()?.token {
-            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("layer") => {
+        let layer =
+            if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "layer") {
                 let ident = input.parse::<Ident>()?;
                 let layer = match input.cursor.peek()? {
                     TokenWithSpan { token: Token::LParen(..), span }
@@ -136,9 +136,9 @@ impl<'a> ImportPrelude<'a> {
                     _ => ImportPreludeLayer::Empty(ident),
                 };
                 Some(layer)
-            }
-            _ => None,
-        };
+            } else {
+                None
+            };
 
         let supports = input.try_parse(|parser| {
             // (kept as its own try so a non-`supports` ident rolls back)

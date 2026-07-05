@@ -47,11 +47,11 @@ impl<'a> Parse<'a> for Declaration<'a> {
             InterpolableIdent::Placeholder((placeholder, span).into())
         } else if input.state.allow_ie_star_hack
             && input.syntax == Syntax::Less
-            && let TokenWithSpan { token: Token::Number(number), span } = input.cursor.peek()?
-            && number.raw.bytes().all(|b| b.is_ascii_digit())
+            && let token = input.cursor.peek()?
+            && let Some(raw) = token.number_raw(input.source)
+            && raw.bytes().all(|b| b.is_ascii_digit())
         {
-            let raw = number.raw;
-            let span = span.clone();
+            let span = token.span;
             input.cursor.bump()?;
             InterpolableIdent::Literal(Ident { name: raw, raw, span })
         } else if name_prefix.is_none()
@@ -60,9 +60,11 @@ impl<'a> Parse<'a> for Declaration<'a> {
             && matches!(input.cursor.peek()?.token, Token::Hash(..))
         {
             // `#x: y` — the `#` and the name arrive as one <hash-token>.
-            let TokenWithSpan { token: Token::Hash(hash), span } = input.cursor.bump()? else {
+            let token @ TokenWithSpan { token: Token::Hash(..), span } = input.cursor.bump()?
+            else {
                 unreachable!()
             };
+            let hash = token.hash(input.source).unwrap();
             name_prefix = Some((span.start, '#'));
             let name = if hash.escaped {
                 crate::util::handle_escape_in(hash.raw, input.allocator)
@@ -105,16 +107,14 @@ impl<'a> Parse<'a> for Declaration<'a> {
                 qualified_rule_ctx: Some(QualifiedRuleContext::DeclarationValue),
                 ..input.state
             });
+            // For IE-compatibility, regardless of the property name (`filter`,
+            // `-ms-filter`, vendor variants...): `filter: progid:...`.
+            let source = parser.source;
+            let starts_with_progid =
+                parser.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(source, "progid");
             match &name {
                 InterpolableIdent::Literal(ident)
-                    if ident.name.starts_with("--")
-                        || matches!(
-                            &parser.cursor.peek()?.token,
-                            // for IE-compatibility, regardless of the property
-                            // name (`filter`, `-ms-filter`, vendor variants...):
-                            // filter: progid:DXImageTransform.Microsoft...
-                            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("progid")
-                        ) =>
+                    if ident.name.starts_with("--") || starts_with_progid =>
                 'value: {
                     if parser.options.try_parsing_value_in_custom_property
                         && let Ok(values) = parser.try_parse(Parser::parse_declaration_value)
@@ -644,14 +644,15 @@ impl<'a> Parser<'a> {
                         is_block_element = true;
                     }
                 }
-                Token::AtKeyword(at_keyword) => match self.syntax {
+                Token::AtKeyword(..) => match self.syntax {
                     Syntax::Css => {
                         let at_rule = self.parse::<AtRule>()?;
                         is_block_element = at_rule.block.is_some();
                         statements.push(Statement::AtRule(at_rule));
                     }
                     Syntax::Scss | Syntax::Sass => {
-                        let at_keyword_name = at_keyword.ident.name();
+                        let at_keyword_name =
+                            self.cursor.peek()?.at_keyword(self.source).unwrap().ident.name();
                         match &*at_keyword_name {
                             "if" => {
                                 let sass_if_at_rule = self.parse()?;

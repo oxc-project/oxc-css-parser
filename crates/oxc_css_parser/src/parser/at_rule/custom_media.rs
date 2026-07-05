@@ -1,5 +1,5 @@
 use super::Parser;
-use crate::{Parse, ast::*, error::PResult, pos::Span, tokenizer::Token};
+use crate::{Parse, ast::*, error::PResult, pos::Span};
 
 // https://www.w3.org/TR/mediaqueries-5/#custom-mq
 //
@@ -17,18 +17,17 @@ impl<'a> Parse<'a> for CustomMedia<'a> {
 // <custom-media-value> = <media-query-list> | true | false
 impl<'a> Parse<'a> for CustomMediaValue<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &input.cursor.peek()?.token {
-            Token::Ident(ident) => {
-                let name = ident.name();
-                if name.eq_ignore_ascii_case("true") {
-                    input.parse().map(CustomMediaValue::True)
-                } else if name.eq_ignore_ascii_case("false") {
-                    input.parse().map(CustomMediaValue::False)
-                } else {
-                    input.parse().map(CustomMediaValue::MediaQueryList)
-                }
+        let peek = input.cursor.peek()?;
+        if peek.ident(input.source).is_some() {
+            if peek.is_ident_name_eq_ignore_ascii_case(input.source, "true") {
+                input.parse().map(CustomMediaValue::True)
+            } else if peek.is_ident_name_eq_ignore_ascii_case(input.source, "false") {
+                input.parse().map(CustomMediaValue::False)
+            } else {
+                input.parse().map(CustomMediaValue::MediaQueryList)
             }
-            _ => input.parse().map(CustomMediaValue::MediaQueryList),
+        } else {
+            input.parse().map(CustomMediaValue::MediaQueryList)
         }
     }
 }

@@ -527,9 +527,9 @@ impl<'a> Parse<'a> for ClassSelector<'a> {
         } else {
             None
         };
-        let name = if let Some(TokenWithSpan { token: Token::Placeholder(placeholder), span }) =
-            placeholder
-        {
+        let name = if let Some(token) = placeholder {
+            let placeholder = token.placeholder(input.source).unwrap();
+            let span = token.span;
             end = span.end;
             InterpolableIdent::Placeholder((placeholder, span).into())
         } else if input.syntax == Syntax::Css {
@@ -613,9 +613,8 @@ impl<'a> Parse<'a> for ComplexSelector<'a> {
                 children.push(ComplexSelectorChild::CompoundSelector(compound_selector));
             } else if let Some(combinator) = input.parse_combinator(end)? {
                 if is_less && combinator.kind == CombinatorKind::Descendant {
-                    match &input.cursor.peek()?.token {
-                        Token::Ident(ident) if ident.raw == "when" => break,
-                        _ => {}
+                    if input.cursor.peek()?.is_ident_raw(input.source, "when") {
+                        break;
                     }
                 }
                 children.push(ComplexSelectorChild::Combinator(combinator));
@@ -713,7 +712,8 @@ impl<'a> Parse<'a> for CompoundSelectorList<'a> {
 impl<'a> Parse<'a> for IdSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.cursor.bump()? {
-            TokenWithSpan { token: Token::Hash(token), span } => {
+            token @ TokenWithSpan { token: Token::Hash(..), span } => {
+                let token = token.hash(input.source).unwrap();
                 let first_span = Span { start: span.start + 1, end: span.end };
                 let raw = token.raw;
                 if raw.starts_with(|c: char| c.is_ascii_digit())
@@ -846,13 +846,13 @@ impl<'a> Parse<'a> for Nth<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let index = input.parse::<NthIndex>()?;
         let mut span = index.span().clone();
-        let matcher = match &input.cursor.peek()?.token {
-            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("of") => {
-                let matcher = input.parse::<NthMatcher>()?;
-                span.end = matcher.span.end;
-                Some(matcher)
-            }
-            _ => None,
+        let matcher = if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "of")
+        {
+            let matcher = input.parse::<NthMatcher>()?;
+            span.end = matcher.span.end;
+            Some(matcher)
+        } else {
+            None
         };
 
         Ok(Nth { index, matcher, span })
@@ -862,26 +862,24 @@ impl<'a> Parse<'a> for Nth<'a> {
 // <nth> = <an+b> | even | odd   (plus a plain <integer>)
 impl<'a> Parse<'a> for NthIndex<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &input.cursor.peek()?.token {
-            Token::Ident(ident) => {
-                let name = ident.name();
-                if name.eq_ignore_ascii_case("odd") {
-                    input.parse().map(NthIndex::Odd)
-                } else if name.eq_ignore_ascii_case("even") {
-                    input.parse().map(NthIndex::Even)
-                } else {
-                    input.parse().map(NthIndex::AnPlusB)
-                }
+        let peek = input.cursor.peek()?;
+        if peek.ident(input.source).is_some() {
+            if peek.is_ident_name_eq_ignore_ascii_case(input.source, "odd") {
+                input.parse().map(NthIndex::Odd)
+            } else if peek.is_ident_name_eq_ignore_ascii_case(input.source, "even") {
+                input.parse().map(NthIndex::Even)
+            } else {
+                input.parse().map(NthIndex::AnPlusB)
             }
-            Token::Number(..) => {
-                let number = input.parse::<Number>()?;
-                if number.value.fract() == 0.0 {
-                    Ok(NthIndex::Integer(number))
-                } else {
-                    Err(Error { kind: ErrorKind::ExpectInteger, span: number.span })
-                }
+        } else if matches!(peek.token, Token::Number(..)) {
+            let number = input.parse::<Number>()?;
+            if number.value.fract() == 0.0 {
+                Ok(NthIndex::Integer(number))
+            } else {
+                Err(Error { kind: ErrorKind::ExpectInteger, span: number.span })
             }
-            _ => input.parse().map(NthIndex::AnPlusB),
+        } else {
+            input.parse().map(NthIndex::AnPlusB)
         }
     }
 }

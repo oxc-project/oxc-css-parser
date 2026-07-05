@@ -156,40 +156,34 @@ impl<'a> Parser<'a> {
         precedence: u8,
     ) -> PResult<LessCondition<'a>> {
         let mut left = if precedence >= PRECEDENCE_AND {
-            match &self.cursor.peek()?.token {
-                Token::LParen(..) => {
-                    let Span { start, .. } = self.cursor.bump()?.span;
-                    let (condition, end) = self.parse_less_guard_paren_condition(needs_parens)?;
-                    LessCondition::Parenthesized(LessParenthesizedCondition {
-                        condition: self.alloc(condition),
-                        span: Span { start, end },
-                    })
-                }
-                Token::Ident(ident) if ident.raw == "not" => {
-                    let Span { start, .. } = self.cursor.bump()?.span;
-                    let (condition, end) = if self.cursor.eat_l_paren()?.is_some() {
-                        self.parse_less_guard_paren_condition(needs_parens)?
-                    } else {
-                        // less.js also accepts a bare operand: `when not @a`
-                        let condition = self.parse_less_condition_atom()?;
-                        let end = condition.span().end;
-                        (condition, end)
-                    };
-                    LessCondition::Negated(LessNegatedCondition {
-                        condition: self.alloc(condition),
-                        span: Span { start, end },
-                    })
-                }
-                _ => {
-                    if needs_parens {
-                        let TokenWithSpan { token, span } = self.cursor.bump()?;
-                        return Err(Error {
-                            kind: ErrorKind::Unexpected("(", token.symbol()),
-                            span,
-                        });
-                    } else {
-                        self.parse_less_condition_atom()?
-                    }
+            let peek = self.cursor.peek()?;
+            if matches!(peek.token, Token::LParen(..)) {
+                let Span { start, .. } = self.cursor.bump()?.span;
+                let (condition, end) = self.parse_less_guard_paren_condition(needs_parens)?;
+                LessCondition::Parenthesized(LessParenthesizedCondition {
+                    condition: self.alloc(condition),
+                    span: Span { start, end },
+                })
+            } else if peek.is_ident_raw(self.source, "not") {
+                let Span { start, .. } = self.cursor.bump()?.span;
+                let (condition, end) = if self.cursor.eat_l_paren()?.is_some() {
+                    self.parse_less_guard_paren_condition(needs_parens)?
+                } else {
+                    // less.js also accepts a bare operand: `when not @a`
+                    let condition = self.parse_less_condition_atom()?;
+                    let end = condition.span().end;
+                    (condition, end)
+                };
+                LessCondition::Negated(LessNegatedCondition {
+                    condition: self.alloc(condition),
+                    span: Span { start, end },
+                })
+            } else {
+                if needs_parens {
+                    let TokenWithSpan { token, span } = self.cursor.bump()?;
+                    return Err(Error { kind: ErrorKind::Unexpected("(", token.symbol()), span });
+                } else {
+                    self.parse_less_condition_atom()?
                 }
             }
         } else {
@@ -197,20 +191,19 @@ impl<'a> Parser<'a> {
         };
 
         loop {
-            let op = match &self.cursor.peek()?.token {
-                Token::Ident(token) if token.raw == "and" && precedence == PRECEDENCE_AND => {
-                    LessBinaryConditionOperator {
-                        kind: LessBinaryConditionOperatorKind::And,
-                        span: self.cursor.bump()?.span,
-                    }
+            let peek = self.cursor.peek()?;
+            let op = if peek.is_ident_raw(self.source, "and") && precedence == PRECEDENCE_AND {
+                LessBinaryConditionOperator {
+                    kind: LessBinaryConditionOperatorKind::And,
+                    span: self.cursor.bump()?.span,
                 }
-                Token::Ident(token) if token.raw == "or" && precedence == PRECEDENCE_OR => {
-                    LessBinaryConditionOperator {
-                        kind: LessBinaryConditionOperatorKind::Or,
-                        span: self.cursor.bump()?.span,
-                    }
+            } else if peek.is_ident_raw(self.source, "or") && precedence == PRECEDENCE_OR {
+                LessBinaryConditionOperator {
+                    kind: LessBinaryConditionOperatorKind::Or,
+                    span: self.cursor.bump()?.span,
                 }
-                _ => break,
+            } else {
+                break;
             };
 
             // multiple conditions in Less are right-associated
@@ -479,10 +472,12 @@ impl<'a> Parser<'a> {
                         span: self.cursor.bump()?.span,
                     }
                 }
-                TokenWithSpan { token: Token::Number(token), span }
+                token @ TokenWithSpan { token: Token::Number(..), span }
                     if precedence == PRECEDENCE_PLUS
-                        && (token.raw.starts_with('+')
-                            || token.raw.starts_with('-') && span.start == left.span().end) =>
+                        && token.number_raw(self.source).is_some_and(|raw| {
+                            raw.starts_with('+')
+                                || raw.starts_with('-') && span.start == left.span().end
+                        }) =>
                 {
                     let (number, number_span) = self.cursor.expect_number()?;
                     let op = LessOperationOperator {
@@ -512,11 +507,12 @@ impl<'a> Parser<'a> {
                     });
                     continue;
                 }
-                TokenWithSpan { token: Token::Dimension(token), span }
+                token @ TokenWithSpan { token: Token::Dimension(..), span }
                     if precedence == PRECEDENCE_PLUS
-                        && (token.value.raw.starts_with('+')
-                            || token.value.raw.starts_with('-')
-                                && span.start == left.span().end) =>
+                        && token.dimension_value_raw(self.source).is_some_and(|raw| {
+                            raw.starts_with('+')
+                                || raw.starts_with('-') && span.start == left.span().end
+                        }) =>
                 {
                     let (dimension, dimension_span) = self.cursor.expect_dimension()?;
                     let op = LessOperationOperator {
@@ -626,29 +622,23 @@ impl<'a> Parser<'a> {
             })
             .parse::<SelectorList>()?;
 
-        match &self.cursor.peek()?.token {
-            Token::Ident(ident) if ident.raw == "when" => {
-                // less.js: "Guards are only currently allowed on a single
-                // selector." — a guard on a selector list is rejected whether
-                // the comma comes before or after the `when`.
-                if selector_list.selectors.len() > 1 {
-                    let span = self.cursor.peek()?.span.clone();
-                    return Err(Error {
-                        kind: ErrorKind::LessGuardOnMultipleComplexSelectors,
-                        span,
-                    });
-                }
-                let guard = self.parse::<LessConditions>()?;
-                let block = self.parse::<SimpleBlock>()?;
-                let span = Span { start: selector_list.span.start, end: block.span.end };
-                return Ok(Statement::LessConditionalQualifiedRule(LessConditionalQualifiedRule {
-                    selector: selector_list,
-                    guard,
-                    block,
-                    span,
-                }));
+        if self.cursor.peek()?.is_ident_raw(self.source, "when") {
+            // less.js: "Guards are only currently allowed on a single
+            // selector." — a guard on a selector list is rejected whether
+            // the comma comes before or after the `when`.
+            if selector_list.selectors.len() > 1 {
+                let span = self.cursor.peek()?.span.clone();
+                return Err(Error { kind: ErrorKind::LessGuardOnMultipleComplexSelectors, span });
             }
-            _ => {}
+            let guard = self.parse::<LessConditions>()?;
+            let block = self.parse::<SimpleBlock>()?;
+            let span = Span { start: selector_list.span.start, end: block.span.end };
+            return Ok(Statement::LessConditionalQualifiedRule(LessConditionalQualifiedRule {
+                selector: selector_list,
+                guard,
+                block,
+                span,
+            }));
         }
 
         let block = self.parse::<SimpleBlock>()?;
@@ -779,11 +769,11 @@ impl<'a> Parser<'a> {
 // A guard: when <condition> [ , <condition> ]*
 impl<'a> Parse<'a> for LessConditions<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let when_span = match input.cursor.bump()? {
-            TokenWithSpan { token: Token::Ident(ident), span } if ident.raw == "when" => span,
-            TokenWithSpan { span, .. } => {
-                return Err(Error { kind: ErrorKind::ExpectLessKeyword("when"), span });
-            }
+        let token = input.cursor.bump()?;
+        let when_span = if token.is_ident_raw(input.source, "when") {
+            token.span
+        } else {
+            return Err(Error { kind: ErrorKind::ExpectLessKeyword("when"), span: token.span });
         };
 
         let first = input.parse_less_condition(true)?;
@@ -957,11 +947,12 @@ impl<'a> Parse<'a> for LessImportOptions<'a> {
 
         let mut names = input.vec_with_capacity(1);
         let mut comma_spans = input.vec();
-        while let Token::Ident(crate::token::Ident {
-            raw: "less" | "css" | "multiple" | "once" | "inline" | "reference" | "optional",
-            ..
-        }) = input.cursor.peek()?.token
-        {
+        while input.cursor.peek()?.ident_raw(input.source).is_some_and(|raw| {
+            matches!(
+                raw,
+                "less" | "css" | "multiple" | "once" | "inline" | "reference" | "optional"
+            )
+        }) {
             names.push(input.parse()?);
             if !matches!(input.cursor.peek()?.token, Token::RParen(..)) {
                 comma_spans.push(input.cursor.expect_comma()?.1);
@@ -1536,9 +1527,10 @@ impl<'a> Parse<'a> for LessMixinDefinition<'a> {
 
         let params = input.parse_less_mixin_parameters()?;
 
-        let guard = match &input.cursor.peek()?.token {
-            Token::Ident(ident) if ident.raw == "when" => Some(input.parse()?),
-            _ => None,
+        let guard = if input.cursor.peek()?.is_ident_raw(input.source, "when") {
+            Some(input.parse()?)
+        } else {
+            None
         };
 
         let block = input
@@ -1579,7 +1571,8 @@ impl<'a> Parse<'a> for LessMixinName<'a> {
                     span,
                 }))
             }
-            TokenWithSpan { token: Token::Hash(hash), span } => {
+            token @ TokenWithSpan { token: Token::Hash(..), span } => {
+                let hash = token.hash(input.source).unwrap();
                 let raw = hash.raw;
                 if raw.starts_with(|c: char| c.is_ascii_digit())
                     || matches!(raw.as_bytes(), [b'-'] | [b'-', b'0'..=b'9', ..])

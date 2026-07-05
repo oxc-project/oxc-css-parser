@@ -409,7 +409,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
             let end = prelude.span.end;
             (Some(AtRulePrelude::LessPlugin(input.alloc(prelude))), None, end)
         } else if at_rule_name.eq_ignore_ascii_case("function")
-            && matches!(&input.cursor.peek()?.token, Token::Ident(ident) if ident.raw.starts_with("--"))
+            && input.cursor.peek()?.is_ident_raw_starts_with(input.source, "--")
         {
             // A CSS custom function (css-mixins spec): `@function --name(params)
             // returns <type> { declarations }`. dart-sass parses this as plain

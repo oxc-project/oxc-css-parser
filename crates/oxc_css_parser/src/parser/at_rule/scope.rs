@@ -10,15 +10,11 @@ use crate::{
 // to ( <scope-end> ) where <scope-end> = <selector-list>
 impl<'a> Parse<'a> for ScopeEnd<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let to_span = match input.cursor.bump()? {
-            TokenWithSpan { token: Token::Ident(ident), span }
-                if ident.name().eq_ignore_ascii_case("to") =>
-            {
-                span
-            }
-            TokenWithSpan { span, .. } => {
-                return Err(Error { kind: ErrorKind::ExpectScopeTo, span });
-            }
+        let token = input.cursor.bump()?;
+        let to_span = if token.is_ident_name_eq_ignore_ascii_case(input.source, "to") {
+            token.span
+        } else {
+            return Err(Error { kind: ErrorKind::ExpectScopeTo, span: token.span });
         };
 
         let (_, lparen_span) = input.cursor.expect_l_paren()?;
@@ -42,11 +38,10 @@ impl<'a> Parse<'a> for ScopePrelude<'a> {
         } else {
             None
         };
-        let end = match &input.cursor.peek()?.token {
-            Token::Ident(ident) if ident.name().eq_ignore_ascii_case("to") => {
-                Some(input.parse::<ScopeEnd>()?)
-            }
-            _ => None,
+        let end = if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "to") {
+            Some(input.parse::<ScopeEnd>()?)
+        } else {
+            None
         };
 
         match (start, end) {

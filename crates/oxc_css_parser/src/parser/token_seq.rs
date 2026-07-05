@@ -92,7 +92,14 @@ impl<'a> Parser<'a> {
             }
             let (template, span) = self.cursor.tokenizer.scan_string_template(quote)?;
             tail = template.tail;
-            tokens.push(TokenWithSpan { token: Token::StrTemplate(template), span });
+            tokens.push(TokenWithSpan {
+                token: Token::StrTemplate(crate::token::StrTemplateMeta {
+                    escaped: template.escaped,
+                    head: template.head,
+                    tail: template.tail,
+                }),
+                span,
+            });
         }
         Ok(())
     }

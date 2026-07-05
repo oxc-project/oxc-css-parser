@@ -33,12 +33,13 @@ pub trait Parse<'a>: Sized {
 pub(in crate::parser) struct ParserCursor<'a> {
     tokenizer: Tokenizer<'a>,
     cached_token: Option<TokenWithSpan<'a>>,
+    source: &'a str,
 }
 
 impl<'a> ParserCursor<'a> {
     #[inline]
-    fn new(tokenizer: Tokenizer<'a>) -> Self {
-        Self { tokenizer, cached_token: None }
+    fn new(tokenizer: Tokenizer<'a>, source: &'a str) -> Self {
+        Self { tokenizer, cached_token: None, source }
     }
 
     #[inline]
@@ -64,15 +65,14 @@ impl<'a> ParserCursor<'a> {
     #[inline]
     fn eat_token<T>(
         &mut self,
-        extract: impl FnOnce(Token<'a>) -> Result<T, Token<'a>>,
+        extract: impl FnOnce(&TokenWithSpan<'a>, &'a str) -> Option<T>,
     ) -> PResult<Option<(T, Span)>> {
-        let TokenWithSpan { token, span } = self.bump()?;
-        match extract(token) {
-            Ok(token) => Ok(Some((token, span))),
-            Err(token) => {
-                self.cached_token = Some(TokenWithSpan { token, span });
-                Ok(None)
-            }
+        let token_with_span = self.bump()?;
+        if let Some(token) = extract(&token_with_span, self.source) {
+            Ok(Some((token, token_with_span.span)))
+        } else {
+            self.cached_token = Some(token_with_span);
+            Ok(None)
         }
     }
 
@@ -80,294 +80,274 @@ impl<'a> ParserCursor<'a> {
     fn expect_token<T>(
         &mut self,
         expected: &'static str,
-        extract: impl FnOnce(Token<'a>) -> Result<T, Token<'a>>,
+        extract: impl FnOnce(&TokenWithSpan<'a>, &'a str) -> Option<T>,
     ) -> PResult<(T, Span)> {
-        let TokenWithSpan { token, span } = self.bump()?;
-        match extract(token) {
-            Ok(token) => Ok((token, span)),
-            Err(token) => {
-                Err(Error { kind: ErrorKind::Unexpected(expected, token.symbol()), span })
-            }
+        let token_with_span = self.bump()?;
+        if let Some(token) = extract(&token_with_span, self.source) {
+            Ok((token, token_with_span.span))
+        } else {
+            Err(Error {
+                kind: ErrorKind::Unexpected(expected, token_with_span.token.symbol()),
+                span: token_with_span.span,
+            })
         }
     }
 
     #[inline]
+    fn eat_kind<T>(
+        &mut self,
+        extract: impl FnOnce(Token<'a>) -> Option<T>,
+    ) -> PResult<Option<(T, Span)>> {
+        self.eat_token(|token, _| extract(token.token))
+    }
+
+    #[inline]
+    fn expect_kind<T>(
+        &mut self,
+        expected: &'static str,
+        extract: impl FnOnce(Token<'a>) -> Option<T>,
+    ) -> PResult<(T, Span)> {
+        self.expect_token(expected, |token, _| extract(token.token))
+    }
+
+    #[inline]
     fn expect_ampersand(&mut self) -> PResult<(token::Ampersand, Span)> {
-        self.expect_token("&", |token| match token {
-            Token::Ampersand(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("&", |token| match token {
+            Token::Ampersand(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_at(&mut self) -> PResult<(token::At, Span)> {
-        self.expect_token("@", |token| match token {
-            Token::At(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("@", |token| match token {
+            Token::At(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_at_keyword(&mut self) -> PResult<(token::AtKeyword<'a>, Span)> {
-        self.expect_token("<at-keyword>", |token| match token {
-            Token::AtKeyword(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("<at-keyword>", |token, source| token.at_keyword(source))
     }
 
     #[inline]
     fn expect_at_l_brace_var(&mut self) -> PResult<(token::AtLBraceVar<'a>, Span)> {
-        self.expect_token("@{", |token| match token {
-            Token::AtLBraceVar(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("@{", |token, source| token.at_l_brace_var(source))
     }
 
     #[inline]
     fn expect_backtick_code(&mut self) -> PResult<(token::BacktickCode<'a>, Span)> {
-        self.expect_token("<backtick code>", |token| match token {
-            Token::BacktickCode(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("<backtick code>", |token, source| token.backtick_code(source))
     }
 
     #[inline]
     fn expect_bar(&mut self) -> PResult<(token::Bar, Span)> {
-        self.expect_token("|", |token| match token {
-            Token::Bar(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("|", |token| match token {
+            Token::Bar(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_colon(&mut self) -> PResult<(token::Colon, Span)> {
-        self.expect_token(":", |token| match token {
-            Token::Colon(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind(":", |token| match token {
+            Token::Colon(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_colon_colon(&mut self) -> PResult<(token::ColonColon, Span)> {
-        self.expect_token("::", |token| match token {
-            Token::ColonColon(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("::", |token| match token {
+            Token::ColonColon(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_comma(&mut self) -> PResult<(token::Comma, Span)> {
-        self.expect_token(",", |token| match token {
-            Token::Comma(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind(",", |token| match token {
+            Token::Comma(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_dimension(&mut self) -> PResult<(token::Dimension<'a>, Span)> {
-        self.expect_token("<dimension>", |token| match token {
-            Token::Dimension(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("<dimension>", |token, source| token.dimension(source))
     }
 
     #[inline]
     fn expect_dollar_l_brace_var(&mut self) -> PResult<(token::DollarLBraceVar<'a>, Span)> {
-        self.expect_token("${", |token| match token {
-            Token::DollarLBraceVar(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("${", |token, source| token.dollar_l_brace_var(source))
     }
 
     #[inline]
     fn expect_dollar_var(&mut self) -> PResult<(token::DollarVar<'a>, Span)> {
-        self.expect_token("$var", |token| match token {
-            Token::DollarVar(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("$var", |token, source| token.dollar_var(source))
     }
 
     #[inline]
     fn expect_dot(&mut self) -> PResult<(token::Dot, Span)> {
-        self.expect_token(".", |token| match token {
-            Token::Dot(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind(".", |token| match token {
+            Token::Dot(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_eof(&mut self) -> PResult<(token::Eof, Span)> {
-        self.expect_token("<eof>", |token| match token {
-            Token::Eof(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("<eof>", |token| match token {
+            Token::Eof(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_exclamation(&mut self) -> PResult<(token::Exclamation, Span)> {
-        self.expect_token("!", |token| match token {
-            Token::Exclamation(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("!", |token| match token {
+            Token::Exclamation(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_hash(&mut self) -> PResult<(token::Hash<'a>, Span)> {
-        self.expect_token("<hash>", |token| match token {
-            Token::Hash(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("<hash>", |token, source| token.hash(source))
     }
 
     #[inline]
     fn expect_hash_l_brace(&mut self) -> PResult<(token::HashLBrace, Span)> {
-        self.expect_token("#{", |token| match token {
-            Token::HashLBrace(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("#{", |token| match token {
+            Token::HashLBrace(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_ident(&mut self) -> PResult<(token::Ident<'a>, Span)> {
-        self.expect_token("<ident>", |token| match token {
-            Token::Ident(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("<ident>", |token, source| token.ident(source))
     }
 
     #[inline]
     fn expect_l_brace(&mut self) -> PResult<(token::LBrace, Span)> {
-        self.expect_token("{", |token| match token {
-            Token::LBrace(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("{", |token| match token {
+            Token::LBrace(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_l_bracket(&mut self) -> PResult<(token::LBracket, Span)> {
-        self.expect_token("[", |token| match token {
-            Token::LBracket(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("[", |token| match token {
+            Token::LBracket(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_linebreak(&mut self) -> PResult<(token::Linebreak, Span)> {
-        self.expect_token("<linebreak>", |token| match token {
-            Token::Linebreak(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("<linebreak>", |token| match token {
+            Token::Linebreak(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_l_paren(&mut self) -> PResult<(token::LParen, Span)> {
-        self.expect_token("(", |token| match token {
-            Token::LParen(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("(", |token| match token {
+            Token::LParen(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_minus(&mut self) -> PResult<(token::Minus, Span)> {
-        self.expect_token("-", |token| match token {
-            Token::Minus(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("-", |token| match token {
+            Token::Minus(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_number(&mut self) -> PResult<(token::Number<'a>, Span)> {
-        self.expect_token("<number>", |token| match token {
-            Token::Number(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("<number>", |token, source| token.number(source))
     }
 
     #[inline]
     fn expect_percent(&mut self) -> PResult<(token::Percent, Span)> {
-        self.expect_token("%", |token| match token {
-            Token::Percent(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("%", |token| match token {
+            Token::Percent(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_percentage(&mut self) -> PResult<(token::Percentage<'a>, Span)> {
-        self.expect_token("<percentage>", |token| match token {
-            Token::Percentage(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("<percentage>", |token, source| token.percentage(source))
     }
 
     #[inline]
     fn expect_placeholder(&mut self) -> PResult<(token::Placeholder<'a>, Span)> {
-        self.expect_token("<placeholder>", |token| match token {
-            Token::Placeholder(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("<placeholder>", |token, source| token.placeholder(source))
     }
 
     #[inline]
     fn expect_r_brace(&mut self) -> PResult<(token::RBrace, Span)> {
-        self.expect_token("}", |token| match token {
-            Token::RBrace(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("}", |token| match token {
+            Token::RBrace(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_r_bracket(&mut self) -> PResult<(token::RBracket, Span)> {
-        self.expect_token("]", |token| match token {
-            Token::RBracket(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("]", |token| match token {
+            Token::RBracket(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_r_paren(&mut self) -> PResult<(token::RParen, Span)> {
-        self.expect_token(")", |token| match token {
-            Token::RParen(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind(")", |token| match token {
+            Token::RParen(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_semicolon(&mut self) -> PResult<(token::Semicolon, Span)> {
-        self.expect_token(";", |token| match token {
-            Token::Semicolon(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind(";", |token| match token {
+            Token::Semicolon(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_solidus(&mut self) -> PResult<(token::Solidus, Span)> {
-        self.expect_token("/", |token| match token {
-            Token::Solidus(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("/", |token| match token {
+            Token::Solidus(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_str(&mut self) -> PResult<(token::Str<'a>, Span)> {
-        self.expect_token("<string>", |token| match token {
-            Token::Str(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("<string>", |token, source| token.str(source))
     }
 
     #[inline]
     fn expect_str_template(&mut self) -> PResult<(token::StrTemplate<'a>, Span)> {
-        self.expect_token("<string template>", |token| match token {
-            Token::StrTemplate(token) => Ok(token),
-            token => Err(token),
-        })
+        self.expect_token("<string template>", |token, source| token.str_template(source))
     }
 
     #[inline]
     fn expect_tilde(&mut self) -> PResult<(token::Tilde, Span)> {
-        self.expect_token("~", |token| match token {
-            Token::Tilde(token) => Ok(token),
-            token => Err(token),
+        self.expect_kind("~", |token| match token {
+            Token::Tilde(token) => Some(token),
+            _ => None,
         })
     }
 
@@ -375,15 +355,14 @@ impl<'a> ParserCursor<'a> {
     fn expect_without_ws_or_comments<T>(
         &mut self,
         expected: &'static str,
-        extract: impl FnOnce(Token<'a>) -> Result<T, Token<'a>>,
+        extract: impl FnOnce(Token<'a>) -> Option<T>,
     ) -> PResult<(T, Span)> {
         debug_assert!(self.cached_token.is_none());
         let TokenWithSpan { token, span } = self.tokenizer.bump_without_ws_or_comments()?;
-        match extract(token) {
-            Ok(token) => Ok((token, span)),
-            Err(token) => {
-                Err(Error { kind: ErrorKind::Unexpected(expected, token.symbol()), span })
-            }
+        if let Some(token) = extract(token) {
+            Ok((token, span))
+        } else {
+            Err(Error { kind: ErrorKind::Unexpected(expected, token.symbol()), span })
         }
     }
 
@@ -406,128 +385,125 @@ impl<'a> ParserCursor<'a> {
     #[inline]
     fn expect_asterisk_without_ws_or_comments(&mut self) -> PResult<(token::Asterisk, Span)> {
         self.expect_without_ws_or_comments("*", |token| match token {
-            Token::Asterisk(token) => Ok(token),
-            token => Err(token),
+            Token::Asterisk(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_l_paren_without_ws_or_comments(&mut self) -> PResult<(token::LParen, Span)> {
         self.expect_without_ws_or_comments("(", |token| match token {
-            Token::LParen(token) => Ok(token),
-            token => Err(token),
+            Token::LParen(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn expect_solidus_without_ws_or_comments(&mut self) -> PResult<(token::Solidus, Span)> {
         self.expect_without_ws_or_comments("/", |token| match token {
-            Token::Solidus(token) => Ok(token),
-            token => Err(token),
+            Token::Solidus(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_bar(&mut self) -> PResult<Option<(token::Bar, Span)>> {
-        self.eat_token(|token| match token {
-            Token::Bar(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::Bar(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_colon(&mut self) -> PResult<Option<(token::Colon, Span)>> {
-        self.eat_token(|token| match token {
-            Token::Colon(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::Colon(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_comma(&mut self) -> PResult<Option<(token::Comma, Span)>> {
-        self.eat_token(|token| match token {
-            Token::Comma(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::Comma(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_dot_dot_dot(&mut self) -> PResult<Option<(token::DotDotDot, Span)>> {
-        self.eat_token(|token| match token {
-            Token::DotDotDot(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::DotDotDot(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_exclamation(&mut self) -> PResult<Option<(token::Exclamation, Span)>> {
-        self.eat_token(|token| match token {
-            Token::Exclamation(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::Exclamation(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_greater_than(&mut self) -> PResult<Option<(token::GreaterThan, Span)>> {
-        self.eat_token(|token| match token {
-            Token::GreaterThan(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::GreaterThan(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_ident(&mut self) -> PResult<Option<(token::Ident<'a>, Span)>> {
-        self.eat_token(|token| match token {
-            Token::Ident(token) => Ok(token),
-            token => Err(token),
-        })
+        self.eat_token(|token, source| token.ident(source))
     }
 
     #[inline]
     fn eat_indent(&mut self) -> PResult<Option<(token::Indent, Span)>> {
-        self.eat_token(|token| match token {
-            Token::Indent(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::Indent(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_linebreak(&mut self) -> PResult<Option<(token::Linebreak, Span)>> {
-        self.eat_token(|token| match token {
-            Token::Linebreak(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::Linebreak(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_l_paren(&mut self) -> PResult<Option<(token::LParen, Span)>> {
-        self.eat_token(|token| match token {
-            Token::LParen(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::LParen(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_r_paren(&mut self) -> PResult<Option<(token::RParen, Span)>> {
-        self.eat_token(|token| match token {
-            Token::RParen(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::RParen(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_semicolon(&mut self) -> PResult<Option<(token::Semicolon, Span)>> {
-        self.eat_token(|token| match token {
-            Token::Semicolon(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::Semicolon(token) => Some(token),
+            _ => None,
         })
     }
 
     #[inline]
     fn eat_tilde(&mut self) -> PResult<Option<(token::Tilde, Span)>> {
-        self.eat_token(|token| match token {
-            Token::Tilde(token) => Ok(token),
-            token => Err(token),
+        self.eat_kind(|token| match token {
+            Token::Tilde(token) => Some(token),
+            _ => None,
         })
     }
 }
@@ -559,7 +535,10 @@ impl<'a> Parser<'a> {
             source,
             syntax,
             options: Default::default(),
-            cursor: ParserCursor::new(Tokenizer::new(allocator, source, syntax, None, false)),
+            cursor: ParserCursor::new(
+                Tokenizer::new(allocator, source, syntax, None, false),
+                source,
+            ),
             state: Default::default(),
             recoverable_errors: vec![],
             sass_pending_indents: 0,
