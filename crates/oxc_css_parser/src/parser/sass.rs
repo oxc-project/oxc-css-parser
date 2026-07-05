@@ -1304,8 +1304,8 @@ impl<'a> Parse<'a> for SassIncludeContentBlockParams<'a> {
 impl<'a> Parse<'a> for SassInterpolatedStr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (first, first_span) = input.cursor.expect_str_template()?;
-        let quote = first.raw.chars().next().unwrap();
-        debug_assert!(quote == '\'' || quote == '"');
+        let quote = first.raw.bytes().next().unwrap();
+        debug_assert!(quote == b'\'' || quote == b'"');
         let mut span = first_span.clone();
         let first = input.interpolable_str_static_part(first, first_span);
         let mut elements = input.vec1(SassInterpolatedStrElement::Static(first));
