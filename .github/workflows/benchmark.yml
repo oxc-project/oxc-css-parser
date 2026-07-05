@@ -11,6 +11,7 @@ on:
       - "Cargo.lock"
       - "Cargo.toml"
       - "crates/oxc_css_parser/Cargo.toml"
+      - "benchmark/fixtures/**"
       - ".github/workflows/benchmark.yml"
   push:
     branches:
@@ -20,6 +21,7 @@ on:
       - "Cargo.lock"
       - "Cargo.toml"
       - "crates/oxc_css_parser/Cargo.toml"
+      - "benchmark/fixtures/**"
       - ".github/workflows/benchmark.yml"
 
 concurrency:
@@ -44,14 +46,6 @@ jobs:
           cache-key: benchmark
           save-cache: ${{ github.ref_name == 'main' }}
           tools: cargo-codspeed
-
-      - name: Prepare benchmark data
-        run: |
-          mkdir -p bench_data
-          printf '%s\n' \
-            'a { color: green; margin: calc(1rem + 2px); }' \
-            '@media screen and (min-width: 768px) { .container { display: grid; } }' \
-            > bench_data/codspeed.css
 
       - name: Build benchmark
         run: cargo codspeed build -p oxc-css-parser --features codspeed
