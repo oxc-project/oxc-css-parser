@@ -2613,5 +2613,3 @@ pub struct WqName<'a> {
     pub name: InterpolableIdent<'a>,
     pub prefix: Option<NsPrefix<'a>>,
 }
-
-include!("ast_generated.rs");
