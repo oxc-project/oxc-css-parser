@@ -168,6 +168,7 @@ pub use pos::Span;
 pub use tokenizer::token;
 
 pub mod ast;
+mod ast_generated;
 mod config;
 pub mod error;
 mod parser;
