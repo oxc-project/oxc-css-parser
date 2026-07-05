@@ -61,7 +61,7 @@ impl<'a> Parse<'a> for MediaFeature<'a> {
                     ComponentValue::InterpolableIdent(ident),
                 ),
                 _ => {
-                    let span = ident.span().clone();
+                    let span = *ident.span();
                     Ok(MediaFeature::Boolean(MediaFeatureBoolean {
                         name: MediaFeatureName::Ident(ident),
                         span,
@@ -69,14 +69,14 @@ impl<'a> Parse<'a> for MediaFeature<'a> {
                 }
             },
             ComponentValue::SassVariable(variable) => {
-                let span = variable.span.clone();
+                let span = variable.span;
                 Ok(MediaFeature::Boolean(MediaFeatureBoolean {
                     name: MediaFeatureName::SassVariable(variable),
                     span,
                 }))
             }
             ComponentValue::PostcssSimpleVar(variable) => {
-                let span = variable.span.clone();
+                let span = variable.span;
                 Ok(MediaFeature::Boolean(MediaFeatureBoolean {
                     name: MediaFeatureName::PostcssSimpleVar(variable),
                     span,
@@ -127,7 +127,7 @@ impl<'a> Parse<'a> for MediaInParens<'a> {
             && let InterpolableIdent::SassInterpolated(interpolation) =
                 input.parse_sass_interpolated_ident()?
         {
-            let span = interpolation.span.clone();
+            let span = interpolation.span;
             return Ok(MediaInParens {
                 kind: MediaInParensKind::SassInterpolation(interpolation),
                 span,
@@ -154,7 +154,7 @@ impl<'a> Parse<'a> for MediaInParensKind<'a> {
             if matches!(&parser.cursor.peek()?.token, Token::RParen(..)) {
                 Ok(media_condition)
             } else {
-                let span = parser.cursor.peek()?.span.clone();
+                let span = parser.cursor.peek()?.span;
                 Err(Error { kind: ErrorKind::ExpectMediaFeatureName, span })
             }
         }) {
@@ -164,7 +164,7 @@ impl<'a> Parse<'a> for MediaInParensKind<'a> {
             if matches!(&parser.cursor.peek()?.token, Token::RParen(..)) {
                 Ok(media_feature)
             } else {
-                let span = parser.cursor.peek()?.span.clone();
+                let span = parser.cursor.peek()?.span;
                 Err(Error { kind: ErrorKind::ExpectMediaFeatureName, span })
             }
         }) {
@@ -248,7 +248,7 @@ impl<'a> Parse<'a> for MediaQuery<'a> {
 impl<'a> Parse<'a> for MediaQueryList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<MediaQuery>()?;
-        let mut span = first.span().clone();
+        let mut span = *first.span();
 
         let mut queries = input.vec1(first);
         let mut comma_spans = input.vec();
@@ -291,7 +291,7 @@ impl<'a> Parse<'a> for MediaQueryWithType<'a> {
         {
             input.recoverable_errors.push(Error {
                 kind: ErrorKind::MediaTypeKeywordDisallowed(name.to_string()),
-                span: span.clone(),
+                span: *span,
             });
         }
         let condition =
@@ -301,7 +301,7 @@ impl<'a> Parse<'a> for MediaQueryWithType<'a> {
                 None
             };
 
-        let mut span = media_type.span().clone();
+        let mut span = *media_type.span();
         if let Some(modifier) = &modifier {
             span.start = modifier.span.start;
         }
@@ -328,11 +328,11 @@ impl<'a> Parser<'a> {
         };
         if relax_bare_ident {
             let token = self.cursor.bump()?;
-            let span = token.span.clone();
+            let span = token.span;
             return Ok(MediaInParens {
                 kind: MediaInParensKind::GeneralEnclosed(TokenSeq {
                     tokens: self.vec1(token),
-                    span: span.clone(),
+                    span,
                 }),
                 span,
             });
@@ -349,7 +349,7 @@ impl<'a> Parser<'a> {
     ) -> PResult<MediaCondition<'a>> {
         if self.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(self.source, "not") {
             let media_not = self.parse::<MediaNot>()?;
-            let span = media_not.span.clone();
+            let span = media_not.span;
             Ok(MediaCondition { conditions: self.vec1(MediaConditionKind::Not(media_not)), span })
         } else {
             let first = if after_logic_keyword {
@@ -357,7 +357,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.parse::<MediaInParens>()?
             };
-            let mut span = first.span.clone();
+            let mut span = first.span;
             let mut conditions = self.vec1(MediaConditionKind::MediaInParens(first));
             let peek = self.cursor.peek()?;
             if peek.ident(self.source).is_some() {
@@ -448,7 +448,7 @@ impl<'a> Parser<'a> {
             {
                 self.recoverable_errors.push(Error {
                     kind: ErrorKind::ExpectMediaFeatureName,
-                    span: name_or_right.span().clone(),
+                    span: *name_or_right.span(),
                 });
             }
             let span = Span { start: left.span().start, end: name_or_right.span().end };

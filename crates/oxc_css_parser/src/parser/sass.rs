@@ -212,10 +212,7 @@ impl<'a> Parser<'a> {
                             let span = Span { start: number_span.start + 1, end: number_span.end };
                             let raw = unsafe { number.raw.get_unchecked(1..number.raw.len()) };
                             raw.parse()
-                                .map_err(|_| Error {
-                                    kind: ErrorKind::InvalidNumber,
-                                    span: span.clone(),
-                                })
+                                .map_err(|_| Error { kind: ErrorKind::InvalidNumber, span })
                                 .map(|value| ComponentValue::Number(Number { value, raw, span }))?
                         };
                         left = ComponentValue::SassBinaryExpression(SassBinaryExpression {
@@ -482,7 +479,7 @@ impl<'a> Parser<'a> {
         let mut end = None;
         while let Some((_, exclamation_span)) = self.cursor.eat_exclamation()? {
             let keyword = self.parse::<Ident>()?;
-            let keyword_span = keyword.span.clone();
+            let keyword_span = keyword.span;
             util::assert_no_ws_or_comment(&exclamation_span, &keyword_span)?;
             end = Some(keyword_span.end);
 
@@ -490,7 +487,7 @@ impl<'a> Parser<'a> {
             if !matches!(keyword.name, "default" | "global") {
                 self.recoverable_errors.push(Error {
                     kind: ErrorKind::InvalidSassFlagName(keyword.name.to_string()),
-                    span: keyword.span.clone(),
+                    span: keyword.span,
                 });
             }
 
@@ -513,7 +510,7 @@ impl<'a> Parser<'a> {
                 let (ident, ident_span) = self.cursor.expect_ident()?;
                 (
                     SassInterpolatedIdentElement::Static(
-                        self.interpolable_ident_static_part(ident, ident_span.clone()),
+                        self.interpolable_ident_static_part(ident, ident_span),
                     ),
                     ident_span,
                 )
@@ -524,7 +521,7 @@ impl<'a> Parser<'a> {
             TokenWithSpan { token, span } => {
                 return Err(Error {
                     kind: ErrorKind::ExpectOneOf(vec!["<ident>", "#{"], token.symbol()),
-                    span: span.clone(),
+                    span: *span,
                 });
             }
         };
@@ -725,7 +722,7 @@ impl<'a> Parser<'a> {
             let token_with_span = self.cursor.bump()?;
             match token_with_span.token {
                 Token::Comma(..) => {
-                    let span = name.span.clone();
+                    let span = name.span;
                     parameters.push(SassParameter { name, default_value: None, span });
                     comma_spans.push(token_with_span.span);
                     continue;
@@ -755,7 +752,7 @@ impl<'a> Parser<'a> {
                     break;
                 }
                 Token::RParen(..) => {
-                    let span = name.span.clone();
+                    let span = name.span;
                     parameters.push(SassParameter { name, default_value: None, span });
                     end = token_with_span.span.end;
                     break;
@@ -849,7 +846,7 @@ impl<'a> Parse<'a> for SassAtRoot<'a> {
             SassAtRootKind::Selector(input.parse()?)
         };
 
-        let span = kind.span().clone();
+        let span = *kind.span();
         Ok(SassAtRoot { kind, span })
     }
 }
@@ -1033,7 +1030,7 @@ impl<'a> Parse<'a> for SassForward<'a> {
 
         input.eat_sass_line_continuation()?;
         let path = input.parse::<InterpolableStr>()?;
-        let mut span = path.span().clone();
+        let mut span = *path.span();
 
         let prefix = if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "as")
         {
@@ -1170,13 +1167,13 @@ impl<'a> Parse<'a> for SassIfAtRule<'a> {
                             // `elseif` is deprecated by Sass
                             "elseif" => false,
                             _ => {
-                                let span = p.cursor.peek()?.span.clone();
+                                let span = p.cursor.peek()?.span;
                                 return Err(Error { kind: ErrorKind::TryParseError, span });
                             }
                         }
                     }
                     _ => {
-                        let span = p.cursor.peek()?.span.clone();
+                        let span = p.cursor.peek()?.span;
                         return Err(Error { kind: ErrorKind::TryParseError, span });
                     }
                 };
@@ -1222,7 +1219,7 @@ impl<'a> Parse<'a> for SassIfAtRule<'a> {
 impl<'a> Parse<'a> for SassImportPrelude<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<Str>()?;
-        let mut span = first.span.clone();
+        let mut span = first.span;
 
         let mut paths = input.vec1(first);
         let mut comma_spans = input.vec();
@@ -1248,7 +1245,7 @@ impl<'a> Parse<'a> for SassInclude<'a> {
 
         input.eat_sass_line_continuation()?;
         let name = input.parse::<FunctionName>()?;
-        let mut span = name.span().clone();
+        let mut span = *name.span();
 
         let arguments = if matches!(input.cursor.peek()?.token, Token::LParen(..)) {
             let arguments = input.parse::<SassIncludeArgs>()?;
@@ -1304,7 +1301,7 @@ impl<'a> Parse<'a> for SassInterpolatedStr<'a> {
         let (first, first_span) = input.cursor.expect_str_template()?;
         let quote = first.raw.bytes().next().unwrap();
         debug_assert!(quote == b'\'' || quote == b'"');
-        let mut span = first_span.clone();
+        let mut span = first_span;
         let first = input.interpolable_str_static_part(first, first_span);
         let mut elements = input.vec1(SassInterpolatedStrElement::Static(first));
 
@@ -1351,7 +1348,7 @@ impl<'a> Parse<'a> for SassInterpolatedUrl<'a> {
                 });
             }
         };
-        let mut span = first_span.clone();
+        let mut span = first_span;
         let first = input.interpolable_url_static_part(first, first_span);
         let mut elements = input.vec1(SassInterpolatedUrlElement::Static(first));
 
@@ -1484,7 +1481,7 @@ impl<'a> Parse<'a> for SassParameters<'a> {
 impl<'a> Parse<'a> for SassNestingDeclaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let block = input.parse::<SimpleBlock>()?;
-        let span = block.span.clone();
+        let span = block.span;
 
         Ok(SassNestingDeclaration { block, span })
     }
@@ -1528,7 +1525,7 @@ impl<'a> Parse<'a> for SassUse<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         input.eat_sass_line_continuation()?;
         let path = input.parse::<InterpolableStr>()?;
-        let mut span = path.span().clone();
+        let mut span = *path.span();
 
         let namespace =
             if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "as") {
@@ -1639,7 +1636,7 @@ impl<'a> Parse<'a> for SassVariableDeclaration<'a> {
         if namespace.is_some() && flags.iter().any(|flag| flag.keyword.name == "global") {
             input
                 .recoverable_errors
-                .push(Error { kind: ErrorKind::UnexpectedSassFlag("global"), span: span.clone() });
+                .push(Error { kind: ErrorKind::UnexpectedSassFlag("global"), span });
         }
 
         Ok(SassVariableDeclaration { namespace, name, colon_span, value, flags, span })

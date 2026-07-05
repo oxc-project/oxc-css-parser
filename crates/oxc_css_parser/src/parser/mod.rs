@@ -677,7 +677,7 @@ impl<'a> Parser<'a> {
         let tokenizer_state = self.cursor.tokenizer.state.clone();
         let comments_count = self.cursor.tokenizer.comments_count();
         let recoverable_errors_count = self.recoverable_errors.len();
-        let cached_token = self.cursor.cached_token.clone();
+        let cached_token = self.cursor.cached_token;
         let sass_pending_indents = self.sass_pending_indents;
         let result = f(self);
         if result.is_err() {

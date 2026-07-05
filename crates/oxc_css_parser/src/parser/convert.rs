@@ -116,7 +116,7 @@ impl<'a> TryFrom<(token::Number<'a>, Span)> for Number<'a> {
         token
             .raw
             .parse()
-            .map_err(|_| Error { kind: ErrorKind::InvalidNumber, span: span.clone() })
+            .map_err(|_| Error { kind: ErrorKind::InvalidNumber, span })
             .map(|value| Self { value, raw: token.raw, span })
     }
 }

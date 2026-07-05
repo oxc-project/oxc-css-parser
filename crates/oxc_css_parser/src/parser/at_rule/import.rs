@@ -57,7 +57,7 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
                 Err(error) => return Err(error),
             },
         };
-        let mut span = href.span().clone();
+        let mut span = *href.span();
 
         let structured = input.try_parse(Self::parse_structured_tail);
         let (layer, supports, media, modifiers) = match structured {
@@ -78,7 +78,7 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
                     span,
                 })) = values.last()
                 {
-                    return Err(Error { kind: ErrorKind::ExpectRule, span: span.clone() });
+                    return Err(Error { kind: ErrorKind::ExpectRule, span: *span });
                 }
                 let end = values.last().map_or(start, |value| value.span().end);
                 (None, None, None, Some(ComponentValues { values, span: Span { start, end } }))
@@ -169,7 +169,7 @@ impl<'a> ImportPrelude<'a> {
         if at_import_prelude_end(&input.cursor.peek()?.token) {
             Ok((layer, supports.ok(), media))
         } else {
-            let span = input.cursor.peek()?.span.clone();
+            let span = input.cursor.peek()?.span;
             Err(Error { kind: ErrorKind::TryParseError, span })
         }
     }

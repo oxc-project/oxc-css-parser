@@ -11,7 +11,7 @@ impl<'a> Parse<'a> for FontFamilyName<'a> {
             Token::Str(..) | Token::StrTemplate(..) => input.parse().map(FontFamilyName::Str),
             _ => {
                 let first = input.parse::<InterpolableIdent>()?;
-                let mut span = first.span().clone();
+                let mut span = *first.span();
 
                 let mut idents = input.vec1(first);
                 while let Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..) =

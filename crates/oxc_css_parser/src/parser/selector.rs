@@ -310,7 +310,7 @@ impl<'a> Parse<'a> for AnPlusB {
             }
 
             TokenWithSpan { span, .. } => {
-                Err(Error { kind: ErrorKind::InvalidAnPlusB, span: span.clone() })
+                Err(Error { kind: ErrorKind::InvalidAnPlusB, span: *span })
             }
         }
     }
@@ -348,7 +348,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
                         span: Span { start, end },
                     }
                 } else {
-                    let span = ident_span.clone();
+                    let span = *ident_span;
                     WqName { name: ident, prefix: None, span }
                 }
             }
@@ -386,7 +386,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
                 }
             }
             TokenWithSpan { span, .. } => {
-                return Err(Error { kind: ErrorKind::ExpectWqName, span: span.clone() });
+                return Err(Error { kind: ErrorKind::ExpectWqName, span: *span });
             }
         };
 
@@ -419,10 +419,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
                 })
             }
             TokenWithSpan { span, .. } => {
-                return Err(Error {
-                    kind: ErrorKind::ExpectAttributeSelectorMatcher,
-                    span: span.clone(),
-                });
+                return Err(Error { kind: ErrorKind::ExpectAttributeSelectorMatcher, span: *span });
             }
         };
 
@@ -457,10 +454,9 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
                     Some(AttributeSelectorValue::LessEscapedStr(input.parse()?))
                 }
                 TokenWithSpan { token: Token::RBracket(..), span } => {
-                    input.recoverable_errors.push(Error {
-                        kind: ErrorKind::ExpectAttributeSelectorValue,
-                        span: span.clone(),
-                    });
+                    input
+                        .recoverable_errors
+                        .push(Error { kind: ErrorKind::ExpectAttributeSelectorValue, span: *span });
                     None
                 }
                 // An unusual value like `[attr=;]` is invalid per the
@@ -484,7 +480,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
                 token_with_span => {
                     return Err(Error {
                         kind: ErrorKind::ExpectAttributeSelectorValue,
-                        span: token_with_span.span.clone(),
+                        span: token_with_span.span,
                     });
                 }
             }
@@ -496,7 +492,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
             match &input.cursor.peek()?.token {
                 Token::Ident(..) | Token::HashLBrace(..) => {
                     let ident = input.parse::<InterpolableIdent>()?;
-                    let span = ident.span().clone();
+                    let span = *ident.span();
                     Some(AttributeSelectorModifier { ident, span })
                 }
                 _ => None,
@@ -561,7 +557,7 @@ impl<'a> Parse<'a> for ComplexSelector<'a> {
         {
             let end = input.cursor.tokenizer.current_offset();
             if let Some(combinator) = input.parse_combinator(end)? {
-                (combinator.span.clone(), ComplexSelectorChild::Combinator(combinator), true)
+                (combinator.span, ComplexSelectorChild::Combinator(combinator), true)
             } else {
                 return Err(Error {
                     kind: ErrorKind::ExpectSimpleSelector,
@@ -571,7 +567,7 @@ impl<'a> Parse<'a> for ComplexSelector<'a> {
         } else {
             let compound_selector = input.parse::<CompoundSelector>()?;
             (
-                compound_selector.span.clone(),
+                compound_selector.span,
                 ComplexSelectorChild::CompoundSelector(compound_selector),
                 false,
             )
@@ -612,10 +608,11 @@ impl<'a> Parse<'a> for ComplexSelector<'a> {
                 end = compound_selector.span.end;
                 children.push(ComplexSelectorChild::CompoundSelector(compound_selector));
             } else if let Some(combinator) = input.parse_combinator(end)? {
-                if is_less && combinator.kind == CombinatorKind::Descendant {
-                    if input.cursor.peek()?.is_ident_raw(input.source, "when") {
-                        break;
-                    }
+                if is_less
+                    && combinator.kind == CombinatorKind::Descendant
+                    && input.cursor.peek()?.is_ident_raw(input.source, "when")
+                {
+                    break;
                 }
                 children.push(ComplexSelectorChild::Combinator(combinator));
             } else {
@@ -689,7 +686,7 @@ impl<'a> Parse<'a> for CompoundSelector<'a> {
 impl<'a> Parse<'a> for CompoundSelectorList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<CompoundSelector>()?;
-        let mut span = first.span.clone();
+        let mut span = first.span;
 
         let mut selectors = input.vec1(first);
         let mut comma_spans = input.vec();
@@ -721,7 +718,7 @@ impl<'a> Parse<'a> for IdSelector<'a> {
                 {
                     input
                         .recoverable_errors
-                        .push(Error { kind: ErrorKind::InvalidIdSelectorName, span: span.clone() });
+                        .push(Error { kind: ErrorKind::InvalidIdSelectorName, span });
                 }
                 let value =
                     if token.escaped { util::handle_escape_in(raw, input.allocator) } else { raw };
@@ -777,7 +774,7 @@ impl<'a> Parse<'a> for LanguageRange<'a> {
 impl<'a> Parse<'a> for LanguageRangeList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<LanguageRange>()?;
-        let mut span = first.span().clone();
+        let mut span = *first.span();
 
         let mut ranges = input.vec1(first);
         let mut comma_spans = input.vec();
@@ -845,7 +842,7 @@ impl<'a> Parse<'a> for NestingSelector<'a> {
 impl<'a> Parse<'a> for Nth<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let index = input.parse::<NthIndex>()?;
-        let mut span = index.span().clone();
+        let mut span = *index.span();
         let matcher = if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "of")
         {
             let matcher = input.parse::<NthMatcher>()?;
@@ -919,7 +916,7 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
 
         let arg = match input.cursor.peek()? {
             TokenWithSpan { token: Token::LParen(..), span: l_paren } if l_paren.start == end => {
-                let l_paren = l_paren.clone();
+                let l_paren = *l_paren;
                 input.cursor.bump()?;
                 let kind = match &name {
                     InterpolableIdent::Literal(Ident { name, .. })
@@ -952,10 +949,9 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
                                 .map(PseudoClassSelectorArgKind::TokenSeq)?;
                         };
                         if let Some(NthMatcher { span, .. }) = &nth.matcher {
-                            input.recoverable_errors.push(Error {
-                                kind: ErrorKind::UnexpectedNthMatcher,
-                                span: span.clone(),
-                            });
+                            input
+                                .recoverable_errors
+                                .push(Error { kind: ErrorKind::UnexpectedNthMatcher, span: *span });
                         }
                         PseudoClassSelectorArgKind::Nth(nth)
                     }
@@ -1051,7 +1047,7 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
 
         let arg = match input.cursor.peek()? {
             TokenWithSpan { token: Token::LParen(..), span: l_paren } if l_paren.start == end => {
-                let l_paren = l_paren.clone();
+                let l_paren = *l_paren;
                 input.cursor.bump()?;
                 let kind = match &name {
                     InterpolableIdent::Literal(Ident { name, .. })
@@ -1099,7 +1095,7 @@ impl<'a> Parse<'a> for RelativeSelector<'a> {
             combinator => combinator,
         };
         let complex_selector = input.parse::<ComplexSelector>()?;
-        let mut span = complex_selector.span.clone();
+        let mut span = complex_selector.span;
         if let Some(combinator) = &combinator {
             span.start = combinator.span.start;
         }
@@ -1111,7 +1107,7 @@ impl<'a> Parse<'a> for RelativeSelector<'a> {
 impl<'a> Parse<'a> for RelativeSelectorList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<RelativeSelector>()?;
-        let mut span = first.span.clone();
+        let mut span = first.span;
 
         let mut selectors = input.vec1(first);
         let mut comma_spans = input.vec();
@@ -1135,7 +1131,7 @@ impl<'a> Parse<'a> for RelativeSelectorList<'a> {
 impl<'a> Parse<'a> for SelectorList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<ComplexSelector>()?;
-        let mut span = first.span.clone();
+        let mut span = first.span;
 
         let mut selectors = input.vec_with_capacity(2);
         selectors.push(first);
@@ -1230,16 +1226,15 @@ impl<'a> Parse<'a> for SimpleSelector<'a> {
             }
             TokenWithSpan { token: Token::Placeholder(..), .. } => {
                 let name = input.parse::<InterpolableIdent>()?;
-                let span = name.span().clone();
+                let span = *name.span();
                 Ok(SimpleSelector::Type(TypeSelector::TagName(TagNameSelector {
-                    name: WqName { name, prefix: None, span: span.clone() },
+                    name: WqName { name, prefix: None, span },
                     span,
                 })))
             }
-            token_with_span => Err(Error {
-                kind: ErrorKind::ExpectSimpleSelector,
-                span: token_with_span.span.clone(),
-            }),
+            token_with_span => {
+                Err(Error { kind: ErrorKind::ExpectSimpleSelector, span: token_with_span.span })
+            }
         }
     }
 }
@@ -1281,12 +1276,12 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
 
                 let prefix = match ident_or_asterisk {
                     Some(IdentOrAsterisk::Ident(ident)) => {
-                        let mut span = ident.span().clone();
+                        let mut span = *ident.span();
                         span.end = bar_token_span.end;
                         NsPrefix { kind: Some(NsPrefixKind::Ident(ident)), span }
                     }
                     Some(IdentOrAsterisk::Asterisk(asterisk_span)) => {
-                        let mut span = asterisk_span.clone();
+                        let mut span = asterisk_span;
                         span.end = bar_token_span.end;
                         NsPrefix {
                             kind: Some(NsPrefixKind::Universal(NsPrefixUniversal {
@@ -1305,7 +1300,7 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
                         util::assert_no_ws(input.source, &prefix.span, name_span)?;
                         let span = Span { start: prefix.span.start, end: name_span.end };
                         Ok(TypeSelector::TagName(TagNameSelector {
-                            name: WqName { name, prefix: Some(prefix), span: span.clone() },
+                            name: WqName { name, prefix: Some(prefix), span },
                             span,
                         }))
                     }
@@ -1319,16 +1314,16 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
                         }))
                     }
                     TokenWithSpan { span, .. } => {
-                        Err(Error { kind: ErrorKind::ExpectTypeSelector, span: span.clone() })
+                        Err(Error { kind: ErrorKind::ExpectTypeSelector, span: *span })
                     }
                 }
             }
 
             _ => match ident_or_asterisk {
                 Some(IdentOrAsterisk::Ident(ident)) => {
-                    let span = ident.span().clone();
+                    let span = *ident.span();
                     Ok(TypeSelector::TagName(TagNameSelector {
-                        name: WqName { name: ident, prefix: None, span: span.clone() },
+                        name: WqName { name: ident, prefix: None, span },
                         span,
                     }))
                 }
@@ -1416,7 +1411,7 @@ impl<'a> Parser<'a> {
                         TokenWithSpan { span, .. } => {
                             return Err(Error {
                                 kind: ErrorKind::TryParseError,
-                                span: span.clone(),
+                                span: *span,
                             });
                         }
                     };
@@ -1429,7 +1424,7 @@ impl<'a> Parser<'a> {
                         }
                         TokenWithSpan { span, .. } => Err(Error {
                             kind: ErrorKind::TryParseError,
-                            span: span.clone(),
+                            span: *span,
                         }),
                     }
                 });

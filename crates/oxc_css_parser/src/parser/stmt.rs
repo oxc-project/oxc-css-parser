@@ -147,10 +147,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
                         if at_declaration_value_end(&next.token) {
                             Ok((values, important))
                         } else {
-                            Err(Error {
-                                kind: ErrorKind::ExpectComponentValue,
-                                span: next.span.clone(),
-                            })
+                            Err(Error { kind: ErrorKind::ExpectComponentValue, span: next.span })
                         }
                     });
                     match typed {
@@ -458,10 +455,8 @@ impl<'a> Parser<'a> {
                         Some(ComponentValue::SassNestingDeclaration(..))
                     );
                     if is_top_level {
-                        self.recoverable_errors.push(Error {
-                            kind: ErrorKind::TopLevelDeclaration,
-                            span: decl.span.clone(),
-                        });
+                        self.recoverable_errors
+                            .push(Error { kind: ErrorKind::TopLevelDeclaration, span: decl.span });
                     }
                     Ok((Statement::Declaration(decl), is_block_element))
                 }
@@ -858,7 +853,7 @@ impl<'a> Parser<'a> {
                         } else {
                             ErrorKind::ExpectRule
                         },
-                        span: span.clone(),
+                        span: *span,
                     });
                 }
             };

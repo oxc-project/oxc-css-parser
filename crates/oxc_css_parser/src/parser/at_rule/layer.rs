@@ -15,7 +15,7 @@ use crate::{
 impl<'a> Parse<'a> for LayerNames<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<LayerName>()?;
-        let mut span = first.span.clone();
+        let mut span = first.span;
 
         let mut names = input.vec1(first);
         let mut comma_spans = input.vec();
@@ -60,7 +60,7 @@ impl<'a> Parse<'a> for LayerName<'a> {
         if let Some(invalid_ident) = invalid_ident {
             input.recoverable_errors.push(Error {
                 kind: crate::error::ErrorKind::CSSWideKeywordDisallowed,
-                span: invalid_ident.span().clone(),
+                span: *invalid_ident.span(),
             });
         }
 

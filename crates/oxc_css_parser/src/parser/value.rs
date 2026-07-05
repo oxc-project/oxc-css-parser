@@ -212,11 +212,8 @@ impl<'a> Parser<'a> {
                             && span.start == ident_end =>
                     {
                         if let InterpolableIdent::Literal(module) = &ident {
-                            let module = Ident {
-                                name: module.name,
-                                raw: module.raw,
-                                span: module.span.clone(),
-                            };
+                            let module =
+                                Ident { name: module.name, raw: module.raw, span: module.span };
                             // A namespaced member is `foo.$var` or a glued
                             // call `foo.bar(...)`.
                             let qualified = self.try_parse(|parser| {
@@ -404,10 +401,7 @@ impl<'a> Parser<'a> {
                 let (placeholder, span) = self.cursor.expect_placeholder()?;
                 Ok(ComponentValue::Placeholder((placeholder, span).into()))
             }
-            _ => Err(Error {
-                kind: ErrorKind::ExpectComponentValue,
-                span: token_with_span.span.clone(),
-            }),
+            _ => Err(Error { kind: ErrorKind::ExpectComponentValue, span: token_with_span.span }),
         }
     }
 
@@ -417,7 +411,7 @@ impl<'a> Parser<'a> {
         match &ident {
             InterpolableIdent::Literal(ident) if !ident.name.starts_with("--") => {
                 self.recoverable_errors
-                    .push(Error { kind: ErrorKind::ExpectDashedIdent, span: ident.span.clone() });
+                    .push(Error { kind: ErrorKind::ExpectDashedIdent, span: ident.span });
             }
             _ => {}
         }
@@ -475,7 +469,7 @@ impl<'a> Parser<'a> {
                             if matches!(&p.cursor.peek()?.token, Token::RParen(..)) {
                                 Ok(values)
                             } else {
-                                let span = p.cursor.peek()?.span.clone();
+                                let span = p.cursor.peek()?.span;
                                 Err(Error { kind: ErrorKind::TryParseError, span })
                             }
                         });
@@ -573,7 +567,7 @@ impl<'a> Parser<'a> {
     /// (dart-sass special functions carry raw text: `element(/**/ c)`,
     /// `-c-calc(@#$)`, `url(fn("s"))`), re-parse the contents as raw tokens.
     pub(super) fn parse_function_typed_or_raw(&mut self, name: Ident<'a>) -> PResult<Function<'a>> {
-        let name_copy = Ident { name: name.name, raw: name.raw, span: name.span.clone() };
+        let name_copy = Ident { name: name.name, raw: name.raw, span: name.span };
         match self.try_parse(|p| p.parse_function(InterpolableIdent::Literal(name))) {
             Ok(function) => Ok(function),
             Err(_) => self.parse_raw_function(InterpolableIdent::Literal(name_copy)),
@@ -683,7 +677,7 @@ impl<'a> Parser<'a> {
                 // preprocessor dialects give it real syntax and their
                 // reference compilers reject it in function arguments.
                 Token::Unknown(..) if self.syntax != Syntax::Css => {
-                    let span = self.cursor.peek()?.span.clone();
+                    let span = self.cursor.peek()?.span;
                     return Err(Error { kind: ErrorKind::UnknownToken, span });
                 }
                 _ => {
@@ -733,10 +727,8 @@ impl<'a> Parser<'a> {
         let (_, solidus_span) = self.cursor.expect_solidus()?;
         let denominator = self.parse::<Number>()?;
         if denominator.value <= 0.0 {
-            self.recoverable_errors.push(Error {
-                kind: ErrorKind::InvalidRatioDenominator,
-                span: denominator.span.clone(),
-            });
+            self.recoverable_errors
+                .push(Error { kind: ErrorKind::InvalidRatioDenominator, span: denominator.span });
         }
 
         let span = Span { start: numerator.span.start, end: denominator.span.end };
@@ -863,9 +855,9 @@ impl<'a> Parser<'a> {
                 return Err(Error { kind: ErrorKind::InvalidUnicodeRange, span });
             }
             let start = u32::from_str_radix(left, 16)
-                .map_err(|_| Error { kind: ErrorKind::InvalidUnicodeRange, span: span.clone() })?;
+                .map_err(|_| Error { kind: ErrorKind::InvalidUnicodeRange, span })?;
             let end = u32::from_str_radix(&replace_unicode_range_wildcards(right, 'F'), 16)
-                .map_err(|_| Error { kind: ErrorKind::InvalidUnicodeRange, span: span.clone() })?;
+                .map_err(|_| Error { kind: ErrorKind::InvalidUnicodeRange, span })?;
             UnicodeRange { prefix, start, start_raw: left, end, end_raw: Some(right), span }
         } else {
             if source.len() > 6
@@ -874,9 +866,9 @@ impl<'a> Parser<'a> {
                 return Err(Error { kind: ErrorKind::InvalidUnicodeRange, span });
             }
             let start = u32::from_str_radix(&replace_unicode_range_wildcards(source, '0'), 16)
-                .map_err(|_| Error { kind: ErrorKind::InvalidUnicodeRange, span: span.clone() })?;
+                .map_err(|_| Error { kind: ErrorKind::InvalidUnicodeRange, span })?;
             let end = u32::from_str_radix(&replace_unicode_range_wildcards(source, 'F'), 16)
-                .map_err(|_| Error { kind: ErrorKind::InvalidUnicodeRange, span: span.clone() })?;
+                .map_err(|_| Error { kind: ErrorKind::InvalidUnicodeRange, span })?;
             UnicodeRange { prefix, start, start_raw: source, end, end_raw: None, span }
         };
         // Value-level checks (end > U+10FFFF, start > end) are deliberately
@@ -929,7 +921,7 @@ impl<'a> Parse<'a> for ComponentValues<'a> {
     /// This is for public-use only. For internal code of oxc-css-parser, **DO NOT** use.
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<ComponentValue>()?;
-        let mut span = first.span().clone();
+        let mut span = *first.span();
 
         let mut values = input.vec_with_capacity(4);
         values.push(first);
@@ -998,7 +990,7 @@ impl<'a> Parse<'a> for Function<'a> {
                 }
             }
             TokenWithSpan { token, span } => {
-                Err(Error { kind: ErrorKind::Unexpected("(", token.symbol()), span: span.clone() })
+                Err(Error { kind: ErrorKind::Unexpected("(", token.symbol()), span: *span })
             }
         }
     }
@@ -1095,13 +1087,9 @@ impl<'a> Parse<'a> for InterpolableStr<'a> {
             TokenWithSpan { token: Token::StrTemplate(..), span } => match input.syntax {
                 Syntax::Scss | Syntax::Sass => input.parse().map(InterpolableStr::SassInterpolated),
                 Syntax::Less => input.parse().map(InterpolableStr::LessInterpolated),
-                Syntax::Css => {
-                    Err(Error { kind: ErrorKind::UnexpectedTemplateInCss, span: span.clone() })
-                }
+                Syntax::Css => Err(Error { kind: ErrorKind::UnexpectedTemplateInCss, span: *span }),
             },
-            TokenWithSpan { span, .. } => {
-                Err(Error { kind: ErrorKind::ExpectString, span: span.clone() })
-            }
+            TokenWithSpan { span, .. } => Err(Error { kind: ErrorKind::ExpectString, span: *span }),
         }
     }
 }
@@ -1113,7 +1101,7 @@ impl<'a> Parse<'a> for Number<'a> {
         number
             .raw
             .parse()
-            .map_err(|_| Error { kind: ErrorKind::InvalidNumber, span: span.clone() })
+            .map_err(|_| Error { kind: ErrorKind::InvalidNumber, span })
             .map(|value| Self { value, raw: number.raw, span })
     }
 }
@@ -1156,14 +1144,14 @@ impl<'a> Parse<'a> for Url<'a> {
             return Err(Error { kind: ErrorKind::ExpectUrl, span: prefix_span });
         }
         let prefix_start = prefix_span.start;
-        let name = input.ident(prefix, prefix_span.clone());
+        let name = input.ident(prefix, prefix_span);
 
         match input.cursor.peek()? {
             TokenWithSpan { token: Token::LParen(..), span } if prefix_span.end == span.start => {
                 input.cursor.bump()?;
             }
             TokenWithSpan { span, .. } => {
-                return Err(Error { kind: ErrorKind::TryParseError, span: span.clone() });
+                return Err(Error { kind: ErrorKind::TryParseError, span: *span });
             }
         }
 
