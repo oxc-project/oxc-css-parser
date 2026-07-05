@@ -60,7 +60,7 @@ impl<'a> Parser<'a> {
     ) -> PResult<()> {
         let head = self.cursor.bump()?;
         let quote = head.span.start;
-        let quote = self.source[quote..].chars().next().unwrap_or('"');
+        let quote = self.source.as_bytes().get(quote).copied().unwrap_or(b'"');
         let mut tail = matches!(&head.token, Token::StrTemplate(template) if template.tail);
         tokens.push(head);
         while !tail {

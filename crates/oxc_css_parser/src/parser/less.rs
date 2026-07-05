@@ -1004,8 +1004,8 @@ impl<'a> Parse<'a> for LessImportPrelude<'a> {
 impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (first, first_span) = input.cursor.expect_str_template()?;
-        let quote = first.raw.chars().next().unwrap();
-        debug_assert!(quote == '\'' || quote == '"');
+        let quote = first.raw.bytes().next().unwrap();
+        debug_assert!(quote == b'\'' || quote == b'"');
         let mut span = first_span.clone();
         let mut elements = input.vec1(LessInterpolatedStrElement::Static(
             input.interpolable_str_static_part(first, first_span),

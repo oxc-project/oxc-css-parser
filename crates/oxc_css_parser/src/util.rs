@@ -58,37 +58,53 @@ pub(crate) enum ListSeparatorKind {
 }
 
 pub fn handle_escape(s: &str) -> Cow<'_, str> {
+    let bytes = s.as_bytes();
     let mut escaped = String::with_capacity(s.len());
-    let mut chars = s.char_indices().peekable();
-    while let Some((_, c)) = chars.next() {
-        if c == '\\' {
-            match chars.next() {
-                Some((start, c)) if c.is_ascii_hexdigit() => {
-                    let mut count: usize = 1;
-                    while let Some((_, c)) = chars.peek() {
-                        if c.is_ascii_hexdigit() && count < 6 {
-                            count += 1;
-                            chars.next();
-                        } else {
-                            // according to https://www.w3.org/TR/css-syntax-3/#hex-digit,
-                            // consume a whitespace
-                            if c.is_ascii_whitespace() {
-                                chars.next();
-                            }
-                            break;
-                        }
-                    }
-                    let unicode = s
-                        .get(start..start + count)
-                        .and_then(|hexdigits| u32::from_str_radix(hexdigits, 16).ok())
-                        .expect("expect unicode value"); // this line should be unreachable
-                    escaped.push(char::from_u32(unicode).unwrap_or(char::REPLACEMENT_CHARACTER));
-                }
-                Some((_, c)) => escaped.push(c),
-                None => unreachable!(),
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] != b'\\' {
+            // Copy a run of literal (unescaped) bytes up to the next backslash.
+            // A `\\` (0x5C) is never a UTF-8 continuation byte, so the run always
+            // ends on a code point boundary.
+            let start = i;
+            i += 1;
+            while i < bytes.len() && bytes[i] != b'\\' {
+                i += 1;
             }
-        } else {
-            escaped.push(c);
+            escaped.push_str(&s[start..i]);
+            continue;
+        }
+        i += 1; // consume `\`
+        match bytes.get(i) {
+            Some(&c) if c.is_ascii_hexdigit() => {
+                let start = i;
+                let mut count: usize = 1;
+                i += 1;
+                while count < 6 && bytes.get(i).is_some_and(u8::is_ascii_hexdigit) {
+                    count += 1;
+                    i += 1;
+                }
+                // according to https://www.w3.org/TR/css-syntax-3/#hex-digit,
+                // consume a whitespace
+                if bytes.get(i).is_some_and(u8::is_ascii_whitespace) {
+                    i += 1;
+                }
+                let unicode = u32::from_str_radix(&s[start..start + count], 16)
+                    .expect("expect unicode value"); // this line should be unreachable
+                escaped.push(char::from_u32(unicode).unwrap_or(char::REPLACEMENT_CHARACTER));
+            }
+            // `\` before any other code point escapes it literally. Copy the whole
+            // (possibly multi-byte) code point: its leading byte plus any UTF-8
+            // continuation bytes (`0x80..=0xBF`).
+            Some(_) => {
+                let start = i;
+                i += 1;
+                while bytes.get(i).is_some_and(|&b| b & 0xC0 == 0x80) {
+                    i += 1;
+                }
+                escaped.push_str(&s[start..i]);
+            }
+            None => unreachable!(),
         }
     }
     Cow::from(escaped)
