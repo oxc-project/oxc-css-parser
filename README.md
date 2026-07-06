@@ -1,5 +1,7 @@
 # oxc-css-parser
 
+This project is a fork of [g-plane/raffia](https://github.com/g-plane/raffia) for Oxfmt.
+
 [![Crates.io](https://img.shields.io/crates/v/oxc-css-parser?style=flat-square)](https://crates.io/crates/oxc-css-parser)
 [![docs.rs](https://img.shields.io/docsrs/oxc-css-parser?style=flat-square)](https://docs.rs/oxc-css-parser)
 
