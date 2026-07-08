@@ -372,17 +372,25 @@ impl<'a> Parser<'a> {
     ) -> PResult<oxc_allocator::Vec<'a, ComponentValue<'a>>> {
         let mut values = self.vec_with_capacity(3);
         let mut pairs = Vec::with_capacity(1);
+        // Span of the outermost currently-open pair (kept in sync with `pairs`
+        // going empty↔non-empty), so the EOF parse error can point at the
+        // opener like `SimpleBlock` does, not at the end of file.
+        let mut outermost_pair_span: Option<Span> = None;
         loop {
             match &self.cursor.peek()?.token {
                 Token::Dedent(..) | Token::Linebreak(..) => break,
-                // CSS Syntax: EOF closes any still-open `(`/`[` group; recovery is
-                // unchanged, but record the parse error so downstream consumers can
-                // tell it apart from a balanced value.
+                // CSS Syntax: EOF closes any still-open `(`/`[`/`{` group; recovery
+                // is unchanged, but record the parse error so downstream consumers
+                // can tell it apart from a balanced value. Report the outermost
+                // unclosed opener; a raw-value `{` (e.g. `--x: {` — legal in custom
+                // properties) is a block, not a paren.
                 Token::Eof(..) => {
-                    if !pairs.is_empty() {
-                        let span = self.cursor.peek()?.span.clone();
-                        self.recoverable_errors
-                            .push(Error { kind: ErrorKind::UnclosedParen, span });
+                    if let (Some(pair), Some(span)) = (pairs.first(), outermost_pair_span) {
+                        let kind = match pair {
+                            crate::util::PairedToken::Brace => ErrorKind::EofInBlock,
+                            _ => ErrorKind::UnclosedParen,
+                        };
+                        self.recoverable_errors.push(Error { kind, span });
                     }
                     break;
                 }
@@ -417,8 +425,12 @@ impl<'a> Parser<'a> {
                     continue;
                 }
                 token => {
+                    let was_empty = pairs.is_empty();
                     if !crate::util::track_paired_token(token, &mut pairs) {
                         break;
+                    }
+                    if was_empty && !pairs.is_empty() {
+                        outermost_pair_span = Some(self.cursor.peek()?.span.clone());
                     }
                 }
             }
