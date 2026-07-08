@@ -1,0 +1,8 @@
+---
+source: crates/oxc_css_parser/tests/recoverable.rs
+---
+error: unterminated string before line break
+  ┌─ bad-string-newline.css:2:12
+  │
+2 │   content: "
+  │            ^

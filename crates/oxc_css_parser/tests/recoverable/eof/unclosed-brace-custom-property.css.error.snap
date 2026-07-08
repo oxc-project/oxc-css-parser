@@ -1,0 +1,14 @@
+---
+source: crates/oxc_css_parser/tests/recoverable.rs
+---
+error: unclosed parenthesis before end of file
+  ┌─ unclosed-brace-custom-property.css:2:8
+  │
+2 │   --x: ({
+  │        ^
+
+error: unclosed block before end of file
+  ┌─ unclosed-brace-custom-property.css:1:3
+  │
+1 │ a {
+  │   ^

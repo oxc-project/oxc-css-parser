@@ -312,9 +312,14 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
 
         // CSS Syntax: EOF closes all open constructs (a parse error, but the
         // tree is valid — browsers accept unclosed blocks at EOF). The
-        // dialects' reference compilers reject them.
+        // dialects' reference compilers reject them. Recovery is unchanged; the
+        // parse error is surfaced via `recoverable_errors` so downstream
+        // consumers can tell it apart from a properly closed block.
         if input.syntax == Syntax::Css && matches!(input.cursor.peek()?.token, Token::Eof(..)) {
             let end = input.cursor.peek()?.span.start;
+            input
+                .recoverable_errors
+                .push(Error { kind: ErrorKind::EofInBlock, span: Span { start, end: start + 1 } });
             return Ok(SimpleBlock { statements, span: Span { start, end } });
         }
 
@@ -364,14 +369,48 @@ impl<'a> Parser<'a> {
     ) -> PResult<oxc_allocator::Vec<'a, ComponentValue<'a>>> {
         let mut values = self.vec_with_capacity(3);
         let mut pairs = Vec::with_capacity(1);
+        // Span of the outermost currently-open pair (kept in sync with `pairs`
+        // going empty↔non-empty), so the EOF parse error can point at the
+        // opener like `SimpleBlock` does, not at the end of file.
+        let mut outermost_pair_span: Option<Span> = None;
         loop {
             match &self.cursor.peek()?.token {
-                Token::Dedent(..) | Token::Linebreak(..) | Token::Eof(..) => break,
+                Token::Dedent(..) | Token::Linebreak(..) => break,
+                // CSS Syntax: EOF closes any still-open `(`/`[`/`{` group; recovery
+                // is unchanged, but record the parse error so downstream consumers
+                // can tell it apart from a balanced value. Report the outermost
+                // unclosed opener; a raw-value `{` (e.g. `--x: {` — legal in custom
+                // properties) is a block, not a paren.
+                Token::Eof(..) => {
+                    if let (Some(pair), Some(span)) = (pairs.first(), outermost_pair_span) {
+                        let kind = match pair {
+                            crate::util::PairedToken::Brace => ErrorKind::EofInBlock,
+                            _ => ErrorKind::UnclosedParen,
+                        };
+                        self.recoverable_errors.push(Error { kind, span });
+                    }
+                    break;
+                }
                 Token::Semicolon(..) if pairs.is_empty() => {
                     break;
                 }
                 Token::LBrace(..) if stop_at_top_level_brace && pairs.is_empty() => {
                     break;
+                }
+                // An unterminated string survives as a preserved token (a parse
+                // error kept verbatim; CSS Syntax §4.3.5). The tokenizer emits a
+                // `BadStr` for both recoverable forms; recover the spec's split
+                // from where the string stopped — at EOF it is a `<string-token>`
+                // (canonically closable by appending the quote), at a newline a
+                // `<bad-string-token>`.
+                Token::BadStr(..) => {
+                    let span = self.cursor.peek()?.span.clone();
+                    let kind = if span.end == self.source.len() {
+                        ErrorKind::UnterminatedString
+                    } else {
+                        ErrorKind::BadString
+                    };
+                    self.recoverable_errors.push(Error { kind, span });
                 }
                 // An interpolated string (e.g. `'#{$expr}'` inside
                 // `filter: progid:...`) must be parsed structurally:
@@ -383,8 +422,12 @@ impl<'a> Parser<'a> {
                     continue;
                 }
                 token => {
+                    let was_empty = pairs.is_empty();
                     if !crate::util::track_paired_token(token, &mut pairs) {
                         break;
+                    }
+                    if was_empty && !pairs.is_empty() {
+                        outermost_pair_span = Some(self.cursor.peek()?.span.clone());
                     }
                 }
             }

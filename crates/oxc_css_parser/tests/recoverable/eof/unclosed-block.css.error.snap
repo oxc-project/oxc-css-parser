@@ -1,0 +1,8 @@
+---
+source: crates/oxc_css_parser/tests/recoverable.rs
+---
+error: unclosed block before end of file
+  ┌─ unclosed-block.css:1:5
+  │
+1 │ div {
+  │     ^

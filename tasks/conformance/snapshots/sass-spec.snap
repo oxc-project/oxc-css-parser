@@ -1,10 +1,19 @@
 suite: sass-spec
 sha: a2ead9225786d49e91f5cc36755b7713596a2338
-files: 26787   success: 26493   failed: 2   expected: 292
-clean: 26493  recovered: 0  hard_error: 2  panic: 0
+files: 26787   success: 26484   failed: 11   expected: 292
+clean: 26484  recovered: 9  hard_error: 2  panic: 0
 
 failures:
+RECOVER  spec/core_functions/string/unquote.hrx::meaningful_css_characters/output.css    unclosed block before end of file
 ERROR    spec/non_conformant/extend-tests/selector_list.hrx::input.scss    expect token `;`, but found `#{`
+RECOVER  spec/non_conformant/parser/interpolate/27_escaped_double_quotes/01_inline.hrx::output.css    unterminated string before line break
+RECOVER  spec/non_conformant/parser/interpolate/27_escaped_double_quotes/02_variable.hrx::output.css    unterminated string before line break
+RECOVER  spec/non_conformant/parser/interpolate/27_escaped_double_quotes/03_inline_double.hrx::output.css    unterminated string before line break
+RECOVER  spec/non_conformant/parser/interpolate/27_escaped_double_quotes/04_variable_double.hrx::output.css    unterminated string before line break
+RECOVER  spec/non_conformant/parser/interpolate/28_escaped_single_quotes/01_inline.hrx::output.css    unterminated string before line break
+RECOVER  spec/non_conformant/parser/interpolate/28_escaped_single_quotes/02_variable.hrx::output.css    unterminated string before line break
+RECOVER  spec/non_conformant/parser/interpolate/28_escaped_single_quotes/03_inline_double.hrx::output.css    unterminated string before line break
+RECOVER  spec/non_conformant/parser/interpolate/28_escaped_single_quotes/04_variable_double.hrx::output.css    unterminated string before line break
 ERROR    spec/non_conformant/sass/pseudo.hrx::input.sass    CSS rule is expected
 
 expected failures (error tests, correct behavior):

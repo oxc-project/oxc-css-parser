@@ -1,0 +1,8 @@
+---
+source: crates/oxc_css_parser/tests/recoverable.rs
+---
+error: unclosed block before end of file
+  ┌─ unclosed-at-rule-block.css:1:27
+  │
+1 │ @media (min-width: 500px) {
+  │                           ^

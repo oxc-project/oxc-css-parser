@@ -1,7 +1,7 @@
 suite: less.js
 sha: 8ae2cc3bfa79f0718ad6fe5f263a1d6819fe9d5c
-files: 459   success: 427   failed: 8   expected: 24
-clean: 427  recovered: 0  hard_error: 8  panic: 0
+files: 459   success: 426   failed: 9   expected: 24
+clean: 426  recovered: 1  hard_error: 8  panic: 0
 
 failures:
 ERROR    packages/test-data/tests-config/debug/all/linenumbers-all.css    expect token `:`, but found `{`
@@ -12,6 +12,7 @@ ERROR    packages/test-data/tests-unit/import/import/invalid-css.less    expect 
 ERROR    packages/test-data/tests-unit/property-name-interp/property-name-interp.css    CSS rule is expected
 ERROR    packages/test-data/tests-unit/property-name-interp/property-name-interp.less    expect token `(`, but found `{`
 ERROR    packages/test-data/tests-unit/strings/strings.less    expect token `;`, but found `{`
+RECOVER  packages/test-data/tests-unit/urls/actual.css    unterminated string
 
 expected failures (error tests, correct behavior):
 ERROR    packages/test-data/tests-error/eval/multiple-guards-on-css-selectors.less    expect token `;`, but found `<ident>`
