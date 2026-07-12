@@ -1,0 +1,8 @@
+---
+source: crates/oxc_css_parser/tests/recoverable.rs
+---
+error: dashed identifier is expected
+  ┌─ color-profile.css:1:16
+  │
+1 │ @color-profile foo { src: url("x.icc"); }
+  │                ^^^

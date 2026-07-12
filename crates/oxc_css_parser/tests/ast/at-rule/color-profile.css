@@ -1,0 +1,4 @@
+@color-profile --swop5c { src: url("swop.icc"); }
+@color-profile device-cmyk { src: url("cmyk.icc"); }
+@color-profile DEVICE-CMYK { components: c m y k }
+@color-profile device-cmyk{a:b}
