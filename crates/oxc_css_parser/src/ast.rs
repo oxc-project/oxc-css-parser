@@ -1640,7 +1640,18 @@ pub enum PseudoElementSelectorArgKind<'a> {
     CompoundSelector(CompoundSelector<'a>),
     CompoundSelectorList(CompoundSelectorList<'a>),
     Ident(InterpolableIdent<'a>),
+    IdentList(IdentList<'a>),
     TokenSeq(TokenSeq<'a>),
+}
+
+/// A space-separated `<ident>+` list, e.g. the argument of `::part(tab active)`
+/// (CSS Shadow Parts).
+#[derive(Debug)]
+#[cfg_attr(feature = "serialize", derive(Serialize))]
+#[cfg_attr(feature = "serialize", serde(tag = "type", rename_all = "camelCase"))]
+pub struct IdentList<'a> {
+    pub span: Span,
+    pub idents: Vec<'a, InterpolableIdent<'a>>,
 }
 
 #[derive(Debug)]

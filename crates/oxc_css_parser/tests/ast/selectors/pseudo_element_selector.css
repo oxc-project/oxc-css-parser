@@ -55,3 +55,6 @@ video::cue-region(   #scroll   ) {}
 ::unknown(;) {}
 
 ::/**/before {}
+::part(a b){}
+::part(tab active) {}
+x-tab::part(one two three) { color: red }

@@ -1246,8 +1246,16 @@ impl<'a> PseudoElementSelectorArgKind<'a> {
             Self::CompoundSelector(value) => value.span(),
             Self::CompoundSelectorList(value) => value.span(),
             Self::Ident(value) => value.span(),
+            Self::IdentList(value) => value.span(),
             Self::TokenSeq(value) => value.span(),
         }
+    }
+}
+
+impl<'a> IdentList<'a> {
+    #[inline]
+    pub fn span(&self) -> &Span {
+        &self.span
     }
 }
 

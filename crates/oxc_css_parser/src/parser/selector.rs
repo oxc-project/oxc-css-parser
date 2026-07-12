@@ -1053,7 +1053,28 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
                     InterpolableIdent::Literal(Ident { name, .. })
                         if name.eq_ignore_ascii_case("part") =>
                     {
-                        input.parse().map(PseudoElementSelectorArgKind::Ident)?
+                        // ::part( <ident>+ ) — CSS Shadow Parts allows
+                        // selecting multiple part names at once.
+                        let first = input.parse::<InterpolableIdent>()?;
+                        if matches!(
+                            input.cursor.peek()?.token,
+                            Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..)
+                        ) {
+                            let mut span = *first.span();
+                            let mut idents = input.vec_with_capacity(2);
+                            idents.push(first);
+                            while matches!(
+                                input.cursor.peek()?.token,
+                                Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..)
+                            ) {
+                                let ident = input.parse::<InterpolableIdent>()?;
+                                span.end = ident.span().end;
+                                idents.push(ident);
+                            }
+                            PseudoElementSelectorArgKind::IdentList(IdentList { idents, span })
+                        } else {
+                            PseudoElementSelectorArgKind::Ident(first)
+                        }
                     }
                     InterpolableIdent::Literal(Ident { name, .. })
                         if name.eq_ignore_ascii_case("cue")
