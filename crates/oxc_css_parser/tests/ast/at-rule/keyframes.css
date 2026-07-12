@@ -58,3 +58,9 @@
 @keyframes abc { \66rom {} }
 @keyframes a\2c c { \66rom {} }
 @keyframes a\,c { \66rom {} }
+@keyframes k { entry 0% {} }
+@keyframes k { exit 100% { opacity: 0 } }
+@keyframes k { cover 25%, contain 75% {} }
+@keyframes k { entry-crossing 0%, exit-crossing 100% {} }
+@keyframes k { from {} entry 50% {} to {} }
+@keyframes k{entry 0%{}}

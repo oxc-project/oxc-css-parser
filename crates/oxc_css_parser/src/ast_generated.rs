@@ -468,7 +468,15 @@ impl<'a> KeyframeSelector<'a> {
         match self {
             Self::Ident(value) => value.span(),
             Self::Percentage(value) => value.span(),
+            Self::TimelineRange(value) => value.span(),
         }
+    }
+}
+
+impl<'a> KeyframeTimelineRange<'a> {
+    #[inline]
+    pub fn span(&self) -> &Span {
+        &self.span
     }
 }
 
