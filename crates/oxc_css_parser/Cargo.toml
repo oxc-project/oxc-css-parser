@@ -2,6 +2,7 @@
 name = "oxc-css-parser"
 version = "0.0.6"
 edition = "2024"
+rust-version = "1.95.0"
 authors = []
 description = "Parser for CSS, SCSS, Sass, and Less."
 repository = "https://github.com/oxc-project/oxc-css-parser"
