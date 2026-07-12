@@ -18,7 +18,14 @@ impl<'a> Parse<'a> for ScopeEnd<'a> {
         };
 
         let (_, lparen_span) = input.cursor.expect_l_paren()?;
-        let selector = input.parse()?;
+        // An empty scope root/limit (`@scope ()`, `to ()`) is accepted:
+        // <scope-start>/<scope-end> are forgiving selector lists, and
+        // lightningcss emits this form when every selector is dropped.
+        let selector = if let Token::RParen(..) = input.cursor.peek()?.token {
+            None
+        } else {
+            Some(input.parse()?)
+        };
         let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
 
         let span = Span { start: to_span.start, end };
@@ -63,7 +70,12 @@ impl<'a> Parse<'a> for ScopePrelude<'a> {
 impl<'a> Parse<'a> for ScopeStart<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
-        let selector = input.parse()?;
+        // See `ScopeEnd`: an empty `@scope ()` root is accepted.
+        let selector = if let Token::RParen(..) = input.cursor.peek()?.token {
+            None
+        } else {
+            Some(input.parse()?)
+        };
         let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
 
         Ok(ScopeStart { selector, span: Span { start, end } })

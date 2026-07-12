@@ -2251,7 +2251,7 @@ pub struct ScopeEnd<'a> {
     pub span: Span,
     pub to_span: Span,
     pub lparen_span: Span,
-    pub selector: SelectorList<'a>,
+    pub selector: Option<SelectorList<'a>>,
 }
 
 #[derive(Debug)]
@@ -2268,7 +2268,7 @@ pub enum ScopePrelude<'a> {
 #[cfg_attr(feature = "serialize", serde(tag = "type", rename_all = "camelCase"))]
 pub struct ScopeStart<'a> {
     pub span: Span,
-    pub selector: SelectorList<'a>,
+    pub selector: Option<SelectorList<'a>>,
 }
 
 #[derive(Debug)]
