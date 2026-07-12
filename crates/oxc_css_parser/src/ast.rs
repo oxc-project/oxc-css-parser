@@ -669,6 +669,18 @@ pub struct KeyframeBlock<'a> {
 pub enum KeyframeSelector<'a> {
     Ident(InterpolableIdent<'a>),
     Percentage(Percentage<'a>),
+    TimelineRange(KeyframeTimelineRange<'a>),
+}
+
+/// A scroll-driven animations keyframe selector: `<timeline-range-name>
+/// <percentage>` (`entry 0%`, `exit-crossing 100%`).
+#[derive(Debug)]
+#[cfg_attr(feature = "serialize", derive(Serialize))]
+#[cfg_attr(feature = "serialize", serde(tag = "type", rename_all = "camelCase"))]
+pub struct KeyframeTimelineRange<'a> {
+    pub span: Span,
+    pub name: InterpolableIdent<'a>,
+    pub percentage: Percentage<'a>,
 }
 
 #[derive(Debug)]

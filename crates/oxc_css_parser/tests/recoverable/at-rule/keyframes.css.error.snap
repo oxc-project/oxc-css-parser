@@ -7,4 +7,8 @@ error: unknown keyframe selector
 2 │   form {}
   │   ^^^^
 
-
+error: unknown keyframe selector
+  ┌─ keyframes.css:5:3
+  │
+5 │   bogus-range 50% {}
+  │   ^^^^^^^^^^^
