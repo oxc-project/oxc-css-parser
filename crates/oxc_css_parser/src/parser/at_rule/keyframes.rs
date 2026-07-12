@@ -42,17 +42,14 @@ impl<'a> Parse<'a> for KeyframeSelector<'a> {
             Token::Percentage(..) => Ok(KeyframeSelector::Percentage(input.parse()?)),
             _ => {
                 let ident = input.parse()?;
-                match &ident {
-                    InterpolableIdent::Literal(ident)
-                        if !ident.name.eq_ignore_ascii_case("from")
-                            && !ident.name.eq_ignore_ascii_case("to") =>
-                    {
-                        input.recoverable_errors.push(Error {
-                            kind: ErrorKind::UnknownKeyframeSelectorIdent,
-                            span: ident.span,
-                        });
-                    }
-                    _ => {}
+                if let InterpolableIdent::Literal(ident) = &ident
+                    && !ident.name.eq_ignore_ascii_case("from")
+                    && !ident.name.eq_ignore_ascii_case("to")
+                {
+                    input.recoverable_errors.push(Error {
+                        kind: ErrorKind::UnknownKeyframeSelectorIdent,
+                        span: ident.span,
+                    });
                 }
                 Ok(KeyframeSelector::Ident(ident))
             }
@@ -69,17 +66,14 @@ impl<'a> Parse<'a> for KeyframesName<'a> {
         match &input.cursor.peek()?.token {
             Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..) => {
                 let ident = input.parse()?;
-                match &ident {
-                    InterpolableIdent::Literal(ident)
-                        if util::is_css_wide_keyword(ident.name)
-                            || ident.name.eq_ignore_ascii_case("default") =>
-                    {
-                        input.recoverable_errors.push(Error {
-                            kind: ErrorKind::CSSWideKeywordDisallowed,
-                            span: ident.span,
-                        });
-                    }
-                    _ => {}
+                if let InterpolableIdent::Literal(ident) = &ident
+                    && (util::is_css_wide_keyword(ident.name)
+                        || ident.name.eq_ignore_ascii_case("default"))
+                {
+                    input.recoverable_errors.push(Error {
+                        kind: ErrorKind::CSSWideKeywordDisallowed,
+                        span: ident.span,
+                    });
                 }
                 Ok(KeyframesName::Ident(ident))
             }

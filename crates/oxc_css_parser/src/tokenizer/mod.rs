@@ -649,33 +649,30 @@ impl<'a> Tokenizer<'a> {
             }
         }
 
-        match self.peek_two_bytes() {
-            Some((_, b'e' | b'E', second))
-                if second == b'-' || second == b'+' || second.is_ascii_digit() =>
-            {
+        if let Some((_, b'e' | b'E', second)) = self.peek_two_bytes()
+            && (second == b'-' || second == b'+' || second.is_ascii_digit())
+        {
+            self.state.chars.next();
+
+            if let Some((_, b'-' | b'+')) = self.state.chars.peek() {
                 self.state.chars.next();
+            }
 
-                if let Some((_, b'-' | b'+')) = self.state.chars.peek() {
-                    self.state.chars.next();
-                }
-
-                loop {
-                    match self.state.chars.peek() {
-                        Some((_, c)) if c.is_ascii_digit() => {
-                            self.state.chars.next();
-                        }
-                        Some((i, _)) => {
-                            end = *i;
-                            break;
-                        }
-                        None => {
-                            end = self.source.len();
-                            break;
-                        }
+            loop {
+                match self.state.chars.peek() {
+                    Some((_, c)) if c.is_ascii_digit() => {
+                        self.state.chars.next();
+                    }
+                    Some((i, _)) => {
+                        end = *i;
+                        break;
+                    }
+                    None => {
+                        end = self.source.len();
+                        break;
                     }
                 }
             }
-            _ => {}
         }
 
         debug_assert!(start < end);

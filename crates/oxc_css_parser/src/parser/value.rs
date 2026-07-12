@@ -408,12 +408,11 @@ impl<'a> Parser<'a> {
     // <dashed-ident> = <ident-token> whose name starts with '--'
     pub(super) fn parse_dashed_ident(&mut self) -> PResult<InterpolableIdent<'a>> {
         let ident = self.parse()?;
-        match &ident {
-            InterpolableIdent::Literal(ident) if !ident.name.starts_with("--") => {
-                self.recoverable_errors
-                    .push(Error { kind: ErrorKind::ExpectDashedIdent, span: ident.span });
-            }
-            _ => {}
+        if let InterpolableIdent::Literal(ident) = &ident
+            && !ident.name.starts_with("--")
+        {
+            self.recoverable_errors
+                .push(Error { kind: ErrorKind::ExpectDashedIdent, span: ident.span });
         }
         Ok(ident)
     }
