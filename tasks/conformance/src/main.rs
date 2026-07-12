@@ -240,9 +240,9 @@ fn parse_outcome(source: &str, syntax: Syntax, options: ParserOptions) -> Outcom
 /// falling back to UTF-8. Returns `None` for undecodable (binary) content.
 fn decode_text(bytes: &[u8]) -> Option<String> {
     fn utf16(bytes: &[u8], le: bool) -> Option<String> {
-        let units = bytes.chunks_exact(2).map(|c| {
-            if le { u16::from_le_bytes([c[0], c[1]]) } else { u16::from_be_bytes([c[0], c[1]]) }
-        });
+        let (pairs, _) = bytes.as_chunks::<2>();
+        let units =
+            pairs.iter().map(|&c| if le { u16::from_le_bytes(c) } else { u16::from_be_bytes(c) });
         char::decode_utf16(units).collect::<Result<String, _>>().ok()
     }
     match bytes {
