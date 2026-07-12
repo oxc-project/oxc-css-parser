@@ -18,7 +18,7 @@ impl<'a> Parse<'a> for PageSelector<'a> {
         let start;
         let mut end;
 
-        if let Token::Colon(..) = &input.cursor.peek()?.token {
+        if let Token::Colon(..) | Token::ColonColon(..) = &input.cursor.peek()?.token {
             let first = input.parse::<PseudoPage>()?;
             start = first.span.start;
             end = first.span.end;
@@ -33,7 +33,9 @@ impl<'a> Parse<'a> for PageSelector<'a> {
 
         loop {
             match input.cursor.peek()? {
-                TokenWithSpan { token: Token::Colon(..), span } if span.start == end => {
+                TokenWithSpan { token: Token::Colon(..) | Token::ColonColon(..), span }
+                    if span.start == end =>
+                {
                     let item = input.parse::<PseudoPage>()?;
                     end = item.span.end;
                     pseudo.push(item);
@@ -67,15 +69,32 @@ impl<'a> Parse<'a> for PageSelectorList<'a> {
 }
 
 // <pseudo-page> = ':' [ left | right | first | blank ]
+//
+// CSS Template Layout additionally uses a pseudo-element-style functional
+// form: `@page::slot(g)`.
 impl<'a> Parse<'a> for PseudoPage<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let (_, colon_span) = input.cursor.expect_colon()?;
+        let colon_span = match &input.cursor.peek()?.token {
+            Token::ColonColon(..) => input.cursor.expect_colon_colon()?.1,
+            _ => input.cursor.expect_colon()?.1,
+        };
         let name = input.parse::<InterpolableIdent>()?;
 
         let name_span = name.span();
         util::assert_no_ws_or_comment(&colon_span, name_span)?;
+        let mut end = name_span.end;
 
-        let span = Span { start: colon_span.start, end: name_span.end };
-        Ok(PseudoPage { name, span })
+        let arg = match input.cursor.peek()? {
+            TokenWithSpan { token: Token::LParen(..), span } if span.start == end => {
+                input.cursor.bump()?;
+                let tokens = input.parse_tokens_in_parens()?;
+                end = input.cursor.expect_r_paren()?.1.end;
+                Some(tokens)
+            }
+            _ => None,
+        };
+
+        let span = Span { start: colon_span.start, end };
+        Ok(PseudoPage { name, arg, span })
     }
 }
