@@ -43,3 +43,6 @@
 
     margin: 20px;
 }
+@page::slot(g){}
+@page main::slot(header) { color: red }
+@page :first::slot(a) {}

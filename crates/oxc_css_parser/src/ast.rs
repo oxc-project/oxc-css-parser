@@ -1660,6 +1660,9 @@ pub struct IdentList<'a> {
 pub struct PseudoPage<'a> {
     pub span: Span,
     pub name: InterpolableIdent<'a>,
+    /// The raw argument of a functional pseudo-page, e.g. `g` in
+    /// `@page::slot(g)` (CSS Template Layout).
+    pub arg: Option<TokenSeq<'a>>,
 }
 
 #[derive(Debug)]
