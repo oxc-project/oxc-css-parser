@@ -404,7 +404,7 @@ impl<'a> Parser<'a> {
                 // (canonically closable by appending the quote), at a newline a
                 // `<bad-string-token>`.
                 Token::BadStr(..) => {
-                    let span = self.cursor.peek()?.span.clone();
+                    let span = self.cursor.peek()?.span;
                     let kind = if span.end == self.source.len() {
                         ErrorKind::UnterminatedString
                     } else {
@@ -427,7 +427,7 @@ impl<'a> Parser<'a> {
                         break;
                     }
                     if was_empty && !pairs.is_empty() {
-                        outermost_pair_span = Some(self.cursor.peek()?.span.clone());
+                        outermost_pair_span = Some(self.cursor.peek()?.span);
                     }
                 }
             }
