@@ -1272,6 +1272,7 @@ impl<'a> QueryInParensKind<'a> {
             Self::SizeFeature(value) => value.span(),
             Self::StyleQuery(value) => value.span(),
             Self::ScrollState(value) => value.span(),
+            Self::GeneralEnclosed(value) => value.span(),
         }
     }
 }

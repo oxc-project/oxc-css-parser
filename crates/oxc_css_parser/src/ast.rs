@@ -349,7 +349,7 @@ pub struct ContainerConditionOr<'a> {
 pub struct ContainerPrelude<'a> {
     pub span: Span,
     pub name: Option<InterpolableIdent<'a>>,
-    pub condition: ContainerCondition<'a>,
+    pub condition: Option<ContainerCondition<'a>>,
 }
 
 #[derive(Debug)]
@@ -1664,6 +1664,7 @@ pub enum QueryInParensKind<'a> {
     SizeFeature(Box<'a, MediaFeature<'a>>),
     StyleQuery(StyleQuery<'a>),
     ScrollState(Box<'a, MediaFeature<'a>>),
+    GeneralEnclosed(TokenSeq<'a>),
 }
 
 #[derive(Debug)]
