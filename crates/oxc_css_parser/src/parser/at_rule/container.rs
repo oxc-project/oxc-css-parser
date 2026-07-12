@@ -101,13 +101,28 @@ impl<'a> Parse<'a> for ContainerConditionOr<'a> {
 impl<'a> Parse<'a> for QueryInParens<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         if let Some((_, Span { start, .. })) = input.cursor.eat_l_paren()? {
-            let kind = if let Ok(container_condition) = input.try_parse(ContainerCondition::parse) {
-                QueryInParensKind::ContainerCondition(container_condition)
+            // Each alternative must also consume the closing `)` to commit, so
+            // a partial match (e.g. a size feature's `calc(...)` swallowed as
+            // a <general-enclosed> function) rolls back as a whole.
+            let (kind, end) = if let Ok((condition, end)) = input.try_parse(|p| {
+                let condition = ContainerCondition::parse(p)?;
+                let (_, Span { end, .. }) = p.cursor.expect_r_paren()?;
+                Ok((condition, end))
+            }) {
+                (QueryInParensKind::ContainerCondition(condition), end)
+            } else if let Ok((size_feature, end)) = input.try_parse(|p| {
+                let size_feature = MediaFeature::parse(p)?;
+                let (_, Span { end, .. }) = p.cursor.expect_r_paren()?;
+                Ok((size_feature, end))
+            }) {
+                (QueryInParensKind::SizeFeature(input.alloc(size_feature)), end)
             } else {
-                let size_feature = input.parse()?;
-                QueryInParensKind::SizeFeature(input.alloc(size_feature))
+                // <general-enclosed>: forward-compat catch-all (evaluates to
+                // false at runtime), mirroring media queries.
+                let tokens = input.parse_tokens_in_parens()?;
+                let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
+                (QueryInParensKind::GeneralEnclosed(tokens), end)
             };
-            let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
             Ok(QueryInParens { kind, span: Span { start, end } })
         } else {
             let (style_keyword, ident_span) = input.cursor.expect_ident()?;
@@ -122,6 +137,15 @@ impl<'a> Parse<'a> for QueryInParens<'a> {
                 input.cursor.expect_l_paren_without_ws_or_comments()?;
                 let media = input.parse()?;
                 let kind = QueryInParensKind::ScrollState(input.alloc(media));
+                let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
+                Ok(QueryInParens { kind, span: Span { start: ident_span.start, end } })
+            } else if matches!(input.cursor.peek()?, TokenWithSpan { token: Token::LParen(..), span } if span.start == ident_span.end)
+            {
+                // An unknown functional query (`anchored(...)` from CSS Anchor
+                // Positioning 2, or future syntax) is a <general-enclosed>.
+                // The guard proved the `(` is glued, so the cached peek is it.
+                input.cursor.expect_l_paren()?;
+                let kind = QueryInParensKind::GeneralEnclosed(input.parse_tokens_in_parens()?);
                 let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
                 Ok(QueryInParens { kind, span: Span { start: ident_span.start, end } })
             } else {
@@ -289,23 +313,34 @@ impl<'a> Parse<'a> for ContainerPrelude<'a> {
             {
                 Err(Error { kind: ErrorKind::TryParseError, span: ident.span })
             }
-            InterpolableIdent::Literal(ident) if ident.name.eq_ignore_ascii_case("style") => {
-                match parser.cursor.peek()? {
-                    TokenWithSpan { token: Token::LParen(..), span }
-                        if span.start == ident.span.end =>
-                    {
-                        Err(Error { kind: ErrorKind::TryParseError, span: ident.span })
-                    }
-                    _ => Ok(InterpolableIdent::Literal(ident)),
+            // An ident glued to `(` is a <function-token> in CSS terms —
+            // a functional query (`style(...)`, `anchored(...)`), not a name.
+            InterpolableIdent::Literal(ident) => match parser.cursor.peek()? {
+                TokenWithSpan { token: Token::LParen(..), span }
+                    if span.start == ident.span.end =>
+                {
+                    Err(Error { kind: ErrorKind::TryParseError, span: ident.span })
                 }
-            }
+                _ => Ok(InterpolableIdent::Literal(ident)),
+            },
             ident => Ok(ident),
         });
-        let condition = input.parse::<ContainerCondition>()?;
-        let mut span = *condition.span();
-        if let Ok(name) = &name {
-            span.start = name.span().start;
-        }
-        Ok(ContainerPrelude { name: name.ok(), condition, span })
+        // A container can also be queried by name alone (`@container card {}`),
+        // so the condition is optional when a name is present.
+        let name = name.ok();
+        let condition = if name.is_some() {
+            input.try_parse(ContainerCondition::parse).ok()
+        } else {
+            Some(input.parse::<ContainerCondition>()?)
+        };
+        let span = match (&name, &condition) {
+            (Some(name), Some(condition)) => {
+                Span { start: name.span().start, end: condition.span.end }
+            }
+            (Some(name), None) => *name.span(),
+            (None, Some(condition)) => condition.span,
+            (None, None) => unreachable!(),
+        };
+        Ok(ContainerPrelude { name, condition, span })
     }
 }

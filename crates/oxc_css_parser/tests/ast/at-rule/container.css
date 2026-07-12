@@ -135,3 +135,11 @@
 @container my-container scroll-state(scrollable: top) {}
 @container my-container scroll-state(a > b) {}
 @container scroll-state(scrollable: top) {}
+
+@container card {}
+@container my-layout { .child { color: red } }
+@container anchored(fallback: bottom any) { a { color: red } }
+@container name anchored(fallback: top) {}
+@container (anchored(fallback: inset-area)) {}
+@container (future-syntax 100px !) {}
+a{@container anchored(fallback:bottom any){b{c:d}}}
