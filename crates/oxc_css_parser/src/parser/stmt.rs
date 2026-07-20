@@ -744,14 +744,19 @@ impl<'a> Parser<'a> {
                     //
                     // A placeholder may also be a declaration property name
                     // (`${foo}: ${bar}`), so try a declaration before falling back
-                    // to a bare placeholder statement.
+                    // to a bare placeholder statement. Same-line only: the `:` of
+                    // a rule on the next line (`${mixin}\n:hover { ... }`) must
+                    // not be absorbed as a declaration colon — like the qualified
+                    // rule check above, a newline ends what the placeholder can own.
                     let ph_end = self.cursor.peek()?.span.end;
                     if self.placeholder_starts_qualified_rule(ph_end)
                         && let Ok(rule) = self.try_parse(QualifiedRule::parse)
                     {
                         statements.push(Statement::QualifiedRule(rule));
                         is_block_element = true;
-                    } else if let Ok(declaration) = self.try_parse(Declaration::parse) {
+                    } else if self.placeholder_starts_declaration(ph_end)
+                        && let Ok(declaration) = self.try_parse(Declaration::parse)
+                    {
                         // Reached only via the placeholder token above, so this
                         // is the `${foo}: ${bar}` form (placeholder property name).
                         statements.push(Statement::Declaration(declaration));
@@ -974,6 +979,27 @@ impl<'a> Parser<'a> {
             }
         }
         // No block at all -> a declaration or a bare placeholder, not a rule.
+        false
+    }
+
+    /// Whether a statement-position `${}` placeholder (ending at byte `from`)
+    /// should be offered to `Declaration::parse` as a property name
+    /// (`${foo}: ${bar}`). Same-line only: a newline before the next
+    /// non-whitespace means the placeholder stands alone and what follows is a
+    /// separate statement (`${mixin}\n\n:disabled { ... }` must not become a
+    /// declaration `${mixin}: disabled { ... }`). Whether a same-line follower
+    /// actually forms a declaration is left to `Declaration::parse`, which
+    /// rolls back if this guess was wrong.
+    fn placeholder_starts_declaration(&self, from: usize) -> bool {
+        for &b in &self.source.as_bytes()[from..] {
+            match b {
+                // A bare `\r` counts as a newline too, same as
+                // `placeholder_starts_qualified_rule` above.
+                b'\n' | b'\r' => return false,
+                _ if b.is_ascii_whitespace() => {}
+                _ => return true,
+            }
+        }
         false
     }
 }
