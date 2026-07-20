@@ -246,6 +246,24 @@ fn placeholder_as_declaration_property_name() {
 }
 
 #[test]
+fn placeholder_declaration_name_does_not_cross_newline() {
+    // The declaration-name form is same-line only: a pseudo-selector rule on
+    // the next line must not have its `:` absorbed as the declaration colon
+    // (`${mixin}\n\n:disabled { ... }` is a bare placeholder + a separate
+    // rule, NOT a declaration `${mixin}: disabled { ... }`). oxc#24723.
+    let ss = parse("`PLACEHOLDER-0`\n\n:disabled { cursor: not-allowed }", Some(opts()));
+    assert_eq!(ss.statements.len(), 2);
+    assert!(matches!(ss.statements[0], Statement::Placeholder(Placeholder { index: 0, .. })));
+    assert!(matches!(ss.statements[1], Statement::QualifiedRule(_)));
+
+    // A bare `\r` counts as a newline too, same as the selector gate.
+    let ss = parse("`PLACEHOLDER-0`\r:hover { color: red }", Some(opts()));
+    assert_eq!(ss.statements.len(), 2);
+    assert!(matches!(ss.statements[0], Statement::Placeholder(Placeholder { index: 0, .. })));
+    assert!(matches!(ss.statements[1], Statement::QualifiedRule(_)));
+}
+
+#[test]
 fn media_feature_value_placeholder_glued_to_unit() {
     // `@media (max-width: ${x}px)`: the glued unit is the placeholder's suffix,
     // so the single-value media feature slot holds one `Placeholder` (no parse
