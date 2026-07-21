@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.9](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.8...oxc-css-parser-v0.0.9) - 2026-07-21
+
+### Fixed
+
+- *(parser)* parse `:host` and `:host-context` args as selector list ([#130](https://github.com/oxc-project/oxc-css-parser/pull/130))
+
+### Other
+
+- *(ast)* [**breaking**] remove unused `PseudoClassSelectorArgKind::CompoundSelector` ([#131](https://github.com/oxc-project/oxc-css-parser/pull/131))
+
 ## [0.0.8](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.7...oxc-css-parser-v0.0.8) - 2026-07-20
 
 ### Fixed
