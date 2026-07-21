@@ -999,7 +999,9 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
                         if name.eq_ignore_ascii_case("host")
                             || name.eq_ignore_ascii_case("host-context") =>
                     {
-                        input.parse().map(PseudoClassSelectorArgKind::CompoundSelector)?
+                        // formally a single compound selector, but Angular's ShadowCss
+                        // supports combinators and lists (`:host-context(.parent .child)`)
+                        input.parse().map(PseudoClassSelectorArgKind::SelectorList)?
                     }
                     InterpolableIdent::Literal(Ident { name, .. })
                         if input.syntax == Syntax::Less && *name == "extend" =>

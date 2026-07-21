@@ -158,6 +158,10 @@ h1:-webkit-any(.h1class, #bar) {}
 :host {}
 :host-context(h1) {}
 :host-context(   h1   ) {}
+:host-context(.parent .child) {}
+:host-context(app-render pl-part) {}
+:host-context(.a, .b) {}
+:host(.a .b) {}
 
 :unknown {}
 :unknown() {}
