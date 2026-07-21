@@ -1211,7 +1211,6 @@ impl<'a> PseudoClassSelectorArgKind<'a> {
     #[inline]
     pub fn span(&self) -> &Span {
         match self {
-            Self::CompoundSelector(value) => value.span(),
             Self::CompoundSelectorList(value) => value.span(),
             Self::Ident(value) => value.span(),
             Self::LanguageRangeList(value) => value.span(),

@@ -1602,7 +1602,6 @@ pub struct PseudoClassSelectorArg<'a> {
 #[cfg_attr(feature = "serialize", derive(Serialize))]
 #[cfg_attr(feature = "serialize", serde(untagged))]
 pub enum PseudoClassSelectorArgKind<'a> {
-    CompoundSelector(CompoundSelector<'a>),
     CompoundSelectorList(CompoundSelectorList<'a>),
     Ident(InterpolableIdent<'a>),
     LanguageRangeList(LanguageRangeList<'a>),
