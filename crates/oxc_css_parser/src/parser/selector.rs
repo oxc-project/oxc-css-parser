@@ -1218,13 +1218,16 @@ impl<'a> Parse<'a> for SimpleSelector<'a> {
                 input.parse().map(SimpleSelector::Id)
             }
             TokenWithSpan { token: Token::LBracket(..), .. } => {
-                input.parse().map(SimpleSelector::Attribute)
+                let selector = input.parse()?;
+                Ok(SimpleSelector::Attribute(input.alloc(selector)))
             }
             TokenWithSpan { token: Token::Colon(..), .. } => {
-                input.parse().map(SimpleSelector::PseudoClass)
+                let selector = input.parse()?;
+                Ok(SimpleSelector::PseudoClass(input.alloc(selector)))
             }
             TokenWithSpan { token: Token::ColonColon(..), .. } => {
-                input.parse().map(SimpleSelector::PseudoElement)
+                let selector = input.parse()?;
+                Ok(SimpleSelector::PseudoElement(input.alloc(selector)))
             }
             TokenWithSpan {
                 token:

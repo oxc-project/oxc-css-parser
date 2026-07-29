@@ -2330,9 +2330,9 @@ pub enum SimpleSelector<'a> {
     Class(ClassSelector<'a>),
     Id(IdSelector<'a>),
     Type(TypeSelector<'a>),
-    Attribute(AttributeSelector<'a>),
-    PseudoClass(PseudoClassSelector<'a>),
-    PseudoElement(PseudoElementSelector<'a>),
+    Attribute(Box<'a, AttributeSelector<'a>>),
+    PseudoClass(Box<'a, PseudoClassSelector<'a>>),
+    PseudoElement(Box<'a, PseudoElementSelector<'a>>),
     Nesting(NestingSelector<'a>),
     SassPlaceholder(SassPlaceholderSelector<'a>),
 }
