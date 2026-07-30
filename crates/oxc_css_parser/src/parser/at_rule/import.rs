@@ -40,10 +40,20 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
             }
             _ => match input.try_parse(Url::parse) {
                 Ok(url) => ImportPreludeHref::Url(url),
-                // Sass only: the content of `url(...)` may be SassScript that
-                // is not a parsable URL, e.g. `@import url($dir+"/path");`.
-                // Mirrors the fallback in `parse_component_value_atom`.
-                Err(error) if matches!(input.syntax, Syntax::Scss | Syntax::Sass) => {
+                Err(mut error) => {
+                    // `Url::parse` marks a non-url shape (`@import url;`) with
+                    // the internal `TryParseError`; this is a surfacing site,
+                    // so concretize it first.
+                    if matches!(error.kind, ErrorKind::TryParseError) {
+                        error.kind = ErrorKind::ExpectUrl;
+                    }
+                    // Sass only: the content of `url(...)` may be SassScript
+                    // that is not a parsable URL,
+                    // e.g. `@import url($dir+"/path");`.
+                    // Mirrors the fallback in `parse_component_value_atom`.
+                    if !matches!(input.syntax, Syntax::Scss | Syntax::Sass) {
+                        return Err(error);
+                    }
                     let (function_name, function_name_span) = input.cursor.expect_ident()?;
                     let function_name = input.ident(function_name, function_name_span);
                     if !function_name.name.eq_ignore_ascii_case("url") {
@@ -54,7 +64,6 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
                         .map(ImportPreludeHref::Function)
                         .map_err(|_| error)?
                 }
-                Err(error) => return Err(error),
             },
         };
         let mut span = *href.span();
