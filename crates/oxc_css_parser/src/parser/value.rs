@@ -465,11 +465,17 @@ impl<'a> Parser<'a> {
                     } else {
                         let typed = self.try_parse(|p| {
                             let values = p.parse_calc_args(allow_modulo)?;
-                            if matches!(&p.cursor.peek()?.token, Token::RParen(..)) {
+                            let TokenWithSpan { token, span } = p.cursor.peek()?;
+                            if matches!(token, Token::RParen(..)) {
                                 Ok(values)
                             } else {
-                                let span = p.cursor.peek()?.span;
-                                Err(Error { kind: ErrorKind::TryParseError, span })
+                                // A concrete kind (not the internal
+                                // `TryParseError` marker): the no-keyword-arg
+                                // path below surfaces this error.
+                                Err(Error {
+                                    kind: ErrorKind::Unexpected(")", token.symbol()),
+                                    span: *span,
+                                })
                             }
                         });
                         match typed {
@@ -1150,6 +1156,9 @@ impl<'a> Parse<'a> for Url<'a> {
                 input.cursor.bump()?;
             }
             TokenWithSpan { span, .. } => {
+                // The internal marker means "not a url shape at all": callers
+                // discriminate on it (`parse_component_value_atom`) or
+                // concretize it before surfacing (`ImportPrelude`).
                 return Err(Error { kind: ErrorKind::TryParseError, span: *span });
             }
         }

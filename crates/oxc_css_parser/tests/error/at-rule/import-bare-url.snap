@@ -1,0 +1,8 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: URL is expected
+  ┌─ import-bare-url.css:1:12
+  │
+1 │ @import url;
+  │            ^

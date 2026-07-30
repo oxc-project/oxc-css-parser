@@ -4,7 +4,7 @@ use crate::{
     ast::*,
     error::{Error, ErrorKind, PResult},
     pos::Span,
-    tokenizer::Token,
+    tokenizer::{Token, TokenWithSpan},
 };
 
 mod color_profile;
@@ -166,15 +166,13 @@ impl<'a> Parse<'a> for AtRule<'a> {
         } else if at_rule_name.eq_ignore_ascii_case("layer") {
             let prelude = match input.try_parse(LayerNames::parse) {
                 Ok(names) => Some(AtRulePrelude::Layer(names)),
-                // a Less variable may stand for the name: `@layer @layer-name {`
-                Err(_)
-                    if input.syntax == Syntax::Less
-                        && matches!(input.cursor.peek()?.token, Token::AtKeyword(..)) =>
-                {
-                    let raw = input.parse_raw_at_rule_prelude()?;
-                    Some(AtRulePrelude::Unknown(input.alloc(raw)))
-                }
-                Err(_) => None,
+                // A substituted name the typed grammar can't express is kept
+                // raw: `@layer @layer-name {` (a Less variable stands for the
+                // name); anything else stays a lenient bare `@layer`.
+                Err(_) => match input.try_parse_substituted_raw_prelude() {
+                    Ok(raw) => Some(AtRulePrelude::Unknown(input.alloc(raw))),
+                    Err(_) => None,
+                },
             };
             let block =
                 if matches!(input.cursor.peek()?.token, Token::LBrace(..) | Token::Indent(..)) {
@@ -203,7 +201,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
             let prelude =
                 match input.try_parse_full_prelude(|p| p.parse().map(AtRulePrelude::Container)) {
                     Ok(prelude) => prelude,
-                    Err(_) => {
+                    Err(error) => {
                         let is_query_list = input
                             .try_parse(|p| {
                                 p.parse::<ContainerPrelude>()?;
@@ -219,18 +217,11 @@ impl<'a> Parse<'a> for AtRule<'a> {
                         // only a substituted prelude (`@container row #{$bp} {`,
                         // `@container @varfoo (...) {`) justifies the raw form.
                         let raw = if is_query_list {
-                            Some(input.parse_raw_at_rule_prelude()?)
+                            input.parse_raw_at_rule_prelude()?
                         } else {
-                            input.try_parse_substituted_raw_prelude().ok()
+                            input.try_parse_substituted_raw_prelude().map_err(|_| error)?
                         };
-                        match raw {
-                            Some(raw) => AtRulePrelude::Unknown(input.alloc(raw)),
-                            // Re-parse to surface a concrete error (never the
-                            // internal `TryParseError` marker): the prelude
-                            // itself errors, or its trailing tokens fail the
-                            // block parse below.
-                            None => AtRulePrelude::Container(input.parse()?),
-                        }
+                        AtRulePrelude::Unknown(input.alloc(raw))
                     }
                 };
             let block = input.parse::<SimpleBlock>()?;
@@ -245,18 +236,18 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 .or_else(|| prelude.as_ref().map(|prelude| prelude.span().end))
                 .unwrap_or(at_keyword_span.end);
             (prelude, block, end)
-        } else if at_rule_name.eq_ignore_ascii_case("namespace")
-            && input.syntax == Syntax::Less
-            && matches!(input.cursor.peek()?.token, Token::AtKeyword(..))
-        {
-            // `@namespace @ns "http://...";` — a Less variable prefix
-            let raw = input.parse_raw_at_rule_prelude()?;
-            let end = raw.span().end;
-            (Some(AtRulePrelude::Unknown(input.alloc(raw))), None, end)
         } else if at_rule_name.eq_ignore_ascii_case("namespace") {
-            let namespace = input.parse::<NamespacePrelude>()?;
-            let end = namespace.span.end;
-            (Some(AtRulePrelude::Namespace(input.alloc(namespace))), None, end)
+            let prelude = match input.try_parse(NamespacePrelude::parse) {
+                Ok(namespace) => AtRulePrelude::Namespace(input.alloc(namespace)),
+                // A substituted prelude is kept raw:
+                // `@namespace @ns "http://...";` (a Less variable prefix).
+                Err(error) => {
+                    let raw = input.try_parse_substituted_raw_prelude().map_err(|_| error)?;
+                    AtRulePrelude::Unknown(input.alloc(raw))
+                }
+            };
+            let end = prelude.span().end;
+            (Some(prelude), None, end)
         } else if at_rule_name.eq_ignore_ascii_case("color-profile") {
             let prelude = Some(AtRulePrelude::ColorProfile(input.parse()?));
             let block = input.parse::<SimpleBlock>()?;
@@ -563,20 +554,23 @@ impl<'a> Parser<'a> {
     /// up to the end of the prelude (the block's opener or the statement
     /// boundary) — otherwise the parse is rolled back so the caller can fall
     /// back to a raw form.
+    ///
+    /// The rollback error is always a concrete kind (never the internal
+    /// `TryParseError` marker), and its message names `{` as the expected
+    /// token — so a caller out of fallbacks may surface it with
+    /// `return Err(error)` directly, as long as it is a block at-rule.
     fn try_parse_full_prelude<T>(&mut self, f: impl FnOnce(&mut Self) -> PResult<T>) -> PResult<T> {
         self.try_parse(|p| {
             let value = f(p)?;
-            match &p.cursor.peek()?.token {
+            let TokenWithSpan { token, span } = p.cursor.peek()?;
+            match token {
                 Token::LBrace(..)
                 | Token::Indent(..)
                 | Token::Semicolon(..)
                 | Token::Dedent(..)
                 | Token::Linebreak(..)
                 | Token::Eof(..) => Ok(value),
-                _ => {
-                    let span = p.cursor.peek()?.span;
-                    Err(Error { kind: ErrorKind::TryParseError, span })
-                }
+                _ => Err(Error { kind: ErrorKind::Unexpected("{", token.symbol()), span: *span }),
             }
         })
     }
@@ -587,6 +581,9 @@ impl<'a> Parser<'a> {
     /// Less (`@media @all and @tv {`). Anything else — including every plain
     /// CSS prelude — rolls back, so plain malformed logic
     /// (`@media a and b or c`) keeps erroring.
+    ///
+    /// The rollback error is the internal `TryParseError` marker — never
+    /// surface it; fall back or return another error instead.
     fn try_parse_substituted_raw_prelude(&mut self) -> PResult<UnknownAtRulePrelude<'a>> {
         self.try_parse(|p| {
             let raw = p.parse_raw_at_rule_prelude()?;
