@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.10](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.9...oxc-css-parser-v0.0.10) - 2026-07-30
+
+### Fixed
+
+- *(parser)* stop leaking the internal error ([#140](https://github.com/oxc-project/oxc-css-parser/pull/140))
+- *(parser)* accept substituted container ([#139](https://github.com/oxc-project/oxc-css-parser/pull/139))
+
+### Other
+
+- *(ast)* box the fat `SimpleSelector`, `MediaFeature` and `MediaQuery` variants ([#138](https://github.com/oxc-project/oxc-css-parser/pull/138))
+
 ## [0.0.9](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.8...oxc-css-parser-v0.0.9) - 2026-07-21
 
 ### Fixed
