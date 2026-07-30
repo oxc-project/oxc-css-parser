@@ -1312,10 +1312,10 @@ pub enum MediaConditionKind<'a> {
 #[cfg_attr(feature = "serialize", derive(Serialize))]
 #[cfg_attr(feature = "serialize", serde(untagged))]
 pub enum MediaFeature<'a> {
-    Plain(MediaFeaturePlain<'a>),
+    Plain(Box<'a, MediaFeaturePlain<'a>>),
     Boolean(MediaFeatureBoolean<'a>),
-    Range(MediaFeatureRange<'a>),
-    RangeInterval(MediaFeatureRangeInterval<'a>),
+    Range(Box<'a, MediaFeatureRange<'a>>),
+    RangeInterval(Box<'a, MediaFeatureRangeInterval<'a>>),
 }
 
 #[derive(Debug)]
@@ -1426,7 +1426,7 @@ pub struct MediaOr<'a> {
 #[cfg_attr(feature = "serialize", serde(untagged))]
 pub enum MediaQuery<'a> {
     ConditionOnly(MediaCondition<'a>),
-    WithType(MediaQueryWithType<'a>),
+    WithType(Box<'a, MediaQueryWithType<'a>>),
     Function(Function<'a>),
     LessVariable(LessVariable<'a>),
     LessNamespaceValue(Box<'a, LessNamespaceValue<'a>>),
