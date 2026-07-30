@@ -2639,3 +2639,10 @@ pub struct WqName<'a> {
     pub name: InterpolableIdent<'a>,
     pub prefix: Option<NsPrefix<'a>>,
 }
+
+#[cfg(target_pointer_width = "64")]
+const _: () = {
+    assert!(size_of::<SimpleSelector<'static>>() == 160);
+    assert!(size_of::<MediaFeature<'static>>() == 88);
+    assert!(size_of::<MediaQuery<'static>>() == 96);
+};
