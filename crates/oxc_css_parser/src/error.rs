@@ -185,7 +185,10 @@ impl Display for ErrorKind {
             Self::ExpectLessExtendRule => write!(f, "Less extend rule is expected"),
             Self::ExpectScopeTo => write!(f, "keyword `to` of `@scope` at-rule is expected"),
 
-            Self::TryParseError => unreachable!(),
+            // An internal rollback marker for `try_parse`; parse entry points
+            // must map it to a concrete error before surfacing. Print a
+            // generic message rather than panic in case one ever leaks.
+            Self::TryParseError => write!(f, "syntax error"),
             Self::CSSWideKeywordDisallowed => {
                 write!(f, "using CSS wide keyword as identifier is disallowed")
             }
