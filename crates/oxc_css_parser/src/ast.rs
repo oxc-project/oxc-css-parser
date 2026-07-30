@@ -1312,10 +1312,10 @@ pub enum MediaConditionKind<'a> {
 #[cfg_attr(feature = "serialize", derive(Serialize))]
 #[cfg_attr(feature = "serialize", serde(untagged))]
 pub enum MediaFeature<'a> {
-    Plain(MediaFeaturePlain<'a>),
+    Plain(Box<'a, MediaFeaturePlain<'a>>),
     Boolean(MediaFeatureBoolean<'a>),
-    Range(MediaFeatureRange<'a>),
-    RangeInterval(MediaFeatureRangeInterval<'a>),
+    Range(Box<'a, MediaFeatureRange<'a>>),
+    RangeInterval(Box<'a, MediaFeatureRangeInterval<'a>>),
 }
 
 #[derive(Debug)]
@@ -1426,7 +1426,7 @@ pub struct MediaOr<'a> {
 #[cfg_attr(feature = "serialize", serde(untagged))]
 pub enum MediaQuery<'a> {
     ConditionOnly(MediaCondition<'a>),
-    WithType(MediaQueryWithType<'a>),
+    WithType(Box<'a, MediaQueryWithType<'a>>),
     Function(Function<'a>),
     LessVariable(LessVariable<'a>),
     LessNamespaceValue(Box<'a, LessNamespaceValue<'a>>),
@@ -2330,9 +2330,9 @@ pub enum SimpleSelector<'a> {
     Class(ClassSelector<'a>),
     Id(IdSelector<'a>),
     Type(TypeSelector<'a>),
-    Attribute(AttributeSelector<'a>),
-    PseudoClass(PseudoClassSelector<'a>),
-    PseudoElement(PseudoElementSelector<'a>),
+    Attribute(Box<'a, AttributeSelector<'a>>),
+    PseudoClass(Box<'a, PseudoClassSelector<'a>>),
+    PseudoElement(Box<'a, PseudoElementSelector<'a>>),
     Nesting(NestingSelector<'a>),
     SassPlaceholder(SassPlaceholderSelector<'a>),
 }
@@ -2639,3 +2639,10 @@ pub struct WqName<'a> {
     pub name: InterpolableIdent<'a>,
     pub prefix: Option<NsPrefix<'a>>,
 }
+
+#[cfg(target_pointer_width = "64")]
+const _: () = {
+    assert!(size_of::<SimpleSelector<'static>>() == 160);
+    assert!(size_of::<MediaFeature<'static>>() == 88);
+    assert!(size_of::<MediaQuery<'static>>() == 96);
+};

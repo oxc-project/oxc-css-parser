@@ -52,7 +52,9 @@ impl<'a> Parse<'a> for MediaFeature<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         match input.parse_media_feature_value()? {
             ComponentValue::InterpolableIdent(ident) => match &input.cursor.peek()?.token {
-                Token::Colon(..) => input.parse_media_feature_plain(ident).map(MediaFeature::Plain),
+                Token::Colon(..) => input
+                    .parse_media_feature_plain(ident)
+                    .map(|f| MediaFeature::Plain(input.alloc(f))),
                 Token::LessThan(..)
                 | Token::LessThanEqual(..)
                 | Token::GreaterThan(..)
@@ -423,23 +425,23 @@ impl<'a> Parser<'a> {
                     let right_comparison = self.parse()?;
                     let right = self.parse_media_feature_value()?;
                     let span = Span { start: left.span().start, end: right.span().end };
-                    Ok(MediaFeature::RangeInterval(MediaFeatureRangeInterval {
+                    Ok(MediaFeature::RangeInterval(self.alloc(MediaFeatureRangeInterval {
                         left,
                         left_comparison: comparison,
                         name: MediaFeatureName::Ident(ident),
                         right_comparison,
                         right,
                         span,
-                    }))
+                    })))
                 }
                 _ => {
                     let span = Span { start: left.span().start, end: ident.span().end };
-                    Ok(MediaFeature::Range(MediaFeatureRange {
+                    Ok(MediaFeature::Range(self.alloc(MediaFeatureRange {
                         left,
                         comparison,
                         right: ComponentValue::InterpolableIdent(ident),
                         span,
-                    }))
+                    })))
                 }
             }
         } else {
@@ -452,12 +454,12 @@ impl<'a> Parser<'a> {
                 });
             }
             let span = Span { start: left.span().start, end: name_or_right.span().end };
-            Ok(MediaFeature::Range(MediaFeatureRange {
+            Ok(MediaFeature::Range(self.alloc(MediaFeatureRange {
                 left,
                 comparison,
                 right: name_or_right,
                 span,
-            }))
+            })))
         }
     }
 
@@ -504,7 +506,9 @@ impl<'a> Parser<'a> {
                     span: Span { start: mq_span.start, end },
                 }))
             }
-            (media_query_with_type, _) => Ok(MediaQuery::WithType(media_query_with_type)),
+            (media_query_with_type, _) => {
+                Ok(MediaQuery::WithType(self.alloc(media_query_with_type)))
+            }
         }
     }
 }
