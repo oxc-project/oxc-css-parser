@@ -50,48 +50,12 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 {
                     None
                 }
-                // Only interpolation justifies the raw form — dart-sass
-                // reparses such queries after resolving `#{...}`; plain
-                // malformed logic (`@media a and b or c`) must keep erroring.
-                Err(_) => {
-                    // Only substitution constructs justify the raw form —
-                    // `#{...}` in Sass (dart-sass reparses after resolving) and
-                    // variables in Less (`@media @all and @tv {`); plain
-                    // malformed logic must keep erroring.
-                    let raw = if input.syntax != Syntax::Css {
-                        input.try_parse(|p| {
-                            let raw = p.parse_raw_at_rule_prelude()?;
-                            let has_substitution = matches!(
-                                &raw,
-                                UnknownAtRulePrelude::TokenSeq(seq)
-                                    if seq.tokens.iter().any(|t| match &t.token {
-                                        Token::HashLBrace(..) | Token::StrTemplate(..) => {
-                                            matches!(p.syntax, Syntax::Scss | Syntax::Sass)
-                                        }
-                                        Token::AtKeyword(..) | Token::AtLBraceVar(..) => {
-                                            p.syntax == Syntax::Less
-                                        }
-                                        _ => false,
-                                    })
-                            );
-                            if has_substitution {
-                                Ok(raw)
-                            } else {
-                                let span = p.cursor.peek()?.span;
-                                Err(Error { kind: ErrorKind::TryParseError, span })
-                            }
-                        })
-                    } else {
-                        Err(Error {
-                            kind: ErrorKind::TryParseError,
-                            span: input.cursor.peek()?.span,
-                        })
-                    };
-                    match raw {
-                        Ok(raw) => Some(AtRulePrelude::Unknown(input.alloc(raw))),
-                        Err(_) => Some(AtRulePrelude::Media(input.parse()?)),
-                    }
-                }
+                // Queries the typed grammar can't express are kept raw only
+                // when substituted (see `try_parse_substituted_raw_prelude`).
+                Err(_) => match input.try_parse_substituted_raw_prelude() {
+                    Ok(raw) => Some(AtRulePrelude::Unknown(input.alloc(raw))),
+                    Err(_) => Some(AtRulePrelude::Media(input.parse()?)),
+                },
             };
             let block = input.parse::<SimpleBlock>()?;
             let end = block.span.end;
@@ -233,13 +197,13 @@ impl<'a> Parse<'a> for AtRule<'a> {
             (prelude, block, end)
         } else if at_rule_name.eq_ignore_ascii_case("container") {
             // less.js emits comma-separated query lists
-            // (`@container card (w > 400px), style(--x: y) {`); those — and
-            // only those — are kept as raw tokens. A malformed single query
-            // still errors.
+            // (`@container card (w > 400px), style(--x: y) {`); those and
+            // substituted preludes are kept as raw tokens. A malformed single
+            // query still errors.
             let prelude =
                 match input.try_parse_full_prelude(|p| p.parse().map(AtRulePrelude::Container)) {
                     Ok(prelude) => prelude,
-                    Err(error) => {
+                    Err(_) => {
                         let is_query_list = input
                             .try_parse(|p| {
                                 p.parse::<ContainerPrelude>()?;
@@ -251,15 +215,22 @@ impl<'a> Parse<'a> for AtRule<'a> {
                                 }
                             })
                             .is_ok();
-                        // a Less variable may stand for the container name:
-                        // `@container @varfoo (min-width: @threshold) {`
-                        let less_variable_name = input.syntax == Syntax::Less
-                            && matches!(input.cursor.peek()?.token, Token::AtKeyword(..));
-                        if !is_query_list && !less_variable_name {
-                            return Err(error);
+                        // A query list is kept raw unconditionally; otherwise
+                        // only a substituted prelude (`@container row #{$bp} {`,
+                        // `@container @varfoo (...) {`) justifies the raw form.
+                        let raw = if is_query_list {
+                            Some(input.parse_raw_at_rule_prelude()?)
+                        } else {
+                            input.try_parse_substituted_raw_prelude().ok()
+                        };
+                        match raw {
+                            Some(raw) => AtRulePrelude::Unknown(input.alloc(raw)),
+                            // Re-parse to surface a concrete error (never the
+                            // internal `TryParseError` marker): the prelude
+                            // itself errors, or its trailing tokens fail the
+                            // block parse below.
+                            None => AtRulePrelude::Container(input.parse()?),
                         }
-                        let prelude = input.parse_raw_at_rule_prelude()?;
-                        AtRulePrelude::Unknown(input.alloc(prelude))
                     }
                 };
             let block = input.parse::<SimpleBlock>()?;
@@ -606,6 +577,34 @@ impl<'a> Parser<'a> {
                     let span = p.cursor.peek()?.span;
                     Err(Error { kind: ErrorKind::TryParseError, span })
                 }
+            }
+        })
+    }
+
+    /// `try_parse` a raw at-rule prelude, committing only when it contains a
+    /// substitution construct the typed grammar can't express — `#{...}` in
+    /// Sass (dart-sass reparses the prelude after resolving) and variables in
+    /// Less (`@media @all and @tv {`). Anything else — including every plain
+    /// CSS prelude — rolls back, so plain malformed logic
+    /// (`@media a and b or c`) keeps erroring.
+    fn try_parse_substituted_raw_prelude(&mut self) -> PResult<UnknownAtRulePrelude<'a>> {
+        self.try_parse(|p| {
+            let raw = p.parse_raw_at_rule_prelude()?;
+            let has_substitution = matches!(
+                &raw,
+                UnknownAtRulePrelude::TokenSeq(seq)
+                    if seq.tokens.iter().any(|t| matches!(
+                        (p.syntax, &t.token),
+                        (
+                            Syntax::Scss | Syntax::Sass,
+                            Token::HashLBrace(..) | Token::StrTemplate(..)
+                        ) | (Syntax::Less, Token::AtKeyword(..) | Token::AtLBraceVar(..))
+                    ))
+            );
+            if has_substitution {
+                Ok(raw)
+            } else {
+                Err(Error { kind: ErrorKind::TryParseError, span: *raw.span() })
             }
         })
     }
