@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.11](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.10...oxc-css-parser-v0.0.11) - 2026-08-04
+
+### Fixed
+
+- *(parser)* fallback to raw tokens when unknown at prelude ([#146](https://github.com/oxc-project/oxc-css-parser/pull/146))
+
 ## [0.0.10](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.9...oxc-css-parser-v0.0.10) - 2026-07-30
 
 ### Fixed
