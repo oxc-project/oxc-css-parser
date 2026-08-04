@@ -206,7 +206,7 @@ ERROR    spec/libsass-todo-issues/issue_2023/class-selector-id.hrx::input.scss  
 ERROR    spec/libsass-todo-issues/issue_2023/class-selector-nr.hrx::input.scss    CSS rule is expected
 ERROR    spec/libsass-todo-issues/issue_2023/type-selector-id.hrx::input.scss    CSS rule is expected
 ERROR    spec/libsass-todo-issues/issue_2023/type-selector-nr.hrx::input.scss    CSS rule is expected
-ERROR    spec/libsass-todo-issues/issue_221260.hrx::input.scss    component value is expected
+ERROR    spec/libsass-todo-issues/issue_221260.hrx::input.scss    expect token `<eof>`, but found `}`
 ERROR    spec/libsass-todo-issues/issue_221262.hrx::input.scss    CSS rule is expected
 ERROR    spec/libsass-todo-issues/issue_221262.hrx::output.css    CSS rule is expected
 ERROR    spec/libsass-todo-issues/issue_221264.hrx::input.scss    expect token `)`, but found `<eof>`

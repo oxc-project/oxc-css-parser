@@ -584,6 +584,10 @@ impl<'a> Parser<'a> {
     ///
     /// The rollback error is the internal `TryParseError` marker — never
     /// surface it; fall back or return another error instead.
+    ///
+    /// Unknown at-rules don't use this substitution gate: they have no typed
+    /// grammar to protect, so `parse_unknown_at_rule_prelude` falls back to
+    /// raw whenever the value grammar doesn't cover the whole prelude.
     fn try_parse_substituted_raw_prelude(&mut self) -> PResult<UnknownAtRulePrelude<'a>> {
         self.try_parse(|p| {
             let raw = p.parse_raw_at_rule_prelude()?;
@@ -708,12 +712,21 @@ impl<'a> Parser<'a> {
             return Ok(prelude);
         }
 
-        Ok(Some(UnknownAtRulePrelude::ComponentValue(match self.syntax {
-            Syntax::Css => self.parse()?,
-            Syntax::Scss | Syntax::Sass => {
-                self.parse_maybe_sass_list(/* allow_comma */ true)?
-            }
-            Syntax::Less => self.parse_maybe_less_list(/* allow_comma */ true)?,
-        })))
+        // A structured value expression covers most substituted preludes,
+        // but not everything a raw prelude can hold
+        // — e.g. a PostCSS-style `key: value` argument (`@insert-tokens theme: '#{$t}';`).
+        // dart-sass treats an unknown at-rule's prelude as interpolated raw text,
+        // so when the value grammar doesn't account for the whole prelude,
+        // fall back to raw tokens instead of erroring.
+        Ok(Some(
+            match self.try_parse_full_prelude(|p| match p.syntax {
+                Syntax::Css => p.parse(),
+                Syntax::Scss | Syntax::Sass => p.parse_maybe_sass_list(/* allow_comma */ true),
+                Syntax::Less => p.parse_maybe_less_list(/* allow_comma */ true),
+            }) {
+                Ok(value) => UnknownAtRulePrelude::ComponentValue(value),
+                Err(_) => self.parse_raw_at_rule_prelude()?,
+            },
+        ))
     }
 }
