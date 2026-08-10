@@ -452,9 +452,9 @@ dependencies = [
 
 [[package]]
 name = "oxc_allocator"
-version = "0.143.0"
+version = "0.144.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c603f4ff4617fc04377aa7557396eaa17c77f82e64ffb22947731f75605951f"
+checksum = "9262c7bbd58c8c32c2c60d1a7b6c274cd2aeaff1b726a2fb86081b75084698cb"
 dependencies = [
  "allocator-api2",
  "hashbrown",
@@ -466,15 +466,15 @@ dependencies = [
 
 [[package]]
 name = "oxc_data_structures"
-version = "0.143.0"
+version = "0.144.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd2aa418d3599ef5e9880d1a359b27bffff242d4a59e0d62ffe08ebf40acdd99"
+checksum = "2a71efea56db93d3ce9e88e1d9f74f6d50fc2b06092444cdd08579f5827fd8db"
 
 [[package]]
 name = "oxc_estree"
-version = "0.143.0"
+version = "0.144.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2267dd438727a1afe72883eb7bf1533511ee713a5ace72cb59ea439f6bc74dca"
+checksum = "8275fcb9674a1c320f0bdbc2f534ba9bb09fcb8b1c9fe306c9595d262a06bfcb"
 dependencies = [
  "dragonbox_ecma",
  "itoa",
