@@ -34,11 +34,9 @@ fn first_function_args<'a>(ss: &'a Stylesheet<'static>) -> &'a [ComponentValue<'
 // `LessBinaryOperation`.
 #[test]
 fn less_comma_is_never_an_operand() {
-    for code in [
-        "a { p: func(20px, +20px); }",
-        "a { p: func(20px,+20px); }",
-        "a { p: func(20px,-20px); }",
-    ] {
+    for code in
+        ["a { p: func(20px, +20px); }", "a { p: func(20px,+20px); }", "a { p: func(20px,-20px); }"]
+    {
         let ss = parse(code, Syntax::Less);
         let [
             ComponentValue::Dimension(_),
@@ -58,8 +56,7 @@ fn less_comma_is_never_an_operand() {
 #[test]
 fn less_folded_plus_requires_glue() {
     let ss = parse("a { p: 10px +20px; }", Syntax::Less);
-    let [ComponentValue::Dimension(_), ComponentValue::Dimension(_)] =
-        first_declaration_value(&ss)
+    let [ComponentValue::Dimension(_), ComponentValue::Dimension(_)] = first_declaration_value(&ss)
     else {
         panic!("expected two values, got {:?}", first_declaration_value(&ss));
     };
