@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.12](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.11...oxc-css-parser-v0.0.12) - 2026-08-27
+
+### Fixed
+
+- *(parser)* correct signed-value handling in Less operations and Sass calculations ([#158](https://github.com/oxc-project/oxc-css-parser/pull/158))
+
 ## [0.0.11](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.10...oxc-css-parser-v0.0.11) - 2026-08-04
 
 ### Fixed
