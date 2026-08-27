@@ -96,6 +96,90 @@ impl<'a> Parser<'a> {
             self.parse_calc_expr_recursively(precedence + 1, allow_modulo)?
         };
 
+        // SassScript: a sign the lexer folded into a number/dimension token,
+        // glued to a function-call operand, is a binary operator (`max(map-get($m, a)-1, 0)` is `... - 1`).
+        // The same as the `parse_sass_bin_expr` value path.
+        // dart-sass rejects the glued form inside calculations outright,
+        // so structuring the operation keeps the intended subtraction instead of splitting off a signed value.
+        // Function-call lefts ONLY, deliberately:
+        // - word-glued runs (`100%-20px`, `10px+1px`) stay separate values and print verbatim as one postcss word
+        // - a parenthesized left can never glue-match anyway (its span ends before the `)`, see the `eat_l_paren` arm above)
+        // This can only fire right after `left` is parsed (a formed `Calc` is never a `Function`),
+        // so it lives before the operator loop.
+        if precedence == PRECEDENCE_PLUS
+            && matches!(self.syntax, Syntax::Scss | Syntax::Sass)
+            && matches!(left, ComponentValue::Function(..))
+        {
+            let left_end = left.span().end;
+            let split_op = |raw: &str, start: usize| CalcOperator {
+                kind: if raw.starts_with('+') {
+                    CalcOperatorKind::Plus
+                } else {
+                    CalcOperatorKind::Minus
+                },
+                span: Span { start, end: start + 1 },
+            };
+            match self.cursor.peek()? {
+                token @ TokenWithSpan { token: Token::Number(..), span }
+                    if token
+                        .number_raw(self.source)
+                        .is_some_and(|raw| raw.starts_with('+') || raw.starts_with('-'))
+                        && span.start == left_end =>
+                {
+                    let (number, number_span) = self.cursor.expect_number()?;
+                    let op = split_op(number.raw, number_span.start);
+                    let right = {
+                        let span = Span { start: number_span.start + 1, end: number_span.end };
+                        let raw = unsafe { number.raw.get_unchecked(1..number.raw.len()) };
+                        Number::try_from((crate::token::Number { raw }, span))
+                            .map(ComponentValue::Number)?
+                    };
+                    let right = self.parse_calc_mul_tail(right, allow_modulo)?;
+                    let span = Span { start: left.span().start, end: right.span().end };
+                    left = ComponentValue::Calc(Calc {
+                        left: self.alloc(left),
+                        op,
+                        right: self.alloc(right),
+                        span,
+                    });
+                }
+                token @ TokenWithSpan { token: Token::Dimension(..), span }
+                    if token
+                        .dimension_value_raw(self.source)
+                        .is_some_and(|raw| raw.starts_with('+') || raw.starts_with('-'))
+                        && span.start == left_end =>
+                {
+                    let (dimension, dimension_span) = self.cursor.expect_dimension()?;
+                    let op = split_op(dimension.value.raw, dimension_span.start);
+                    let right = self
+                        .dimension(
+                            crate::token::Dimension {
+                                value: crate::token::Number {
+                                    raw: unsafe {
+                                        dimension
+                                            .value
+                                            .raw
+                                            .get_unchecked(1..dimension.value.raw.len())
+                                    },
+                                },
+                                unit: dimension.unit,
+                            },
+                            Span { start: dimension_span.start + 1, end: dimension_span.end },
+                        )
+                        .map(ComponentValue::Dimension)?;
+                    let right = self.parse_calc_mul_tail(right, allow_modulo)?;
+                    let span = Span { start: left.span().start, end: right.span().end };
+                    left = ComponentValue::Calc(Calc {
+                        left: self.alloc(left),
+                        op,
+                        right: self.alloc(right),
+                        span,
+                    });
+                }
+                _ => {}
+            }
+        }
+
         loop {
             let operator = match &self.cursor.peek()?.token {
                 Token::Asterisk(..) if precedence == PRECEDENCE_MULTIPLY => CalcOperator {
@@ -132,6 +216,33 @@ impl<'a> Parser<'a> {
         }
 
         Ok(left)
+    }
+
+    // Multiplicative continuation for an already-parsed left operand:
+    // `*`, `/` (and `%` for the legacy `min`/`max`) bind tighter than a split-off sign,
+    // so `max(x()-1px*2)` is `x() - (1px * 2)`.
+    fn parse_calc_mul_tail(
+        &mut self,
+        mut left: ComponentValue<'a>,
+        allow_modulo: bool,
+    ) -> PResult<ComponentValue<'a>> {
+        loop {
+            let kind = match &self.cursor.peek()?.token {
+                Token::Asterisk(..) => CalcOperatorKind::Multiply,
+                Token::Solidus(..) => CalcOperatorKind::Division,
+                Token::Percent(..) if allow_modulo => CalcOperatorKind::Modulo,
+                _ => return Ok(left),
+            };
+            let op = CalcOperator { kind, span: self.cursor.bump()?.span };
+            let right = self.parse_calc_expr_recursively(PRECEDENCE_MULTIPLY + 1, allow_modulo)?;
+            let span = Span { start: left.span().start, end: right.span().end };
+            left = ComponentValue::Calc(Calc {
+                left: self.alloc(left),
+                op,
+                right: self.alloc(right),
+                span,
+            });
+        }
     }
 
     // A single CSS `<component-value>`: a function, a `[]`/`()` block, or a
