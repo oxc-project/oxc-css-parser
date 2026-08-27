@@ -416,6 +416,13 @@ impl<'a> Parser<'a> {
             self.parse_less_operation_recursively(allow_mixin_call, precedence + 1)?
         };
 
+        // delimiter can't be calculated (same guard as the SassScript path):
+        // `func(20px, +20px)` / `func(20px,-20px)` are two args in lessc,
+        // never a `,`-left operation
+        if matches!(left, ComponentValue::Delimiter(..)) {
+            return Ok(left);
+        }
+
         loop {
             let op = match self.cursor.peek()? {
                 TokenWithSpan { token: Token::Asterisk(..), .. }
@@ -472,12 +479,15 @@ impl<'a> Parser<'a> {
                         span: self.cursor.bump()?.span,
                     }
                 }
+                // A sign the lexer folded into a number/dimension token is a
+                // binary operator only when glued to the left operand, for `+` and `-` alike:
+                // lessc reads `10px+20px` as `30px` but `10px +20px` as the two-value list `10px 20px`.
                 token @ TokenWithSpan { token: Token::Number(..), span }
                     if precedence == PRECEDENCE_PLUS
-                        && token.number_raw(self.source).is_some_and(|raw| {
-                            raw.starts_with('+')
-                                || raw.starts_with('-') && span.start == left.span().end
-                        }) =>
+                        && token
+                            .number_raw(self.source)
+                            .is_some_and(|raw| raw.starts_with('+') || raw.starts_with('-'))
+                        && span.start == left.span().end =>
                 {
                     let (number, number_span) = self.cursor.expect_number()?;
                     let op = LessOperationOperator {
@@ -506,10 +516,10 @@ impl<'a> Parser<'a> {
                 }
                 token @ TokenWithSpan { token: Token::Dimension(..), span }
                     if precedence == PRECEDENCE_PLUS
-                        && token.dimension_value_raw(self.source).is_some_and(|raw| {
-                            raw.starts_with('+')
-                                || raw.starts_with('-') && span.start == left.span().end
-                        }) =>
+                        && token
+                            .dimension_value_raw(self.source)
+                            .is_some_and(|raw| raw.starts_with('+') || raw.starts_with('-'))
+                        && span.start == left.span().end =>
                 {
                     let (dimension, dimension_span) = self.cursor.expect_dimension()?;
                     let op = LessOperationOperator {
