@@ -8,6 +8,27 @@ use crate::{
     util,
 };
 
+/// The `<ndashdigit-dimension>` / `<ndashdigit-ident>` tail:
+/// `<prefix><digits>` with the prefix matched ASCII case-insensitively
+/// (`2N-1` == `2n-1`; An+B is case-insensitive like all CSS keywords,
+/// matching the sibling `eq_ignore_ascii_case` branches).
+/// `None` = not this form;
+/// `Some` carries the negated `b`, with the digit errors pointed at `digits_span`.
+fn parse_ndashdigit_b(name: &str, prefix: &str, digits_span: Span) -> Option<PResult<i32>> {
+    let (head, digits) = name.split_at_checked(prefix.len())?;
+    if !head.eq_ignore_ascii_case(prefix) {
+        return None;
+    }
+    Some(if digits.bytes().any(|b| !b.is_ascii_digit()) {
+        Err(Error { kind: ErrorKind::ExpectUnsignedInteger, span: digits_span })
+    } else {
+        digits
+            .parse::<i32>()
+            .map(|b| -b)
+            .map_err(|_| Error { kind: ErrorKind::ExpectInteger, span: digits_span })
+    })
+}
+
 // https://www.w3.org/TR/css-syntax-3/#the-anb-type
 //
 // <an+b> = odd | even | <integer>
@@ -77,22 +98,16 @@ impl<'a> Parse<'a> for AnPlusB {
                             .map_err(|kind| Error { kind, span: number_span })?,
                         span,
                     })
-                } else if let Some(digits) = unit_name.strip_prefix("n-") {
+                } else if let Some(b) = parse_ndashdigit_b(
+                    &unit_name,
+                    "n-",
+                    Span { start: span.start + value.raw.len() + 2, end: span.end },
+                ) {
                     // syntax: <ndashdigit-dimension>
                     // examples: '1n-1'
-                    if digits.chars().any(|c| !c.is_ascii_digit()) {
-                        return Err(Error {
-                            kind: ErrorKind::ExpectUnsignedInteger,
-                            span: Span { start: span.start + value.raw.len() + 2, end: span.end },
-                        });
-                    }
-                    let b = digits.parse::<i32>().map_err(|_| Error {
-                        kind: ErrorKind::ExpectInteger,
-                        span: Span { start: span.start + value.raw.len() + 2, end: span.end },
-                    })?;
                     Ok(AnPlusB {
                         a: value.try_into().map_err(|kind| Error { kind, span: value_span })?,
-                        b: -b,
+                        b: b?,
                         span,
                     })
                 } else {
@@ -155,22 +170,16 @@ impl<'a> Parse<'a> for AnPlusB {
                             .map_err(|kind| Error { kind, span: number_span })?,
                         span,
                     })
-                } else if let Some(digits) = ident_name.strip_prefix("n-") {
+                } else if let Some(b) = parse_ndashdigit_b(
+                    &ident_name,
+                    "n-",
+                    Span { start: ident_span.start + 2, end: ident_span.end },
+                ) {
                     // syntax: +<ndashdigit-ident>
                     // examples: '+n-1'
-                    if digits.chars().any(|c| !c.is_ascii_digit()) {
-                        return Err(Error {
-                            kind: ErrorKind::ExpectUnsignedInteger,
-                            span: Span { start: ident_span.start + 2, end: ident_span.end },
-                        });
-                    }
-                    let b = digits.parse::<i32>().map_err(|_| Error {
-                        kind: ErrorKind::ExpectInteger,
-                        span: Span { start: ident_span.start + 2, end: ident_span.end },
-                    })?;
                     Ok(AnPlusB {
                         a: 1,
-                        b: -b,
+                        b: b?,
                         span: Span { start: plus_span.start, end: ident_span.end },
                     })
                 } else {
@@ -230,20 +239,14 @@ impl<'a> Parse<'a> for AnPlusB {
                             .map_err(|kind| Error { kind, span: number_span })?,
                         span,
                     })
-                } else if let Some(digits) = ident_name.strip_prefix("n-") {
+                } else if let Some(b) = parse_ndashdigit_b(
+                    &ident_name,
+                    "n-",
+                    Span { start: ident_span.start + 2, end: ident_span.end },
+                ) {
                     // syntax: <ndashdigit-ident>
                     // examples: 'n-1'
-                    if digits.chars().any(|c| !c.is_ascii_digit()) {
-                        return Err(Error {
-                            kind: ErrorKind::ExpectUnsignedInteger,
-                            span: Span { start: ident_span.start + 2, end: ident_span.end },
-                        });
-                    }
-                    let b = digits.parse::<i32>().map_err(|_| Error {
-                        kind: ErrorKind::ExpectInteger,
-                        span: Span { start: ident_span.start + 2, end: ident_span.end },
-                    })?;
-                    Ok(AnPlusB { a: 1, b: -b, span: ident_span })
+                    Ok(AnPlusB { a: 1, b: b?, span: ident_span })
                 } else if ident_name.eq_ignore_ascii_case("-n") {
                     match &input.cursor.peek()?.token {
                         // syntax: -n ['+' | '-'] <signless-integer>
@@ -290,20 +293,14 @@ impl<'a> Parse<'a> for AnPlusB {
                             .map_err(|kind| Error { kind, span: number_span })?,
                         span,
                     })
-                } else if let Some(digits) = ident_name.strip_prefix("-n-") {
+                } else if let Some(b) = parse_ndashdigit_b(
+                    &ident_name,
+                    "-n-",
+                    Span { start: ident_span.start + 3, end: ident_span.end },
+                ) {
                     // syntax: -n-<ndashdigit-ident>
                     // examples: '-n-1'
-                    if digits.chars().any(|c| !c.is_ascii_digit()) {
-                        return Err(Error {
-                            kind: ErrorKind::ExpectUnsignedInteger,
-                            span: Span { start: ident_span.start + 3, end: ident_span.end },
-                        });
-                    }
-                    let b = digits.parse::<i32>().map_err(|_| Error {
-                        kind: ErrorKind::ExpectInteger,
-                        span: Span { start: ident_span.start + 3, end: ident_span.end },
-                    })?;
-                    Ok(AnPlusB { a: -1, b: -b, span: ident_span })
+                    Ok(AnPlusB { a: -1, b: b?, span: ident_span })
                 } else {
                     Err(Error { kind: ErrorKind::InvalidAnPlusB, span: ident_span })
                 }
@@ -1495,5 +1492,30 @@ fn expect_unsigned_int<'a>(input: &mut Parser<'a>) -> PResult<(token::Number<'a>
         Err(Error { kind: ErrorKind::ExpectUnsignedInteger, span })
     } else {
         Ok((number, span))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Allocator, Parser, Syntax, ast::AnPlusB};
+
+    /// The dash-digit An+B forms compute the same `a`/`b` regardless of case;
+    /// the ast fixtures only pin acceptance, so pin the values here.
+    #[test]
+    fn an_plus_b_dash_digit_case_insensitive() {
+        for (source, a, b) in [
+            ("2n-1", 2, -1),
+            ("2N-1", 2, -1),
+            ("n-1", 1, -1),
+            ("N-1", 1, -1),
+            ("+n-1", 1, -1),
+            ("+N-1", 1, -1),
+            ("-n-1", -1, -1),
+            ("-N-1", -1, -1),
+        ] {
+            let allocator = Allocator::default();
+            let nth = Parser::new(&allocator, source, Syntax::Css).parse::<AnPlusB>().unwrap();
+            assert_eq!((nth.a, nth.b), (a, b), "{source}");
+        }
     }
 }
