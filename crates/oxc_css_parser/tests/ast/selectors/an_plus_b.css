@@ -196,3 +196,9 @@
 
 :nth-child(/*test*/2n/*test*/+/*test*/1/*test*/) {}
 :nth-last-child(/*test*/+3n/*test*/-/*test*/2/*test*/) {}
+
+/* An+B is ASCII case-insensitive, including the dash-digit forms */
+:nth-child(2N-1) {}
+:nth-child(N-1) {}
+:nth-child(+N-1) {}
+:nth-child(-N-1) {}

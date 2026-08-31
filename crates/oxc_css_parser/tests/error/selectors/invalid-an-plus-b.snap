@@ -1,0 +1,8 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: invalid An+B syntax
+  ┌─ invalid-an-plus-b.css:1:12
+  │
+1 │ :nth-child(2q-1) {}
+  │            ^^^^
