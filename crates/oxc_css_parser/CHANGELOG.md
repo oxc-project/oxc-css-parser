@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.13](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.12...oxc-css-parser-v0.0.13) - 2026-08-31
+
+### Added
+
+- *(parser)* accept declaration-shaped raw-prelude qualified rules in CSS ([#162](https://github.com/oxc-project/oxc-css-parser/pull/162))
+
+### Fixed
+
+- *(parser)* accept case-insensitive dash-digit An+B forms (2N-1) ([#161](https://github.com/oxc-project/oxc-css-parser/pull/161))
+
 ## [0.0.12](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.11...oxc-css-parser-v0.0.12) - 2026-08-27
 
 ### Fixed
