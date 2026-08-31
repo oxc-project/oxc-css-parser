@@ -1,0 +1,55 @@
+/* Declaration-shaped qualified rules (CSS Syntax §5.5.5 re-consume):
+   rejected as declarations (top-level `{}` in the value), kept as raw-prelude
+   rules like postcss does. */
+
+/* postcss-nested-style dialect config block (oxc-project/oxc#26158) */
+@font {
+  sans: "Sans" {
+    weight: 100 900;
+  }
+}
+
+@animate {
+  wiggle: wiggle 1s ease-in-out infinite {
+    from { transform: rotate(-3deg); }
+  }
+}
+
+/* inside a style rule, mixed with plain declarations */
+a {
+  x: y {
+    b: c;
+  }
+  color: red;
+}
+
+/* comma and multiline prelude stay raw */
+a {
+  x: y,
+  z {
+    b: c;
+  }
+}
+
+/* top level */
+top: level {
+  b: c;
+}
+
+/* inside @keyframes */
+@keyframes k {
+  x: y "s" {
+    a: b;
+  }
+}
+
+/* glued colon / no whitespace */
+b {
+  sans:"Sans"{c: d;}
+}
+
+/* was tests/error/selectors/missing-an-plus-b.css: the `ident:` head + block
+   makes it a raw-prelude rule via the §5.5.5 re-consume */
+a:nth-child() {
+  color: yellowgreen;
+}

@@ -50,6 +50,46 @@ impl<'a> Parser<'a> {
         Ok(TokenSeq { tokens, span })
     }
 
+    /// A raw statement prelude:
+    /// everything up to the body's `{` (or the end of the statement),
+    /// balancing pairs so interpolations and parens pass through.
+    /// Stops (without consuming) at a top-level `{`,
+    /// a statement boundary (`;`, EOF, indentation), or an unmatched closer;
+    /// the caller decides whether the stop token is acceptable.
+    pub(super) fn parse_raw_prelude_tokens(&mut self) -> PResult<TokenSeq<'a>> {
+        let start = self.cursor.tokenizer.current_offset();
+        let mut tokens = self.vec_with_capacity(4);
+        let mut pairs: Vec<crate::util::PairedToken> = Vec::with_capacity(1);
+        loop {
+            match &self.cursor.peek()?.token {
+                Token::Semicolon(..)
+                | Token::Dedent(..)
+                | Token::Linebreak(..)
+                | Token::Indent(..)
+                | Token::Eof(..) => break,
+                Token::LBrace(..) if pairs.is_empty() => break,
+                // Interpolated strings must be consumed structurally
+                // (the tokenizer resumes the string after each `#{...}`),
+                // but their pieces are still plain tokens.
+                Token::StrTemplate(..) => {
+                    self.consume_str_template_tokens_into(&mut tokens)?;
+                    continue;
+                }
+                token => {
+                    if !crate::util::track_paired_token(token, &mut pairs) {
+                        break;
+                    }
+                }
+            }
+            tokens.push(self.cursor.bump()?);
+        }
+        let span = Span {
+            start: tokens.first().map_or(start, |token| token.span.start),
+            end: tokens.last().map_or(start, |token| token.span.end),
+        };
+        Ok(TokenSeq { tokens, span })
+    }
+
     /// Consume a whole interpolated string (`"a#{expr}b"`) into `tokens` as
     /// its raw pieces. The tokenizer must be driven part-by-part — after each
     /// `#{...}` it resumes the string with `scan_string_template` — but every

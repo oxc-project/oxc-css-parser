@@ -152,16 +152,19 @@ impl<'a> Parse<'a> for Declaration<'a> {
                     });
                     match typed {
                         Ok(value_and_important) => value_and_important,
-                        Err(error) => {
-                            // A CSS custom function body holds declarations
-                            // only, so a top-level `{}` there is part of the
-                            // value; elsewhere it means this construct is
-                            // really a qualified rule (CSS Nesting
-                            // disambiguation) and the declaration is rejected.
+                        Err(_) => {
+                            // A CSS custom function body holds declarations only,
+                            // so a top-level `{}` there is part of the value;
+                            // elsewhere it means this construct is really a qualified rule
+                            // (CSS Nesting disambiguation) and the declaration is rejected.
                             let in_fn_body = parser.state.in_css_function_body;
                             let values = parser.parse_declaration_value_tokens(!in_fn_body)?;
-                            if !in_fn_body && let Token::LBrace(..) = &parser.cursor.peek()?.token {
-                                return Err(error);
+                            let next = parser.cursor.peek()?;
+                            if !in_fn_body && let Token::LBrace(..) = next.token {
+                                return Err(Error {
+                                    kind: ErrorKind::BlockInDeclarationValue,
+                                    span: next.span,
+                                });
                             }
                             (values, None)
                         }
@@ -267,6 +270,28 @@ impl<'a> Parse<'a> for QualifiedRule<'a> {
         let block = input.parse::<SimpleBlock>()?;
         let span = Span { start: selector_list.span.start, end: block.span.end };
         Ok(QualifiedRule { selector: selector_list, block, span })
+    }
+}
+
+// https://drafts.csswg.org/css-syntax-3/#consume-block-contents
+//
+// <unknown-qualified-rule> = <ident-token> ':' <any-value> <{}-block>
+//
+// The §5.5.5 re-consume of a statement rejected as a declaration by §5.5.6
+// (`BlockInDeclarationValue`): the prelude matches no selector grammar,
+// so it is kept as raw tokens.
+// postcss keeps such rules too
+// (postcss-nested-style dialects use the shape for nested config blocks),
+// and Prettier prints the prelude verbatim.
+impl<'a> Parse<'a> for UnknownQualifiedRule<'a> {
+    fn parse(input: &mut Parser<'a>) -> PResult<Self> {
+        debug_assert!(input.syntax == Syntax::Css);
+        let prelude = input.parse_raw_prelude_tokens()?;
+        // The scan also stops at `;` / statement boundaries;
+        // `SimpleBlock`'s `expect_l_brace` rejects those, so only a block opener makes this shape.
+        let block = input.parse::<SimpleBlock>()?;
+        let span = Span { start: prelude.span.start, end: block.span.end };
+        Ok(UnknownQualifiedRule { prelude, block, span })
     }
 }
 
@@ -475,9 +500,43 @@ impl<'a> Parser<'a> {
         if let Ok(block) = self.try_parse(KeyframeBlock::parse) {
             Ok((Statement::KeyframeBlock(block), true))
         } else {
-            let decl = self.parse_style_rule_declaration()?;
-            Ok((Statement::Declaration(decl), false))
+            match self.parse_statement_declaration() {
+                Ok(decl) => Ok((Statement::Declaration(decl), false)),
+                Err(error_decl) => {
+                    // postcss accepts the declaration-shaped rule inside `@keyframes` too
+                    if let Some(rule) = self.try_declaration_shaped_rule(&error_decl) {
+                        return Ok((Statement::UnknownQualifiedRule(rule), true));
+                    }
+                    Err(error_decl)
+                }
+            }
         }
+    }
+
+    /// A declaration in statement position.
+    /// CSS snapshots the statement start so `try_declaration_shaped_rule` can re-consume it;
+    /// dialects have no fallback, and an unrecovered Err aborts the parse, so no snapshot.
+    fn parse_statement_declaration(&mut self) -> PResult<Declaration<'a>> {
+        if self.syntax == Syntax::Css {
+            self.try_parse(Parser::parse_style_rule_declaration)
+        } else {
+            self.parse_style_rule_declaration()
+        }
+    }
+
+    /// The §5.5.5 re-consume (see `UnknownQualifiedRule`), CSS only: dialects
+    /// keep their reference compilers' strictness (Scss types the shape as
+    /// nested properties; less.js rejects it).
+    fn try_declaration_shaped_rule(
+        &mut self,
+        error_decl: &Error,
+    ) -> Option<UnknownQualifiedRule<'a>> {
+        if !matches!(error_decl.kind, ErrorKind::BlockInDeclarationValue)
+            || self.syntax != Syntax::Css
+        {
+            return None;
+        }
+        self.try_parse(UnknownQualifiedRule::parse).ok()
     }
 
     /// The CSS Nesting `<style-block>` ambiguity: parse a qualified rule, falling
@@ -489,7 +548,7 @@ impl<'a> Parser<'a> {
     fn parse_rule_or_declaration(&mut self, is_top_level: bool) -> PResult<(Statement<'a>, bool)> {
         match self.try_parse(QualifiedRule::parse) {
             Ok(rule) => Ok((Statement::QualifiedRule(rule), true)),
-            Err(error_rule) => match self.parse_style_rule_declaration() {
+            Err(error_rule) => match self.parse_statement_declaration() {
                 Ok(decl) => {
                     // Only Scss/Sass produce `SassNestingDeclaration`; in CSS this is
                     // always `false`, matching the previous per-syntax behavior.
@@ -503,7 +562,12 @@ impl<'a> Parser<'a> {
                     }
                     Ok((Statement::Declaration(decl), is_block_element))
                 }
-                Err(error_decl) => Err(if is_top_level { error_rule } else { error_decl }),
+                Err(error_decl) => {
+                    if let Some(rule) = self.try_declaration_shaped_rule(&error_decl) {
+                        return Ok((Statement::UnknownQualifiedRule(rule), true));
+                    }
+                    Err(if is_top_level { error_rule } else { error_decl })
+                }
             },
         }
     }

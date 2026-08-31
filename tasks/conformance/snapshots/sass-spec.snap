@@ -1,7 +1,7 @@
 suite: sass-spec
 sha: a2ead9225786d49e91f5cc36755b7713596a2338
-files: 26787   success: 26484   failed: 11   expected: 292
-clean: 26484  recovered: 9  hard_error: 2  panic: 0
+files: 26787   success: 26486   failed: 11   expected: 290
+clean: 26486  recovered: 9  hard_error: 2  panic: 0
 
 failures:
 RECOVER  spec/core_functions/string/unquote.hrx::meaningful_css_characters/output.css    unclosed block before end of file
@@ -51,8 +51,8 @@ ERROR    spec/css/media/logic/error.hrx::or_after/type_then_and/input.scss    ex
 ERROR    spec/css/media/whitespace.hrx::error/logic_sequence/after_operator/sass/input.sass    expect one of `<ident>` or `#{`, but found `(`
 ERROR    spec/css/media/whitespace.hrx::error/logic_sequence/before_operator/sass/input.sass    CSS rule is expected
 ERROR    spec/css/moz_document/whitespace.hrx::error/before_arg/sass/input.sass    expect token `<ident>`, but found `<indent>`
-ERROR    spec/css/plain/error/expression/interpolation.hrx::identifier/plain.css    component value is expected
-ERROR    spec/css/plain/error/expression/interpolation.hrx::standalone/plain.css    component value is expected
+ERROR    spec/css/plain/error/expression/interpolation.hrx::identifier/plain.css    a top-level `{}` block is disallowed in a declaration value
+ERROR    spec/css/plain/error/expression/interpolation.hrx::standalone/plain.css    a top-level `{}` block is disallowed in a declaration value
 ERROR    spec/css/plain/error/expression/variable.hrx::declaration/plain.css    CSS rule is expected
 ERROR    spec/css/plain/error/media.hrx::logic/and_after/or/plain.css    expect token `{`, but found `<ident>`
 ERROR    spec/css/plain/error/media.hrx::logic/and_after/type_and_not/plain.css    expect token `{`, but found `<ident>`
@@ -69,8 +69,6 @@ ERROR    spec/css/plain/error/statement/at_rule.hrx::interpolation/plain.css    
 ERROR    spec/css/plain/error/statement/silent_comment.hrx::plain.css    CSS rule is expected
 ERROR    spec/css/plain/error/statement/style_rule.hrx::interpolation/declaration/plain.css    expect token `:`, but found `#`
 ERROR    spec/css/plain/error/statement/style_rule.hrx::interpolation/selector/plain.css    expect token `<ident>`, but found `{`
-ERROR    spec/css/plain/error/statement/style_rule.hrx::nested_property/no_value/plain.css    component value is expected
-ERROR    spec/css/plain/error/statement/style_rule.hrx::nested_property/value/plain.css    component value is expected
 ERROR    spec/css/plain/import/whitespace.hrx::error/after_import/sass/input.sass    expect token `<string>`, but found `<linebreak>`
 ERROR    spec/css/plain/import/whitespace.hrx::error/after_import_indented/sass/input.sass    expect token `<string>`, but found `<indent>`
 ERROR    spec/css/propset.hrx::error/value_after_propset/input.scss    expect token `:`, but found `}`

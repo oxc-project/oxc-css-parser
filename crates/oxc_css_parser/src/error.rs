@@ -90,6 +90,10 @@ pub enum ErrorKind {
     UnexpectedLessMixinCall,
     UnexpectedSimpleBlock,
     TopLevelDeclaration,
+    /// CSS Syntax §5.5.6: a declaration value hit a top-level `{}` block,
+    /// so the statement is not a declaration;
+    /// the dispatcher re-consumes it as an `UnknownQualifiedRule`.
+    BlockInDeclarationValue,
 
     // Spec parse errors that CSS Syntax recovers from at EOF / newline. The AST
     // and recovery stay conformant; these are recorded in `recoverable_errors()`
@@ -219,6 +223,9 @@ impl Display for ErrorKind {
             Self::UnexpectedLessMixinCall => write!(f, "Less mixin call is disallowed"),
             Self::UnexpectedSimpleBlock => write!(f, "simple block is disallowed"),
             Self::TopLevelDeclaration => write!(f, "declaration at top level is disallowed"),
+            Self::BlockInDeclarationValue => {
+                write!(f, "a top-level `{{}}` block is disallowed in a declaration value")
+            }
 
             Self::EofInBlock => write!(f, "unclosed block before end of file"),
             Self::BadString => write!(f, "unterminated string before line break"),

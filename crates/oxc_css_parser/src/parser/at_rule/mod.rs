@@ -610,42 +610,12 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// A raw at-rule prelude: everything up to the body's `{` (or the end of
-    /// the statement), balancing pairs so interpolations and parens pass
-    /// through — CSS custom function preludes (`--name(--arg) returns <type>`)
+    /// A raw at-rule prelude:
+    /// CSS custom function preludes (`--name(--arg) returns <type>`)
     /// and media queries the typed grammar can't express.
+    /// See `parse_raw_prelude_tokens` for the scan.
     fn parse_raw_at_rule_prelude(&mut self) -> PResult<UnknownAtRulePrelude<'a>> {
-        let start = self.cursor.tokenizer.current_offset();
-        let mut tokens = self.vec();
-        let mut pairs: Vec<crate::util::PairedToken> = Vec::new();
-        loop {
-            match &self.cursor.peek()?.token {
-                Token::Semicolon(..)
-                | Token::Dedent(..)
-                | Token::Linebreak(..)
-                | Token::Indent(..)
-                | Token::Eof(..) => break,
-                Token::LBrace(..) if pairs.is_empty() => break,
-                // Interpolated strings must be consumed structurally — the
-                // tokenizer resumes the string after each `#{...}` — but
-                // their pieces are still plain tokens.
-                Token::StrTemplate(..) => {
-                    self.consume_str_template_tokens_into(&mut tokens)?;
-                    continue;
-                }
-                token => {
-                    if !crate::util::track_paired_token(token, &mut pairs) {
-                        break;
-                    }
-                }
-            }
-            tokens.push(self.cursor.bump()?);
-        }
-        let span = Span {
-            start: tokens.first().map_or(start, |token| token.span.start),
-            end: tokens.last().map_or(start, |token| token.span.end),
-        };
-        Ok(UnknownAtRulePrelude::TokenSeq(TokenSeq { tokens, span }))
+        Ok(UnknownAtRulePrelude::TokenSeq(self.parse_raw_prelude_tokens()?))
     }
 
     // The generic `<at-rule>` for a name with no typed grammar: an arbitrary

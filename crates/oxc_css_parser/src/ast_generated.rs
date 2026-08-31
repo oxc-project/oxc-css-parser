@@ -1782,6 +1782,7 @@ impl<'a> Statement<'a> {
             Self::QualifiedRule(value) => value.span(),
             Self::SassIfAtRule(value) => value.span(),
             Self::SassVariableDeclaration(value) => value.span(),
+            Self::UnknownQualifiedRule(value) => value.span(),
             Self::UnknownSassAtRule(value) => value.span(),
         }
     }
@@ -1982,6 +1983,13 @@ impl<'a> UnknownAtRulePrelude<'a> {
             Self::ComponentValue(value) => value.span(),
             Self::TokenSeq(value) => value.span(),
         }
+    }
+}
+
+impl<'a> UnknownQualifiedRule<'a> {
+    #[inline]
+    pub fn span(&self) -> &Span {
+        &self.span
     }
 }
 
