@@ -2356,6 +2356,7 @@ pub enum Statement<'a> {
     QualifiedRule(QualifiedRule<'a>),
     SassIfAtRule(Box<'a, SassIfAtRule<'a>>),
     SassVariableDeclaration(Box<'a, SassVariableDeclaration<'a>>),
+    UnknownQualifiedRule(UnknownQualifiedRule<'a>),
     UnknownSassAtRule(Box<'a, UnknownSassAtRule<'a>>),
 }
 
@@ -2573,6 +2574,18 @@ pub struct UniversalSelector<'a> {
 pub enum UnknownAtRulePrelude<'a> {
     ComponentValue(ComponentValue<'a>),
     TokenSeq(TokenSeq<'a>),
+}
+
+/// A qualified rule whose prelude is declaration-shaped (`sans: "Sans" { ... }`)
+/// and kept as raw tokens: rejected as a declaration (CSS Syntax §5.5.6),
+/// re-consumed as a qualified rule (§5.5.5), like postcss (nested-config dialects rely on the shape).
+#[derive(Debug)]
+#[cfg_attr(feature = "serialize", derive(Serialize))]
+#[cfg_attr(feature = "serialize", serde(tag = "type", rename_all = "camelCase"))]
+pub struct UnknownQualifiedRule<'a> {
+    pub span: Span,
+    pub prelude: TokenSeq<'a>,
+    pub block: SimpleBlock<'a>,
 }
 
 #[derive(Debug)]
