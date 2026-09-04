@@ -10,10 +10,11 @@ pub(super) struct ParserState {
     pub(super) sass_ctx: u8,
     pub(super) less_ctx: u8,
     pub(super) in_keyframes_at_rule: bool,
-    /// Enabled only while parsing a declaration that is a statement in a style-rule
-    /// block, so the IE `*color` hack does not leak into feature queries
-    /// (`@supports`, `@container style()`, `@import supports()`).
-    pub(super) allow_ie_star_hack: bool,
+    /// Parsing a declaration that is a statement (style-rule block or stylesheet root),
+    /// not a feature query (`@supports`, `@container style()`, `@import supports()`).
+    /// Only statements take postcss property names, the IE `*color` hack and
+    /// Less's digit-only names; only feature queries end a value at `)`.
+    pub(super) in_statement: bool,
     /// Inside the body of a CSS custom function (`@function --name(...)`,
     /// css-mixins spec). The body holds declarations only — no style rules —
     /// so a top-level `{}` block in a declaration value is unambiguous there

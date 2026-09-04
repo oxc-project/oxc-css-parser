@@ -1,0 +1,7 @@
+/* An interpolated `progid:` path falls back to raw tokens; the interpolation's
+   `}` must not close the rule. */
+a {
+  filter: progid:DXImageTransform.Microsoft.#{$f}(opacity=20);
+  filter: progid:#{$ns}.Alpha(opacity=20);
+  color: red;
+}

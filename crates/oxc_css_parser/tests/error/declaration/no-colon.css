@@ -1,0 +1,2 @@
+/* postcss: "Unknown word"; the spec drops the declaration. Both reject. */
+a { color red; }
