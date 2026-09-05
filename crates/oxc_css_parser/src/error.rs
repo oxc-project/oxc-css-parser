@@ -89,6 +89,8 @@ pub enum ErrorKind {
     LessGuardOnMultipleComplexSelectors,
     UnexpectedLessMixinCall,
     UnexpectedSimpleBlock,
+    /// A Css / Scss root declaration outside the css-in-js parse mode
+    /// (README "Acceptance"). Not emitted in Less.
     TopLevelDeclaration,
     /// CSS Syntax §5.5.6: a declaration value hit a top-level `{}` block,
     /// so the statement is not a declaration;

@@ -1,2 +1,9 @@
+/* A root declaration parses but is not a statement outside the css-in-js parse
+   mode (README "Acceptance"). See tests/placeholder.rs. */
+color: red;
 color : red;
-display    :inline
+display    :inline;
+height: 1px;
+height: 1234;
+color: #abc;
+height: 1px\65;

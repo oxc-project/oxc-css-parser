@@ -62,12 +62,10 @@ impl<'a> Parser<'a> {
         let mut pairs: Vec<crate::util::PairedToken> = Vec::with_capacity(1);
         loop {
             match &self.cursor.peek()?.token {
-                Token::Semicolon(..)
-                | Token::Dedent(..)
-                | Token::Linebreak(..)
-                | Token::Indent(..)
-                | Token::Eof(..) => break,
-                Token::LBrace(..) if pairs.is_empty() => break,
+                Token::Semicolon(..) | Token::LBrace(..) if pairs.is_empty() => break,
+                Token::Dedent(..) | Token::Linebreak(..) | Token::Indent(..) | Token::Eof(..) => {
+                    break;
+                }
                 // Interpolated strings must be consumed structurally
                 // (the tokenizer resumes the string after each `#{...}`),
                 // but their pieces are still plain tokens.

@@ -15,19 +15,25 @@ use crate::{
 // <declaration> = <ident-token> : <declaration-value>? [ '!' important ]?
 impl<'a> Parse<'a> for Declaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        // Legacy IE hacks glued to the property name: `*color: red` targets
-        // IE<=7; dart-sass's plain-CSS parser additionally accepts `:x`, `.x`
-        // and `#x` prefixes. Keep them as a property-name prefix — but only
-        // when glued: `* color` (whitespace or a comment after the sigil) is
-        // not the hack, so leave the token for the normal (failing) parse.
-        let mut name_prefix = if input.state.allow_ie_star_hack
-            && let TokenWithSpan { token, span } = input.cursor.peek()?
-            && let Some(prefix) = match token {
-                Token::Asterisk(..) => Some('*'),
-                Token::Dot(..) if input.syntax == Syntax::Css => Some('.'),
-                Token::Colon(..) if input.syntax == Syntax::Css => Some(':'),
-                _ => None,
-            }
+        // Css: a postcss property name (README "Acceptance").
+        // Statement position only: a feature query keeps the `<ident-token>`
+        // grammar, and one the typed grammar rejects (`@supports (*zoom: 1)`)
+        // is kept anyway by the `<general-enclosed>` raw fallback.
+        let postcss_name = if input.syntax == Syntax::Css
+            && input.state.in_statement
+            && !input.at_plain_ident_property_name()?
+        {
+            input.try_parse(Parser::parse_postcss_property_name).ok()
+        } else {
+            None
+        };
+        // Scss / Less: the IE `*color` hack (dart-sass and less.js accept it),
+        // kept as a property-name prefix, but only when glued: `* color`
+        // (whitespace or a comment after the sigil) is not the hack, so leave
+        // the token for the normal (failing) parse.
+        let name_prefix_start = if input.syntax != Syntax::Css
+            && input.state.in_statement
+            && let TokenWithSpan { token: Token::Asterisk(..), span } = input.cursor.peek()?
             && input
                 .source
                 .as_bytes()
@@ -36,16 +42,18 @@ impl<'a> Parse<'a> for Declaration<'a> {
         {
             let start = span.start;
             input.cursor.bump()?;
-            Some((start, prefix))
+            Some(start)
         } else {
             None
         };
         // A css-in-js `${}` placeholder may stand in for the property name
         // (`${foo}: ${bar}`); it is not a real ident, so accept it directly.
-        let name = if let Token::Placeholder(..) = input.cursor.peek()?.token {
+        let name = if let Some(name) = postcss_name {
+            name
+        } else if let Token::Placeholder(..) = input.cursor.peek()?.token {
             let (placeholder, span) = input.cursor.expect_placeholder()?;
             InterpolableIdent::Placeholder((placeholder, span).into())
-        } else if input.state.allow_ie_star_hack
+        } else if input.state.in_statement
             && input.syntax == Syntax::Less
             && let token = input.cursor.peek()?
             && let Some(raw) = token.number_raw(input.source)
@@ -54,28 +62,6 @@ impl<'a> Parse<'a> for Declaration<'a> {
             let span = token.span;
             input.cursor.bump()?;
             InterpolableIdent::Literal(Ident { name: raw, raw, span })
-        } else if name_prefix.is_none()
-            && input.state.allow_ie_star_hack
-            && input.syntax == Syntax::Css
-            && matches!(input.cursor.peek()?.token, Token::Hash(..))
-        {
-            // `#x: y` — the `#` and the name arrive as one <hash-token>.
-            let token @ TokenWithSpan { token: Token::Hash(..), span } = input.cursor.bump()?
-            else {
-                unreachable!()
-            };
-            let hash = token.hash(input.source).unwrap();
-            name_prefix = Some((span.start, '#'));
-            let name = if hash.escaped {
-                crate::util::handle_escape_in(hash.raw, input.allocator)
-            } else {
-                hash.raw
-            };
-            InterpolableIdent::Literal(Ident {
-                name,
-                raw: hash.raw,
-                span: Span { start: span.start + 1, end: span.end },
-            })
         } else {
             input
                 .with_state(ParserState {
@@ -96,84 +82,62 @@ impl<'a> Parse<'a> for Declaration<'a> {
             None
         };
 
-        // Less property merge (`prop+: v`, `prop+_: v`) — also accepted for
-        // plain CSS since Less serializes the flag into its output.
-        let less_property_merge =
-            if matches!(input.syntax, Syntax::Less | Syntax::Css) { input.parse()? } else { None };
+        // Less property merge (`prop+: v`, `prop+_: v`). In Css the `+` is
+        // part of the postcss property name above.
+        let less_property_merge = if input.syntax == Syntax::Less { input.parse()? } else { None };
 
         let (_, colon_span) = input.cursor.expect_colon()?;
-        let (mut value, mut important) = {
+        let is_custom_property = name.is_custom_property();
+        let (mut value, mut important, value_is_raw) = {
             let mut parser = input.with_state(ParserState {
                 qualified_rule_ctx: Some(QualifiedRuleContext::DeclarationValue),
                 ..input.state
             });
             // For IE-compatibility, regardless of the property name (`filter`,
             // `-ms-filter`, vendor variants...): `filter: progid:...`.
+            // Not peeked for a custom property: its text rescan below must
+            // start from the colon with nothing cached.
             let source = parser.source;
-            let starts_with_progid =
-                parser.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(source, "progid");
-            match &name {
-                InterpolableIdent::Literal(ident)
-                    if ident.name.starts_with("--") || starts_with_progid =>
-                'value: {
-                    if parser.options.try_parsing_value_in_custom_property
-                        && let Ok(values) = parser.try_parse(Parser::parse_declaration_value)
-                    {
-                        break 'value (values, None);
-                    }
-                    (parser.parse_declaration_value_tokens(false)?, None)
-                }
-                // In CSS, a declaration value is any sequence of component
-                // values (CSS Syntax §5): serialized selectors (`b: .c > d`),
-                // map-like blocks (`b: (3: 4)`), or stray delimiters are all
-                // valid preserved tokens even though the typed grammar has no
-                // node for them. Try the typed grammar first; if it fails, or
-                // succeeds without accounting for everything up to the
-                // declaration terminator, re-parse the whole value as raw
-                // tokens. Scss/Sass/Less keep the strict grammar: their
-                // dialects assign meaning to these tokens and are expected to
-                // reject exactly what their reference compilers reject.
-                _ if parser.syntax == Syntax::Css
-                    || (parser.state.in_css_function_body
-                        && matches!(&name, InterpolableIdent::Literal(..))) =>
+            let starts_with_progid = !is_custom_property
+                && matches!(&name, InterpolableIdent::Literal(..))
+                && parser.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(source, "progid");
+            if is_custom_property && matches!(parser.syntax, Syntax::Scss | Syntax::Sass) {
+                // dart-sass reads a custom property as text,
+                // so `//` outside `#{...}` is part of the value
+                // even when the typed grammar can otherwise reach the terminator.
+                parser.parse_sass_custom_property_value()?
+            } else if is_custom_property || starts_with_progid {
+                // The value is everything up to the top-level `;` (§5.5.6).
+                // The typed parse may stop earlier (Scss ends a value at a nesting block),
+                // which would turn `--x: { a: b } --y: c;` into two declarations.
+                // So take the typed value only when it reaches the terminator.
+                if let Ok((values, important)) =
+                    parser.try_parse(Parser::parse_whole_declaration_value)
                 {
-                    let typed = parser.try_parse(|p| {
-                        let values = p.parse_declaration_value()?;
-                        let important = match &p.cursor.peek()?.token {
-                            Token::Exclamation(..) => Some(p.parse::<ImportantAnnotation>()?),
-                            _ => None,
-                        };
-                        let next = p.cursor.peek()?;
-                        if at_declaration_value_end(&next.token) {
-                            Ok((values, important))
-                        } else {
-                            Err(Error { kind: ErrorKind::ExpectComponentValue, span: next.span })
-                        }
-                    });
-                    match typed {
-                        Ok(value_and_important) => value_and_important,
-                        Err(_) => {
-                            // A CSS custom function body holds declarations only,
-                            // so a top-level `{}` there is part of the value;
-                            // elsewhere it means this construct is really a qualified rule
-                            // (CSS Nesting disambiguation) and the declaration is rejected.
-                            let in_fn_body = parser.state.in_css_function_body;
-                            let values = parser.parse_declaration_value_tokens(!in_fn_body)?;
-                            let next = parser.cursor.peek()?;
-                            if !in_fn_body && let Token::LBrace(..) = next.token {
-                                return Err(Error {
-                                    kind: ErrorKind::BlockInDeclarationValue,
-                                    span: next.span,
-                                });
-                            }
-                            (values, None)
-                        }
-                    }
+                    (values, important, false)
+                } else {
+                    (parser.parse_declaration_value_tokens(false)?, None, true)
                 }
-                _ => (parser.parse_declaration_value()?, None),
+            } else if parser.syntax == Syntax::Css
+                || (parser.state.in_css_function_body
+                    && matches!(&name, InterpolableIdent::Literal(..)))
+            {
+                // Scss/Sass/Less keep the strict grammar:
+                // their dialects assign meaning to these tokens
+                // and are expected to reject exactly what their reference compilers reject.
+                parser.parse_css_any_value()?
+            } else {
+                (parser.parse_declaration_value()?, None, false)
             }
         };
 
+        // CSS Syntax removes a trailing top-level `!important` from every declaration value,
+        // including one preserved as raw tokens because the typed grammar could not read it.
+        // Do this before looking at the cursor:
+        // the raw scan has already advanced to the declaration terminator.
+        if important.is_none() && value_is_raw {
+            important = take_raw_important(input, &mut value);
+        }
         if important.is_none()
             && let Token::Exclamation(..) = &input.cursor.peek()?.token
         {
@@ -204,7 +168,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
         }
 
         let span = Span {
-            start: name_prefix.map_or(name.span().start, |(start, _)| start),
+            start: name_prefix_start.unwrap_or(name.span().start),
             end: if let Some(important) = &important {
                 important.span.end
             } else if let Some(last) = value.last() {
@@ -215,14 +179,201 @@ impl<'a> Parse<'a> for Declaration<'a> {
         };
         Ok(Declaration {
             name,
-            name_prefix: name_prefix.map(|(_, prefix)| prefix),
+            name_prefix: name_prefix_start.map(|_| '*'),
             name_suffix,
             colon_span,
             value,
+            value_is_raw,
             important,
             less_property_merge,
             span,
         })
+    }
+}
+
+/// Remove a trailing top-level `!important` from a preserved raw value.
+///
+/// Raw values flatten paired blocks into delimiter tokens, so first replay the
+/// pair stack up to the `!`: at EOF an unclosed `(... !important` must keep the
+/// annotation inside the value rather than promote it to declaration priority.
+fn take_raw_important<'a>(
+    input: &Parser<'a>,
+    value: &mut oxc_allocator::Vec<'a, ComponentValue<'a>>,
+) -> Option<ImportantAnnotation<'a>> {
+    let len = value.len();
+    if len < 2 {
+        return None;
+    }
+    let (bang_start, important) = match (&value[len - 2], &value[len - 1]) {
+        (
+            ComponentValue::TokenWithSpan(TokenWithSpan { token: Token::Exclamation(..), span }),
+            ComponentValue::TokenWithSpan(important),
+        ) if important.is_ident_name_eq_ignore_ascii_case(input.source, "important") => {
+            (span.start, *important)
+        }
+        _ => return None,
+    };
+
+    let mut pairs = Vec::with_capacity(1);
+    for component in &value[..len - 2] {
+        if let ComponentValue::TokenWithSpan(token) = component
+            && !crate::util::track_paired_token(&token.token, &mut pairs)
+        {
+            return None;
+        }
+    }
+    if !pairs.is_empty() {
+        return None;
+    }
+
+    let ident = input.ident(important.ident(input.source)?, important.span);
+    value.truncate(len - 2);
+    Some(ImportantAnnotation { span: Span { start: bang_start, end: important.span.end }, ident })
+}
+
+impl<'a> Parser<'a> {
+    /// `)` ends a feature-query declaration (`@supports (a: b)`), never a
+    /// statement one: there it is a stray closer the caller must deal with.
+    fn at_statement_value_end(in_statement: bool, token: &Token) -> bool {
+        at_declaration_value_end(token) && !(in_statement && matches!(token, Token::RParen(..)))
+    }
+
+    /// A Scss / Sass custom property value as dart-sass reads it: text where
+    /// `//` starts no comment outside `#{...}` (whose contents are SassScript).
+    /// The typed grammar wins for formatter layout only when it reaches the
+    /// terminator without meeting a line comment; otherwise the value is the
+    /// raw text run.
+    fn parse_sass_custom_property_value(
+        &mut self,
+    ) -> PResult<(oxc_allocator::Vec<'a, ComponentValue<'a>>, Option<ImportantAnnotation<'a>>, bool)>
+    {
+        debug_assert!(self.cursor.cached_token.is_none());
+        let line_comments_seen = self.cursor.tokenizer.state.line_comments_seen;
+        let typed = self.try_parse(|parser| {
+            let value = parser.parse_whole_declaration_value()?;
+            // A `//` the typed grammar read as a comment is value text (or, inside
+            // `#{...}`, a comment the typed stream cannot place): rescan as text.
+            if parser.cursor.tokenizer.state.line_comments_seen != line_comments_seen {
+                let span = parser.cursor.peek()?.span;
+                return Err(Error { kind: ErrorKind::TryParseError, span });
+            }
+            Ok(value)
+        });
+        if let Ok((values, important)) = typed {
+            return Ok((values, important, false));
+        }
+
+        // The failed `try_parse` restored the cursor to the colon; rescan the
+        // text with line comments disabled outside interpolation.
+        let line_comments = self.cursor.tokenizer.state.line_comments;
+        self.cursor.tokenizer.state.line_comments = false;
+        let values = self.parse_declaration_value_tokens(false);
+        self.cursor.tokenizer.state.line_comments = line_comments;
+        Ok((values?, None, true))
+    }
+
+    /// The Css `<any-value>` declaration value (CSS Syntax §5): serialized
+    /// selectors (`b: .c > d`), map-like blocks (`b: (3: 4)`) or stray delimiters
+    /// are all valid preserved tokens even though the typed grammar has no node
+    /// for them. The typed grammar wins when it accounts for everything up to
+    /// the terminator; otherwise the whole value is the raw token run.
+    pub(super) fn parse_css_any_value(
+        &mut self,
+    ) -> PResult<(oxc_allocator::Vec<'a, ComponentValue<'a>>, Option<ImportantAnnotation<'a>>, bool)>
+    {
+        if let Ok((values, important)) = self.try_parse(Parser::parse_whole_declaration_value) {
+            return Ok((values, important, false));
+        }
+        // A CSS custom function body holds declarations only, so a top-level
+        // `{}` there is part of the value; elsewhere it means this construct is
+        // really a qualified rule (CSS Nesting disambiguation) and the
+        // declaration is rejected.
+        let in_fn_body = self.state.in_css_function_body;
+        let values = self.parse_declaration_value_tokens(!in_fn_body)?;
+        let next = self.cursor.peek()?;
+        if !in_fn_body && let Token::LBrace(..) = next.token {
+            return Err(Error { kind: ErrorKind::BlockInDeclarationValue, span: next.span });
+        }
+        Ok((values, None, true))
+    }
+
+    /// The common `color: red`: an `<ident-token>` followed by whitespace or a
+    /// terminator can only be the single-ident run `parse_postcss_property_name`
+    /// rejects, so skip its snapshot and rescan.
+    fn at_plain_ident_property_name(&mut self) -> PResult<bool> {
+        let TokenWithSpan { token, span } = self.cursor.peek()?;
+        Ok(matches!(token, Token::Ident(..))
+            && self
+                .source
+                .as_bytes()
+                .get(span.end)
+                .is_none_or(|b| b.is_ascii_whitespace() || matches!(b, b':' | b';' | b'{' | b'}')))
+    }
+
+    /// postcss's property name (Css only): the glued token run up to the first
+    /// top-level `:`, whitespace or comment. A leading `:` is part of the run
+    /// (`:x: y`, an IE hack). Errors when the run is a single `<ident-token>`
+    /// (the typed grammar owns it), empty, or unbalanced, so `try_parse`
+    /// restores the cursor.
+    fn parse_postcss_property_name(&mut self) -> PResult<InterpolableIdent<'a>> {
+        let TokenWithSpan { token, span } = self.cursor.peek()?;
+        let start = span.start;
+        let ident_only_end = matches!(token, Token::Ident(..)).then_some(span.end);
+        let mut end = start;
+        let mut pairs: Vec<crate::util::PairedToken> = Vec::new();
+        loop {
+            let TokenWithSpan { token, span } = self.cursor.peek()?;
+            if end != start && span.start != end {
+                break;
+            }
+            match token {
+                Token::Colon(..) if pairs.is_empty() && end != start => break,
+                Token::Semicolon(..) | Token::LBrace(..) | Token::RBrace(..)
+                    if pairs.is_empty() =>
+                {
+                    break;
+                }
+                // Never name bytes; `#{}` pieces never appear in a Css property name.
+                Token::Eof(..)
+                | Token::Dedent(..)
+                | Token::Linebreak(..)
+                | Token::StrTemplate(..)
+                | Token::Placeholder(..) => break,
+                token => {
+                    if !crate::util::track_paired_token(token, &mut pairs) {
+                        break;
+                    }
+                }
+            }
+            end = span.end;
+            self.cursor.bump()?;
+        }
+        if end == start || Some(end) == ident_only_end || !pairs.is_empty() {
+            return Err(Error { kind: ErrorKind::ExpectRule, span: Span { start, end } });
+        }
+        let raw = &self.source[start..end];
+        Ok(InterpolableIdent::Literal(Ident { name: raw, raw, span: Span { start, end } }))
+    }
+
+    /// The typed `<declaration-value>` and its `!important`.
+    /// Fails unless they reach the declaration terminator,
+    /// so the caller can fall back to raw tokens for whatever the typed grammar missed.
+    pub(super) fn parse_whole_declaration_value(
+        &mut self,
+    ) -> PResult<(oxc_allocator::Vec<'a, ComponentValue<'a>>, Option<ImportantAnnotation<'a>>)>
+    {
+        let values = self.parse_declaration_value()?;
+        let important = match &self.cursor.peek()?.token {
+            Token::Exclamation(..) => Some(self.parse::<ImportantAnnotation>()?),
+            _ => None,
+        };
+        let in_statement = self.state.in_statement;
+        let next = self.cursor.peek()?;
+        if Self::at_statement_value_end(in_statement, &next.token) {
+            Ok((values, important))
+        } else {
+            Err(Error { kind: ErrorKind::ExpectComponentValue, span: next.span })
+        }
     }
 }
 
@@ -277,11 +428,13 @@ impl<'a> Parse<'a> for QualifiedRule<'a> {
 //
 // <unknown-qualified-rule> = <ident-token> ':' <any-value> <{}-block>
 //
-// The §5.5.5 re-consume of a statement rejected as a declaration by §5.5.6
-// (`BlockInDeclarationValue`): the prelude matches no selector grammar,
-// so it is kept as raw tokens.
-// postcss keeps such rules too
-// (postcss-nested-style dialects use the shape for nested config blocks),
+// Two shapes end up here in CSS (section numbers: 2026-07 ED):
+// - a declaration §5.5.6 rejects because a `{}` block is mixed with other values
+//   (`BlockInDeclarationValue`); §5.5.5 then re-consumes it as a qualified rule
+// - a statement led by a token that can start neither a declaration nor an at-rule
+//   (`50% { }`); §5.5.5 consumes it as a qualified rule directly
+// Either way the prelude is no selector, so it is kept as raw tokens.
+// postcss keeps such rules too (postcss-nested-style dialects use the shape for nested config blocks),
 // and Prettier prints the prelude verbatim.
 impl<'a> Parse<'a> for UnknownQualifiedRule<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
@@ -543,9 +696,15 @@ impl<'a> Parser<'a> {
     /// back to a declaration when the `foo: bar` vs `foo { }` prelude is
     /// ambiguous. Returns the statement and whether it opened a block (for the
     /// caller's `is_block_element`).
+    /// `prefer_rule_error` picks which attempt's error surfaces when both fail
+    /// (inside a block the declaration's: `color red;` reports the missing `:`).
     ///
     /// <https://drafts.csswg.org/css-nesting-1/#syntax>
-    fn parse_rule_or_declaration(&mut self, is_top_level: bool) -> PResult<(Statement<'a>, bool)> {
+    fn parse_rule_or_declaration(
+        &mut self,
+        is_top_level: bool,
+        prefer_rule_error: bool,
+    ) -> PResult<(Statement<'a>, bool)> {
         match self.try_parse(QualifiedRule::parse) {
             Ok(rule) => Ok((Statement::QualifiedRule(rule), true)),
             Err(error_rule) => match self.parse_statement_declaration() {
@@ -556,7 +715,9 @@ impl<'a> Parser<'a> {
                         decl.value.last(),
                         Some(ComponentValue::SassNestingDeclaration(..))
                     );
-                    if is_top_level {
+                    // A root declaration is a statement only in the css-in-js
+                    // parse mode (README "Acceptance").
+                    if is_top_level && self.options.template_placeholder.is_none() {
                         self.recoverable_errors
                             .push(Error { kind: ErrorKind::TopLevelDeclaration, span: decl.span });
                     }
@@ -566,23 +727,44 @@ impl<'a> Parser<'a> {
                     if let Some(rule) = self.try_declaration_shaped_rule(&error_decl) {
                         return Ok((Statement::UnknownQualifiedRule(rule), true));
                     }
-                    Err(if is_top_level { error_rule } else { error_decl })
+                    Err(if prefer_rule_error { error_rule } else { error_decl })
                 }
             },
         }
     }
 
-    /// Parse a declaration that is a statement in a style-rule block, enabling the
-    /// IE `*color` hack (see `ParserState::allow_ie_star_hack`). Feature-query
-    /// declarations (`@supports`, `@container style()`, `@import supports()`) call
-    /// `Declaration::parse` directly and so never enable it.
+    /// A Css statement led by anything but an ident or an at-keyword:
+    /// a qualified rule, a declaration with a postcss property name (`+color: red`),
+    /// or, numeric-led, a §5.5.5 qualified rule with no selector prelude
+    /// (`50% { }` inside a raw-prelude rule, oxc-project/oxc#26291). `"foo" {}` stays rejected.
+    fn parse_css_statement(&mut self, is_top_level: bool) -> PResult<(Statement<'a>, bool)> {
+        let TokenWithSpan { token, span } = self.cursor.peek()?;
+        let span = *span;
+        let numeric =
+            matches!(token, Token::Percentage(..) | Token::Number(..) | Token::Dimension(..));
+        // A non-ident lead is first of all a selector, so its rule error is
+        // the useful one (`[attr {` reports the attribute matcher, not a colon).
+        match self.parse_rule_or_declaration(is_top_level, true) {
+            Err(_) if numeric => {
+                let rule = self
+                    .parse::<UnknownQualifiedRule>()
+                    .map_err(|_| Error { kind: ErrorKind::ExpectRule, span })?;
+                Ok((Statement::UnknownQualifiedRule(rule), true))
+            }
+            result => result,
+        }
+    }
+
+    /// Parse a declaration in statement position (`ParserState::in_statement`);
+    /// feature-query declarations call `Declaration::parse` directly.
     fn parse_style_rule_declaration(&mut self) -> PResult<Declaration<'a>> {
-        self.with_state(ParserState { allow_ie_star_hack: true, ..self.state.clone() }).parse()
+        self.with_state(ParserState { in_statement: true, ..self.state.clone() }).parse()
     }
 
     // Block contents: a mix of declarations, nested style rules and at-rules
     // (CSS Syntax `<block-contents>`; `is_top_level` selects the `<stylesheet>`
-    // rule-list, which has no declarations).
+    // rule-list, where a declaration is a `TopLevelDeclaration` error except
+    // in the css-in-js parse mode and in Less).
     // https://drafts.csswg.org/css-syntax-3/#consume-block-contents
     fn parse_statements(
         &mut self,
@@ -608,7 +790,7 @@ impl<'a> Parser<'a> {
                                 statements.push(stmt);
                             } else {
                                 let (stmt, is_block) =
-                                    self.parse_rule_or_declaration(is_top_level)?;
+                                    self.parse_rule_or_declaration(is_top_level, is_top_level)?;
                                 is_block_element = is_block;
                                 statements.push(stmt);
                             }
@@ -627,7 +809,7 @@ impl<'a> Parser<'a> {
                                 statements.push(stmt);
                             } else {
                                 let (stmt, is_block) =
-                                    self.parse_rule_or_declaration(is_top_level)?;
+                                    self.parse_rule_or_declaration(is_top_level, is_top_level)?;
                                 is_block_element = is_block;
                                 statements.push(stmt);
                             }
@@ -685,15 +867,12 @@ impl<'a> Parser<'a> {
                     };
                     statements.push(stmt);
                 }
-                Token::Dot(..) | Token::Hash(..) if !self.state.in_keyframes_at_rule => {
-                    if self.syntax == Syntax::Css {
-                        let (stmt, is_block) = self.parse_rule_or_declaration(is_top_level)?;
-                        is_block_element = is_block;
-                        statements.push(stmt);
-                    } else {
-                        statements.push(Statement::QualifiedRule(self.parse()?));
-                        is_block_element = true;
-                    }
+                // Css takes every remaining lead token through `parse_css_statement` below.
+                Token::Dot(..) | Token::Hash(..)
+                    if self.syntax != Syntax::Css && !self.state.in_keyframes_at_rule =>
+                {
+                    statements.push(Statement::QualifiedRule(self.parse()?));
+                    is_block_element = true;
                 }
                 Token::Ampersand(..)
                 | Token::LBracket(..)
@@ -702,7 +881,7 @@ impl<'a> Parser<'a> {
                 | Token::Asterisk(..)
                 | Token::Bar(..)
                 | Token::NumberSign(..)
-                    if !self.state.in_keyframes_at_rule =>
+                    if self.syntax != Syntax::Css && !self.state.in_keyframes_at_rule =>
                 {
                     if matches!(self.cursor.peek()?.token, Token::Asterisk(..)) {
                         // `*color: red` / `*zoom: 1` (an IE<=7 hack) looks like a `*`
@@ -715,8 +894,8 @@ impl<'a> Parser<'a> {
                                     statements.push(stmt);
                                     is_block_element = true;
                                 }
-                                // Less refuses declarations at the top level, like the
-                                // ident-led path; keep root-level `*zoom: 1` an error.
+                                // less.js parses a root declaration (ident-led path above)
+                                // but not a root `*` hack; keep root-level `*zoom: 1` an error.
                                 Err(rule_err) if is_top_level => return Err(rule_err),
                                 Err(_) => {
                                     let decl = self.parse_style_rule_declaration()?;
@@ -724,7 +903,8 @@ impl<'a> Parser<'a> {
                                 }
                             }
                         } else {
-                            let (stmt, is_block) = self.parse_rule_or_declaration(is_top_level)?;
+                            let (stmt, is_block) =
+                                self.parse_rule_or_declaration(is_top_level, is_top_level)?;
                             is_block_element = is_block;
                             statements.push(stmt);
                         }
@@ -735,12 +915,6 @@ impl<'a> Parser<'a> {
                             statements.push(self.parse_less_qualified_rule()?);
                             is_block_element = true;
                         }
-                    } else if self.syntax == Syntax::Css
-                        && matches!(self.cursor.peek()?.token, Token::Colon(..))
-                    {
-                        let (stmt, is_block) = self.parse_rule_or_declaration(is_top_level)?;
-                        is_block_element = is_block;
-                        statements.push(stmt);
                     } else {
                         statements.push(Statement::QualifiedRule(self.parse()?));
                         is_block_element = true;
@@ -843,12 +1017,20 @@ impl<'a> Parser<'a> {
                     let declaration = self.parse()?;
                     statements.push(Statement::SassVariableDeclaration(self.alloc(declaration)));
                 }
-                Token::DollarVar(..)
-                    if self.syntax == Syntax::Css && self.options.allow_postcss_simple_vars =>
-                {
-                    let declaration = self.parse()?;
-                    statements
-                        .push(Statement::PostcssSimpleVarDeclaration(self.alloc(declaration)));
+                Token::DollarVar(..) if self.syntax == Syntax::Css => {
+                    // Prefer the typed postcss-simple-vars node for an exact
+                    // `$name: value` declaration. If the name continues
+                    // (`$name+`, `$name.foo`) or a top-level block makes the
+                    // statement a raw-prelude rule, use the general Css
+                    // rule/declaration disambiguation instead.
+                    if let Ok(declaration) = self.try_parse(PostcssSimpleVarDeclaration::parse) {
+                        statements
+                            .push(Statement::PostcssSimpleVarDeclaration(self.alloc(declaration)));
+                    } else {
+                        let (stmt, is_block) = self.parse_css_statement(is_top_level)?;
+                        is_block_element = is_block;
+                        statements.push(stmt);
+                    }
                 }
                 // Indented-syntax shorthands: `=name` defines a mixin
                 // (`@mixin name`) and `+name` includes one (`@include name`).
@@ -905,7 +1087,9 @@ impl<'a> Parser<'a> {
                         span,
                     }));
                 }
-                Token::GreaterThan(..) | Token::Plus(..) | Token::Tilde(..) | Token::BarBar(..) => {
+                Token::GreaterThan(..) | Token::Plus(..) | Token::Tilde(..) | Token::BarBar(..)
+                    if self.syntax != Syntax::Css =>
+                {
                     if self.syntax == Syntax::Less {
                         statements.push(self.parse_less_qualified_rule()?);
                     } else {
@@ -957,6 +1141,15 @@ impl<'a> Parser<'a> {
                         span,
                     }));
                     is_block_element = true;
+                }
+                // `@3: red` is an at-word to postcss, not a property name.
+                Token::At(..) if self.syntax == Syntax::Css => {
+                    return Err(Error { kind: ErrorKind::ExpectRule, span: *span });
+                }
+                _ if self.syntax == Syntax::Css && !self.state.in_keyframes_at_rule => {
+                    let (stmt, is_block) = self.parse_css_statement(is_top_level)?;
+                    is_block_element = is_block;
+                    statements.push(stmt);
                 }
                 _ => {
                     return Err(Error {

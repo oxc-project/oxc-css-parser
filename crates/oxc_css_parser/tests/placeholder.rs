@@ -3,10 +3,7 @@ use oxc_css_parser::{
 };
 
 fn opts() -> ParserOptions {
-    ParserOptions {
-        template_placeholder: Some(TemplatePlaceholder { prefix: "PLACEHOLDER-" }),
-        ..Default::default()
-    }
+    ParserOptions { template_placeholder: Some(TemplatePlaceholder { prefix: "PLACEHOLDER-" }) }
 }
 
 fn parse(code: &'static str, options: Option<ParserOptions>) -> Stylesheet<'static> {
@@ -302,4 +299,19 @@ fn huge_index_does_not_panic() {
         .syntax(Syntax::Scss)
         .options(opts());
     assert!(builder.build().parse::<Stylesheet>().is_err());
+}
+
+// The css-in-js parse mode formats fragments like `css`display: flex;``:
+// a root declaration is a statement there and carries no recoverable error.
+#[test]
+fn root_declaration_is_a_statement_in_template_mode() {
+    let allocator = Box::leak(Box::new(Allocator::default()));
+    let mut parser = ParserBuilder::new(allocator, "display: flex;\ncolor: red;")
+        .syntax(Syntax::Scss)
+        .options(opts())
+        .build();
+    let ss = parser.parse::<Stylesheet>().unwrap();
+    assert!(parser.recoverable_errors().is_empty(), "{:?}", parser.recoverable_errors());
+    assert_eq!(ss.statements.len(), 2);
+    assert!(ss.statements.iter().all(|s| matches!(s, Statement::Declaration(_))));
 }
