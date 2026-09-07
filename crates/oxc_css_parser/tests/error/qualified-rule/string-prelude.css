@@ -1,0 +1,3 @@
+/* A prelude that can start neither a selector nor a declaration is rejected
+   (README "Acceptance": the spec is a ceiling, not a floor). */
+"foo" {}

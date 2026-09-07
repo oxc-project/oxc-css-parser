@@ -52,6 +52,20 @@ pub(crate) struct TokenizerState<'a> {
     /// are insignificant (multi-line param/arg lists), so indentation tracking is
     /// suspended while this is non-zero.
     paren_depth: u32,
+    /// `//` starts a line comment (Scss / Sass / Less).
+    /// Cleared while `parse_sass_custom_property_value` rescans a value as text.
+    pub(crate) line_comments: bool,
+    /// Brace depth of a Scss / Sass `#{...}` interpolation. While non-zero,
+    /// `//` is SassScript comment syntax even when the surrounding custom-property
+    /// value is being tokenized as text.
+    sass_interpolation_depth: u32,
+    /// A string / url template scanner consumed the `#` of a Sass `#{`
+    /// interpolation, so the next bare `{` token opens that interpolation.
+    sass_interpolation_opener_pending: bool,
+    /// Number of line comments consumed. Unlike the collected comment list this
+    /// counts even when comment collection is off, so `parse_sass_custom_property_value`
+    /// can tell that its typed attempt read a `//` and rescan the value as text.
+    pub(crate) line_comments_seen: usize,
 }
 
 pub struct Tokenizer<'a> {
@@ -84,6 +98,10 @@ impl<'a> Tokenizer<'a> {
                 current_indent: 0,
                 indents: if syntax == Syntax::Sass { vec![0] } else { vec![] },
                 paren_depth: 0,
+                line_comments: true,
+                sass_interpolation_depth: 0,
+                sass_interpolation_opener_pending: false,
+                line_comments_seen: 0,
             },
         }
     }
@@ -161,9 +179,16 @@ impl<'a> Tokenizer<'a> {
                 return self.scan_dimension_or_percentage(number, span);
             }
             Some((start, b'{')) => {
-                // In the indented syntax a lone `{` only occurs when an
-                // interpolation resumes inside a string template (its `#` was
-                // consumed by the string scanner); pair it with the `}`
+                // A string / url template scanner consumes the `#` of `#{`
+                // before returning its static head, so its interpolation opener
+                // arrives here as a bare `{`. Otherwise a `{` while already in
+                // an interpolation is a nested brace belonging to SassScript.
+                let resumes_sass_interpolation =
+                    std::mem::take(&mut self.state.sass_interpolation_opener_pending);
+                if resumes_sass_interpolation || self.state.sass_interpolation_depth > 0 {
+                    self.state.sass_interpolation_depth += 1;
+                }
+                // In the indented syntax pair an explicit `{` with the `}`
                 // decrement so bracket depth stays balanced.
                 if self.syntax == Syntax::Sass {
                     self.state.paren_depth += 1;
@@ -282,7 +307,13 @@ impl<'a> Tokenizer<'a> {
                     chars.next();
                     match chars.next() {
                         Some((_, b'*')) => self.scan_block_comment(),
-                        Some((_, b'/')) if self.syntax != Syntax::Css => self.scan_line_comment(),
+                        Some((_, b'/'))
+                            if self.syntax != Syntax::Css
+                                && (self.state.line_comments
+                                    || self.state.sass_interpolation_depth > 0) =>
+                        {
+                            self.scan_line_comment();
+                        }
                         _ => break,
                     }
                 }
@@ -380,6 +411,7 @@ impl<'a> Tokenizer<'a> {
         let (start, c) = self.state.chars.next().unwrap();
         debug_assert_eq!(c, b'/');
         self.state.chars.next();
+        self.state.line_comments_seen += 1;
 
         let end;
         loop {
@@ -583,25 +615,14 @@ impl<'a> Tokenizer<'a> {
     // <number-token> = [ '+' | '-' ]? <digits> [ '.' <digits> ]? [ e [ '+' | '-' ]? <digits> ]?
     // https://drafts.csswg.org/css-syntax-3/#consume-number
     fn scan_number(&mut self) -> PResult<(Number<'a>, Span)> {
-        let start;
         let mut end;
 
-        let is_start_with_dot;
-        match self.state.chars.next() {
-            Some((i, c)) if c.is_ascii_digit() => {
-                start = i;
-                is_start_with_dot = false;
-            }
-            Some((i, b'+' | b'-')) => {
-                start = i;
-                is_start_with_dot = matches!(self.state.chars.next(), Some((_, b'.')));
-            }
-            Some((i, b'.')) => {
-                start = i;
-                is_start_with_dot = true;
-            }
+        let (start, is_start_with_dot) = match self.state.chars.next() {
+            Some((i, c)) if c.is_ascii_digit() => (i, false),
+            Some((i, b'+' | b'-')) => (i, matches!(self.state.chars.next(), Some((_, b'.')))),
+            Some((i, b'.')) => (i, true),
             _ => unreachable!(),
-        }
+        };
 
         loop {
             match self.state.chars.peek() {
@@ -881,7 +902,11 @@ impl<'a> Tokenizer<'a> {
         match self.syntax {
             Syntax::Css => false,
             Syntax::Scss | Syntax::Sass => {
-                c == b'#' && matches!(self.state.chars.peek(), Some((_, b'{')))
+                let is_start = c == b'#' && matches!(self.state.chars.peek(), Some((_, b'{')));
+                if is_start {
+                    self.state.sass_interpolation_opener_pending = true;
+                }
+                is_start
             }
             Syntax::Less => {
                 // Less interpolation names may start with a digit (`@{3}`), like `@3`.
@@ -1070,7 +1095,13 @@ impl<'a> Tokenizer<'a> {
     fn is_start_of_interpolation_in_url_template(&mut self) -> bool {
         match self.syntax {
             Syntax::Css | Syntax::Less => false,
-            Syntax::Scss | Syntax::Sass => matches!(self.state.chars.peek(), Some((_, b'{'))),
+            Syntax::Scss | Syntax::Sass => {
+                let is_start = matches!(self.state.chars.peek(), Some((_, b'{')));
+                if is_start {
+                    self.state.sass_interpolation_opener_pending = true;
+                }
+                is_start
+            }
         }
     }
 
@@ -1316,6 +1347,8 @@ impl<'a> Tokenizer<'a> {
                 }),
             },
             Some((start, b'}')) => {
+                self.state.sass_interpolation_depth =
+                    self.state.sass_interpolation_depth.saturating_sub(1);
                 // In the indented syntax `}` only ever closes `#{`; see the
                 // HashLBrace arm below.
                 if self.syntax == Syntax::Sass {
@@ -1541,6 +1574,7 @@ impl<'a> Tokenizer<'a> {
             Some((start, b'#')) => match self.state.chars.peek() {
                 Some((_, b'{')) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
                     self.state.chars.next();
+                    self.state.sass_interpolation_depth += 1;
                     // Newlines inside `#{...}` are insignificant in the
                     // indented syntax; the matching `}` closes it (see the
                     // RBrace arm above).

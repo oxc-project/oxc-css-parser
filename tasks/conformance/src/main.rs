@@ -59,9 +59,6 @@ struct Suite {
     /// fail to parse — the reference compiler rejects them too, or they are
     /// encoding-test fixtures with no single valid text decoding.
     expect_error_under: &'static [&'static str],
-    /// Enable [`ParserOptions::allow_postcss_simple_vars`] — for corpora
-    /// written against the postcss-simple-vars plugin.
-    postcss_simple_vars: bool,
     /// Note shown in the report — e.g. which phase wires up its real harness.
     note: &'static str,
 }
@@ -75,7 +72,6 @@ const SUITES: &[Suite] = &[
         sparse: &[],
         walk: "",
         expect_error_under: &[],
-        postcss_simple_vars: false,
         note: "CSS Syntax L3, JSON input->tree — needs a dedicated adapter",
     },
     Suite {
@@ -88,7 +84,6 @@ const SUITES: &[Suite] = &[
         // windows-1250 bytes) exist to drive encoding-detection HTML tests; no
         // single text decoding of them is valid CSS.
         expect_error_under: &["css/css-syntax/charset/support"],
-        postcss_simple_vars: false,
         note: "Phase 3 — testharness assertions need an HTML/JS harness",
     },
     Suite {
@@ -98,7 +93,6 @@ const SUITES: &[Suite] = &[
         sparse: &["ed/css"],
         walk: "ed/css",
         expect_error_under: &[],
-        postcss_simple_vars: false,
         note: "Phase 4 — spec-surface coverage data (JSON), not parsed as CSS",
     },
     Suite {
@@ -108,7 +102,6 @@ const SUITES: &[Suite] = &[
         sparse: &[],
         walk: "cases",
         expect_error_under: &[],
-        postcss_simple_vars: true,
         note: "real-world CSS edge cases",
     },
     Suite {
@@ -118,7 +111,6 @@ const SUITES: &[Suite] = &[
         sparse: &["spec"],
         walk: "spec",
         expect_error_under: &[],
-        postcss_simple_vars: false,
         note: "canonical Sass/SCSS suite; tests packed in .hrx archives (unpacked)",
     },
     Suite {
@@ -133,7 +125,6 @@ const SUITES: &[Suite] = &[
             // ("Guards are only currently allowed on a single selector.")
             "packages/test-data/tests-error/eval/multiple-guards-on-css-selectors",
         ],
-        postcss_simple_vars: false,
         note: "Less reference suite (tests compilation; we parse only)",
     },
 ];
@@ -431,10 +422,7 @@ fn run_suite(suite: &Suite) -> SuiteReport {
     let mut files = Vec::new();
     collect_files(&suite_root.join(suite.walk), &mut files);
 
-    let options = ParserOptions {
-        allow_postcss_simple_vars: suite.postcss_simple_vars,
-        ..ParserOptions::default()
-    };
+    let options = ParserOptions::default();
 
     let mut report = SuiteReport::default();
     for path in files {

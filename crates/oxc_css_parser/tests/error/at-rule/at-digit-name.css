@@ -1,0 +1,2 @@
+/* `@3` is an at-word to postcss and no at-keyword to the spec; neither reads a declaration. */
+a { @3: red; }

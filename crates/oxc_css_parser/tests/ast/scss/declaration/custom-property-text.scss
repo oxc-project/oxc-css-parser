@@ -1,0 +1,10 @@
+/* sass-spec css/custom_properties/simple.hrx: a custom property value is text
+   to dart-sass, so `//` is not a comment inside it. */
+.simple {
+  --url: url(http://foo.com/bar);
+  --close-comment: */;
+  --empty: ;
+  --single-line: // (
+    );
+  --no-extra-whitespace:value;
+}

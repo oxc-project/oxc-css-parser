@@ -52,31 +52,7 @@
 //! let builder = ParserBuilder::new(&allocator, "a {}").syntax(Syntax::Scss);
 //! ```
 //!
-//! ### Parser Options
-//!
-//! #### `try_parsing_value_in_custom_property`
-//!
-//! By default, value of custom property whose name starts with `--` will be parsed as tokens.
-//! If you want to parse it as normal declaration value, you can enable this option.
-//! Even though this option is enabled,
-//! parser will fallback to parse as tokens if there're syntax errors.
-//!
-//! ```rust
-//! use oxc_css_parser::{Allocator, ParserBuilder, ParserOptions, ast::*};
-//!
-//! let allocator = Allocator::default();
-//! let options = ParserOptions {
-//!     try_parsing_value_in_custom_property: true,
-//!     ..Default::default()
-//! };
-//! let builder = ParserBuilder::new(&allocator, "--foo: calc(var(--bar) + 1px)").options(options);
-//! let mut parser = builder.build();
-//!
-//! let declaration = parser.parse::<Declaration>().unwrap();
-//! assert!(matches!(declaration.value[0], ComponentValue::Function(..)));
-//! ```
-//!
-//! #### `template_placeholder`
+//! ### Parser option: `template_placeholder`
 //!
 //! By default, a backtick is a syntax error outside Less. Setting this option
 //! makes the parser recognize a backtick-delimited token of the shape

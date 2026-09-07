@@ -2,13 +2,43 @@
 source: crates/oxc_css_parser/tests/recoverable.rs
 ---
 error: declaration at top level is disallowed
-  ┌─ top-level.css:1:1
+  ┌─ top-level.css:3:1
   │
-1 │ color : red;
+3 │ color: red;
+  │ ^^^^^^^^^^
+
+error: declaration at top level is disallowed
+  ┌─ top-level.css:4:1
+  │
+4 │ color : red;
   │ ^^^^^^^^^^^
 
 error: declaration at top level is disallowed
-  ┌─ top-level.css:2:1
+  ┌─ top-level.css:5:1
   │
-2 │ display    :inline
+5 │ display    :inline;
   │ ^^^^^^^^^^^^^^^^^^
+
+error: declaration at top level is disallowed
+  ┌─ top-level.css:6:1
+  │
+6 │ height: 1px;
+  │ ^^^^^^^^^^^
+
+error: declaration at top level is disallowed
+  ┌─ top-level.css:7:1
+  │
+7 │ height: 1234;
+  │ ^^^^^^^^^^^^
+
+error: declaration at top level is disallowed
+  ┌─ top-level.css:8:1
+  │
+8 │ color: #abc;
+  │ ^^^^^^^^^^^
+
+error: declaration at top level is disallowed
+  ┌─ top-level.css:9:1
+  │
+9 │ height: 1px\65;
+  │ ^^^^^^^^^^^^^^

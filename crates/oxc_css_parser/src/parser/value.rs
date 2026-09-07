@@ -413,9 +413,7 @@ impl<'a> Parser<'a> {
             Token::DollarVar(..) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
                 self.parse().map(ComponentValue::SassVariable)
             }
-            Token::DollarVar(..)
-                if self.syntax == Syntax::Css && self.options.allow_postcss_simple_vars =>
-            {
+            Token::DollarVar(..) if self.syntax == Syntax::Css => {
                 self.parse().map(ComponentValue::PostcssSimpleVar)
             }
             Token::LParen(..) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
@@ -710,17 +708,30 @@ impl<'a> Parser<'a> {
     /// contents are all preserved tokens.
     fn parse_progid_function(&mut self, name: Ident<'a>) -> PResult<Function<'a>> {
         let mut args = self.vec_with_capacity(4);
+        // The path may hold Scss interpolation (`Microsoft.#{$f}(...)`): keep
+        // its `#{...}` balanced so the function's own `(` is the first
+        // top-level one and the interpolation's `}` never closes the block.
+        let mut pairs: Vec<util::PairedToken> = Vec::new();
         loop {
             match &self.cursor.peek()?.token {
-                Token::LParen(..)
-                | Token::Semicolon(..)
+                Token::LParen(..) if pairs.is_empty() => break,
+                Token::Semicolon(..)
                 | Token::RBrace(..)
                 | Token::RParen(..)
-                | Token::Eof(..)
                 | Token::Indent(..)
                 | Token::Dedent(..)
-                | Token::Linebreak(..) => break,
-                _ => args.push(ComponentValue::TokenWithSpan(self.cursor.bump()?)),
+                | Token::Linebreak(..)
+                    if pairs.is_empty() =>
+                {
+                    break;
+                }
+                Token::Eof(..) => break,
+                token => {
+                    if !util::track_paired_token(token, &mut pairs) {
+                        break;
+                    }
+                    args.push(ComponentValue::TokenWithSpan(self.cursor.bump()?));
+                }
             }
         }
         self.cursor.expect_l_paren()?;

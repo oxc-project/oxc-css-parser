@@ -1,6 +1,6 @@
-/* Declaration-shaped qualified rules (CSS Syntax §5.5.5 re-consume):
-   rejected as declarations (top-level `{}` in the value), kept as raw-prelude
-   rules like postcss does. */
+/* Raw-prelude qualified rules (CSS Syntax §5.5.5 re-consume):
+   rejected as declarations (top-level `{}` in the value) or led by a token that
+   cannot start a declaration, kept as raw-prelude rules like postcss does. */
 
 /* postcss-nested-style dialect config block (oxc-project/oxc#26158) */
 @font {
@@ -12,6 +12,11 @@
 @animate {
   wiggle: wiggle 1s ease-in-out infinite {
     from { transform: rotate(-3deg); }
+  }
+  /* numeric-led keyframe selectors are raw-prelude rules too (oxc-project/oxc#26291) */
+  blink: blink 1100ms linear infinite {
+    50% { opacity: 0; }
+    0%, 100% { opacity: 1; }
   }
 }
 
@@ -53,3 +58,10 @@ b {
 a:nth-child() {
   color: yellowgreen;
 }
+
+/* one case per numeric token kind (number, dimension, percentage), nested and top level */
+a {
+  10 { color: red; }
+  2xl { color: red; }
+}
+0% {}

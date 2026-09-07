@@ -412,12 +412,18 @@ pub struct CustomSelectorPrelude<'a> {
 pub struct Declaration<'a> {
     pub span: Span,
     pub name: InterpolableIdent<'a>,
-    /// Legacy IE hack prefix glued to the property name, e.g. `'*'` in `*color: red`.
+    /// Scss / Less only: the IE `*` hack prefix (`*color: red`).
+    /// In Css the sigil is part of the postcss property name (README "Acceptance").
     #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "Option::is_none"))]
     pub name_prefix: Option<char>,
     pub name_suffix: Option<char>,
     pub colon_span: Span,
     pub value: Vec<'a, ComponentValue<'a>>,
+    /// The typed `<declaration-value>` grammar did not read all of `value`,
+    /// so it is the raw token run: a custom property or `progid:` filter
+    /// (any syntax; Scss reads a custom property as text like dart-sass),
+    /// or Css's `<any-value>` fallback for a normal property.
+    pub value_is_raw: bool,
     pub important: Option<ImportantAnnotation<'a>>,
     pub less_property_merge: Option<LessPropertyMerge>,
 }
@@ -583,6 +589,22 @@ pub enum InterpolableIdent<'a> {
     SassInterpolated(SassInterpolatedIdent<'a>),
     LessInterpolated(LessInterpolatedIdent<'a>),
     Placeholder(Placeholder<'a>),
+}
+
+impl InterpolableIdent<'_> {
+    /// A custom-property name: the decoded name starts with `--`.
+    /// Sass interpolation may follow that static prefix (`--#{$name}`),
+    /// which is how dart-sass classifies it too.
+    pub fn is_custom_property(&self) -> bool {
+        match self {
+            Self::Literal(ident) => ident.name.starts_with("--"),
+            Self::SassInterpolated(ident) => matches!(
+                ident.elements.first(),
+                Some(SassInterpolatedIdentElement::Static(part)) if part.value.starts_with("--")
+            ),
+            Self::LessInterpolated(_) | Self::Placeholder(_) => false,
+        }
+    }
 }
 
 /// An atomic backtick-delimited template placeholder node (see
@@ -1577,6 +1599,9 @@ pub struct PostcssSimpleVarDeclaration<'a> {
     pub name: PostcssSimpleVar<'a>,
     pub colon_span: Span,
     pub value: Vec<'a, ComponentValue<'a>>,
+    /// The typed `<declaration-value>` grammar did not read all of `value`,
+    /// so it is the raw token run used by postcss-simple-vars for textual substitution.
+    pub value_is_raw: bool,
 }
 
 #[derive(Debug)]
@@ -2576,9 +2601,9 @@ pub enum UnknownAtRulePrelude<'a> {
     TokenSeq(TokenSeq<'a>),
 }
 
-/// A qualified rule whose prelude is declaration-shaped (`sans: "Sans" { ... }`)
-/// and kept as raw tokens: rejected as a declaration (CSS Syntax §5.5.6),
-/// re-consumed as a qualified rule (§5.5.5), like postcss (nested-config dialects rely on the shape).
+/// A qualified rule whose prelude matches no selector grammar and is kept as raw tokens:
+/// declaration-shaped (`sans: "Sans" { ... }`) or numeric-led (`50% { ... }` outside `@keyframes`).
+/// See the `Parse` impl for the CSS Syntax algorithms; postcss keeps both shapes.
 #[derive(Debug)]
 #[cfg_attr(feature = "serialize", derive(Serialize))]
 #[cfg_attr(feature = "serialize", serde(tag = "type", rename_all = "camelCase"))]
