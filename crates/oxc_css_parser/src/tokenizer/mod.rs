@@ -214,14 +214,7 @@ impl<'a> Tokenizer<'a> {
                 self.scan_hash()
             }
             (Some((_, b'\'' | b'"')), ..) => self.scan_string_or_template(),
-            (Some((_, b'@')), Some((_, c)))
-                // A leading `-` only starts an identifier if the next code point does too
-                // (`@-webkit-*`, `@--custom`); a lone `@-` is a delimiter, not an at-keyword.
-                // Less also allows digit-led variable names (`@3`).
-                if (is_start_of_ident(c)
-                    && (c != b'-' || matches!(chars.peek(), Some((_, c2)) if is_start_of_ident(*c2))))
-                    || (self.syntax == Syntax::Less && c.is_ascii_digit()) =>
-            {
+            (Some((_, b'@')), Some((_, c))) if self.starts_var_name(c, &mut chars) => {
                 self.scan_at_keyword()
             }
             (Some((start, b'-')), Some((_, b'-'))) => {
@@ -241,11 +234,7 @@ impl<'a> Tokenizer<'a> {
                 let (number, span) = self.scan_number()?;
                 self.scan_dimension_or_percentage(number, span)
             }
-            (Some((_, b'$')), Some((_, c)))
-                // Same as `@`: a lone `$-` is not the start of a Sass variable.
-                if is_start_of_ident(c)
-                    && (c != b'-' || matches!(chars.peek(), Some((_, c2)) if is_start_of_ident(*c2))) =>
-            {
+            (Some((_, b'$')), Some((_, c))) if self.starts_var_name(c, &mut chars) => {
                 self.scan_dollar_var()
             }
             (Some((_, b'-')), Some((_, b'#')))
@@ -256,7 +245,7 @@ impl<'a> Tokenizer<'a> {
             }
             (Some((_, b'@' | b'$')), Some((_, b'{')))
                 if self.syntax == Syntax::Less
-                    && matches!(chars.peek(), Some((_, c)) if is_start_of_ident(*c) || c.is_ascii_digit()) =>
+                    && matches!(chars.peek(), Some((_, c)) if is_less_name_start(*c)) =>
             {
                 self.scan_less_lbrace_var()
             }
@@ -513,10 +502,9 @@ impl<'a> Tokenizer<'a> {
 
     // <ident-sequence> (a run of name code points / escapes).
     // https://drafts.csswg.org/css-syntax-3/#consume-name
-    pub(crate) fn scan_ident_sequence(
-        &mut self,
-        allow_leading_digit: bool,
-    ) -> PResult<(Ident<'a>, Span)> {
+    /// `less_name`: a less.js `[\w-]+` name instead (`@name`, `${name}`, `@{name}`, inside strings too),
+    /// which may also start with a digit (`@3`) or a bare hyphen (`@-`, `@-1`).
+    pub(crate) fn scan_ident_sequence(&mut self, less_name: bool) -> PResult<(Ident<'a>, Span)> {
         let start;
         let end;
         let mut escaped = false;
@@ -525,18 +513,27 @@ impl<'a> Tokenizer<'a> {
                 start = *i;
                 self.state.chars.next();
             }
-            // Less variable names may start with a digit (`@3`, `@{3}`); CSS idents may not.
-            Some((i, c)) if allow_leading_digit && c.is_ascii_digit() => {
+            // Less variable names may start with a digit (`@3`, `@{3}`); CSS idents may not
+            Some((i, c)) if less_name && c.is_ascii_digit() => {
                 start = *i;
                 self.state.chars.next();
             }
             Some((i, b'-')) => {
                 start = *i;
                 self.state.chars.next();
-                if let Some((_, c)) = self.state.chars.next() {
-                    debug_assert!(is_start_of_ident(c));
-                } else {
-                    return Err(self.build_eof_error());
+                match self.state.chars.peek() {
+                    // `-\31 x`: the escape after the hyphen is one too
+                    Some((_, b'\\')) => {
+                        escaped = true;
+                        self.scan_escape(/* backslash_consumed */ false)?;
+                    }
+                    Some((_, c)) if is_start_of_ident(*c) => {
+                        self.state.chars.next();
+                    }
+                    // `@-`, `@-1`, `@{-}`: a less.js name needs nothing behind the hyphen
+                    _ if less_name => {}
+                    Some(..) => unreachable!(),
+                    None => return Err(self.build_eof_error()),
                 }
             }
             Some((i, b'\\')) => {
@@ -909,11 +906,28 @@ impl<'a> Tokenizer<'a> {
                 is_start
             }
             Syntax::Less => {
-                // Less interpolation names may start with a digit (`@{3}`), like `@3`.
-                (c == b'@' || c == b'$')
-                    && matches!(self.peek_two_bytes(), Some((_, b'{', second)) if is_start_of_ident(second) || second.is_ascii_digit())
+                // less.js `Quoted` substitutes exactly `@{name}` / `${name}`;
+                // anything else (`"@{box"`, the outer `@{box-` of `"@{box-@{suffix}}"`) is text
+                (c == b'@' || c == b'$') && self.less_interpolation_ahead()
             }
         }
+    }
+
+    /// Whether a less.js variable / property name (`[\w-]+`) starts here (`is_less_name_start`)
+    pub(crate) fn is_start_of_less_name(&mut self) -> bool {
+        matches!(self.state.chars.peek(), Some((_, c)) if is_less_name_start(*c))
+    }
+
+    /// `{` <less name> `}` next (the `@` / `$` already consumed); nothing is consumed.
+    fn less_interpolation_ahead(&mut self) -> bool {
+        // `scan_ident_sequence` moves only the byte cursor, so that is all to restore
+        let saved = self.state.chars.clone();
+        let ahead = matches!(self.state.chars.next(), Some((_, b'{')))
+            && self.is_start_of_less_name()
+            && self.scan_ident_sequence(/* less_name */ true).is_ok()
+            && matches!(self.state.chars.next(), Some((_, b'}')));
+        self.state.chars = saved;
+        ahead
     }
 
     // An ident-like token: <ident-token>, <function-token> (`name(`), or <url-token>.
@@ -1002,20 +1016,9 @@ impl<'a> Tokenizer<'a> {
                     });
                 }
                 Some((i, c)) if c.is_ascii_whitespace() => {
-                    self.skip_ws();
-                    match self.state.chars.next() {
-                        Some((_, b')')) => {
-                            self.state.paren_depth = self.state.paren_depth.saturating_sub(1);
-                            end = i;
-                            break;
-                        }
-                        Some((i, _)) => {
-                            return Err(Error {
-                                kind: ErrorKind::InvalidUrl,
-                                span: Span { start: i, end: i + 1 },
-                            });
-                        }
-                        None => return Err(self.build_eof_error()),
+                    if self.url_body_ws_run_ends()? {
+                        end = i;
+                        break;
                     }
                 }
                 Some((i, b'(' | b'"' | b'\'')) => {
@@ -1032,6 +1035,25 @@ impl<'a> Tokenizer<'a> {
         debug_assert!(start <= end);
         let span = Span { start, end };
         Ok(TokenWithSpan { token: Token::UrlRaw(UrlRawMeta { escaped }), span })
+    }
+
+    /// A whitespace run inside an unquoted url() body: `true` when it ends the body at `)`.
+    /// CSS allows nothing else there; less.js (`[^()'"]+`) reads on, and the byte after
+    /// the run is left to the caller's loop.
+    fn url_body_ws_run_ends(&mut self) -> PResult<bool> {
+        self.skip_ws();
+        match self.state.chars.peek() {
+            Some((_, b')')) => {
+                self.state.chars.next();
+                self.state.paren_depth = self.state.paren_depth.saturating_sub(1);
+                Ok(true)
+            }
+            Some(..) if self.syntax == Syntax::Less => Ok(false),
+            Some((i, _)) => {
+                Err(Error { kind: ErrorKind::InvalidUrl, span: Span { start: *i, end: *i + 1 } })
+            }
+            None => Err(self.build_eof_error()),
+        }
     }
 
     // The next static piece of an unquoted url() body interleaved with interpolation.
@@ -1058,26 +1080,15 @@ impl<'a> Tokenizer<'a> {
                     return Ok((UrlTemplate { raw, escaped, tail: false }, span));
                 }
                 Some((end, c)) if c.is_ascii_whitespace() => {
-                    self.skip_ws();
-                    match self.state.chars.next() {
-                        Some((_, b')')) => {
-                            self.state.paren_depth = self.state.paren_depth.saturating_sub(1);
-                            return Ok((
-                                UrlTemplate {
-                                    raw: unsafe { self.source.get_unchecked(start..end) },
-                                    escaped,
-                                    tail: true,
-                                },
-                                Span { start, end },
-                            ));
-                        }
-                        Some((i, _)) => {
-                            return Err(Error {
-                                kind: ErrorKind::InvalidUrl,
-                                span: Span { start: i, end: i + 1 },
-                            });
-                        }
-                        None => return Err(self.build_eof_error()),
+                    if self.url_body_ws_run_ends()? {
+                        return Ok((
+                            UrlTemplate {
+                                raw: unsafe { self.source.get_unchecked(start..end) },
+                                escaped,
+                                tail: true,
+                            },
+                            Span { start, end },
+                        ));
                     }
                 }
                 Some((i, b'(' | b'"' | b'\'')) => {
@@ -1160,7 +1171,8 @@ impl<'a> Tokenizer<'a> {
     fn scan_dollar_var(&mut self) -> PResult<TokenWithSpan<'a>> {
         let (start, c) = self.state.chars.next().expect("expect char `$`");
         debug_assert_eq!(c, b'$');
-        let (ident, span) = self.scan_ident_sequence(false)?;
+        let (ident, span) =
+            self.scan_ident_sequence(/* less_name */ self.syntax == Syntax::Less)?;
         Ok(TokenWithSpan {
             token: Token::DollarVar(IdentMeta { escaped: ident.escaped }),
             span: Span { start, end: span.end },
@@ -1174,8 +1186,7 @@ impl<'a> Tokenizer<'a> {
         let (_, c) = self.state.chars.next().expect("expect char `{`");
         debug_assert_eq!(c, b'{');
 
-        // Less allows digit-led variable names, so `@{3}` interpolates `@3`.
-        let (ident, _) = self.scan_ident_sequence(true)?;
+        let (ident, _) = self.scan_ident_sequence(/* less_name */ true)?;
         match self.state.chars.next() {
             Some((i, b'}')) => {
                 let span = Span { start, end: i + 1 };
@@ -1205,8 +1216,8 @@ impl<'a> Tokenizer<'a> {
         let (start, c) = self.state.chars.next().expect("expect char `@`");
         debug_assert_eq!(c, b'@');
 
-        // Less allows digit-led variable names like `@3`.
-        let (ident, span) = self.scan_ident_sequence(self.syntax == Syntax::Less)?;
+        let (ident, span) =
+            self.scan_ident_sequence(/* less_name */ self.syntax == Syntax::Less)?;
         Ok(TokenWithSpan {
             token: Token::AtKeyword(IdentMeta { escaped: ident.escaped }),
             span: Span { start, end: span.end },
@@ -1640,10 +1651,15 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    /// Whether the next code point is an ASCII digit — the start of a Less
-    /// digit-led variable name (`@3`, `@{3}`).
-    pub(crate) fn is_start_of_digit(&mut self) -> bool {
-        matches!(self.state.chars.peek(), Some((_, c)) if c.is_ascii_digit())
+    /// Whether `c`, the byte after `@` / `$` (`chars` positioned after it), starts a variable name:
+    /// a CSS ident whose leading `-` needs an ident start behind it (`@-webkit-*`; a lone `@-` is a
+    /// delimiter), or in Less a `[\w-]+` name (`@3`, `$-`).
+    fn starts_var_name(&self, c: u8, chars: &mut Peekable<ByteIndices<'a>>) -> bool {
+        if self.syntax == Syntax::Less {
+            return is_less_name_start(c);
+        }
+        is_start_of_ident(c)
+            && (c != b'-' || matches!(chars.peek(), Some((_, c2)) if is_start_of_ident(*c2)))
     }
 
     pub(crate) fn is_start_of_url_string(&mut self) -> bool {
@@ -1652,7 +1668,12 @@ impl<'a> Tokenizer<'a> {
     }
 }
 
+/// The first byte of a less.js `[\w-]+` name: an ident start (`-` included) or a digit.
 #[inline]
+fn is_less_name_start(c: u8) -> bool {
+    is_start_of_ident(c) || c.is_ascii_digit()
+}
+
 fn is_start_of_ident(c: u8) -> bool {
     c.is_ascii_alphabetic() || c == b'-' || c == b'_' || !c.is_ascii() || c == b'\\'
 }

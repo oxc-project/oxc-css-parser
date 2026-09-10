@@ -9,3 +9,17 @@
   zero: @var;
   name: @@name;
 }
+
+.hyphen-names {
+  @-: -;
+  @--: 1;
+  @-1: 2;
+  a: @-;
+  @{a}@{-}@{bb}: 3pt;
+}
+
+// property accessors are `[\w-]+` names too
+.property-names {
+  a: $-;
+  b: $1;
+}

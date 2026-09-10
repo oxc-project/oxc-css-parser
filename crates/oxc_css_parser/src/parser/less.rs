@@ -446,12 +446,12 @@ impl<'a> Parser<'a> {
                 TokenWithSpan { token: Token::Dot(..), .. }
                     if precedence == PRECEDENCE_MULTIPLY =>
                 {
-                    // `./` is also division
+                    // `./`: the explicit division of `math=parens-division`
                     let Span { start, .. } = self.cursor.bump()?.span;
                     let (_, Span { end, .. }) =
                         self.cursor.expect_solidus_without_ws_or_comments()?;
                     LessOperationOperator {
-                        kind: LessOperationOperatorKind::Division,
+                        kind: LessOperationOperatorKind::DotDivision,
                         span: Span { start, end },
                     }
                 }
@@ -662,13 +662,14 @@ impl<'a> Parser<'a> {
         let attempt = self.try_parse(|parser| {
             let hex_color = parser.parse::<HexColor>()?;
             match parser.cursor.peek()? {
-                TokenWithSpan { token: Token::LParen(..), span } => {
+                // `#ns()` / `#ns[key]`, the lookup also apart from its namespace
+                // (`#ns [key]`: less.js skips that whitespace)
+                TokenWithSpan { token: Token::LParen(..) | Token::LBracket(..), span } => {
                     Err(Error { kind: ErrorKind::TryParseError, span: *span })
                 }
-                TokenWithSpan {
-                    token: Token::LBracket(..) | Token::Dot(..) | Token::Hash(..),
-                    span,
-                } if hex_color.span.end == span.start => {
+                TokenWithSpan { token: Token::Dot(..) | Token::Hash(..), span }
+                    if hex_color.span.end == span.start =>
+                {
                     Err(Error { kind: ErrorKind::TryParseError, span: *span })
                 }
                 _ => Ok(hex_color),
@@ -1021,8 +1022,8 @@ impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
             } else {
                 // '@' or '$' is consumed, so '{' left only
                 let start = input.cursor.expect_l_brace()?.1.start - 1;
-                // Less interpolation names may start with a digit (`@{3}`).
-                let (name, name_span) = input.cursor.expect_ident_without_ws_or_comments(true)?;
+                let (name, name_span) =
+                    input.cursor.expect_name_without_ws_or_comments(/* less_name */ true)?;
 
                 let end = input.cursor.expect_r_brace()?.1.end;
                 elements.push(match input.source.as_bytes().get(start) {
@@ -1562,8 +1563,7 @@ impl<'a> Parse<'a> for LessMixinName<'a> {
                 }))
             }
             TokenWithSpan { token: Token::Dot(..), span: dot_span } => {
-                let (ident, ident_span) =
-                    input.cursor.expect_ident_without_ws_or_comments(false)?;
+                let (ident, ident_span) = input.cursor.expect_ident_without_ws_or_comments()?;
                 let ident = input.ident(ident, ident_span);
                 let span = Span { start: dot_span.start, end: ident.span.end };
                 Ok(LessMixinName::ClassSelector(ClassSelector {
@@ -1791,31 +1791,17 @@ impl<'a> Parse<'a> for LessVariableDeclaration<'a> {
             ComponentValue::LessDetachedRuleset(input.parse()?)
         } else {
             let typed = input.try_parse(|p| {
-                let value = p
-                    .with_state(ParserState {
-                        less_ctx: p.state.less_ctx | LESS_CTX_ALLOW_DIV,
-                        ..p.state.clone()
-                    })
-                    .parse_maybe_less_list(/* allow_comma */ true)?;
-                // The declaration must account for everything up to a
-                // statement boundary — `@page :first {` is an at-rule, not a
-                // variable named `@page` with the value `first`.
-                if !matches!(
-                    &p.cursor.peek()?.token,
-                    Token::Semicolon(..) | Token::RBrace(..) | Token::Eof(..)
-                ) {
-                    let span = p.cursor.peek()?.span;
-                    return Err(Error { kind: ErrorKind::TryParseError, span });
-                }
-                Ok(value)
+                p.with_state(ParserState {
+                    less_ctx: p.state.less_ctx | LESS_CTX_ALLOW_DIV,
+                    ..p.state.clone()
+                })
+                .parse_maybe_less_list(/* allow_comma */ true)
             });
-            match typed {
+            let value = match typed {
                 Ok(value) => value,
+                // No typed value: only then does less.js `permissiveValue` take any
+                // balanced token run (`@this: () => { ... };`), and only one ending in `;`
                 Err(error) => {
-                    // less.js `permissiveValue`: a variable's value may be any
-                    // balanced token run (`@this: () => { ... };`), but only
-                    // when explicitly terminated by `;` — otherwise
-                    // `@page :first { ... }` would be swallowed too.
                     let start = input.cursor.peek()?.span.start;
                     let values = input
                         .parse_declaration_value_tokens(/* stop_at_top_level_brace */ false)?;
@@ -1832,7 +1818,18 @@ impl<'a> Parse<'a> for LessVariableDeclaration<'a> {
                         span: Span { start, end },
                     })
                 }
+            };
+            // less.js `declaration`: a value that stops short of the statement boundary is
+            // no declaration (it backtracks): `@page :first {` is an at-rule, not `@page`
+            // with the value `first`, even with a `;` somewhere later
+            if !matches!(
+                &input.cursor.peek()?.token,
+                Token::Semicolon(..) | Token::RBrace(..) | Token::Eof(..)
+            ) {
+                let span = input.cursor.peek()?.span;
+                return Err(Error { kind: ErrorKind::TryParseError, span });
             }
+            value
         };
         let span = Span { start: name.span.start, end: value.span().end };
         Ok(LessVariableDeclaration { name, colon_span, value, span })

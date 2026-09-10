@@ -367,15 +367,22 @@ impl<'a> ParserCursor<'a> {
     }
 
     #[inline]
-    fn expect_ident_without_ws_or_comments(
+    fn expect_ident_without_ws_or_comments(&mut self) -> PResult<(token::Ident<'a>, Span)> {
+        self.expect_name_without_ws_or_comments(/* less_name */ false)
+    }
+
+    fn expect_name_without_ws_or_comments(
         &mut self,
-        allow_leading_digit: bool,
+        less_name: bool,
     ) -> PResult<(token::Ident<'a>, Span)> {
         debug_assert!(self.cached_token.is_none());
-        if self.tokenizer.is_start_of_ident()
-            || (allow_leading_digit && self.tokenizer.is_start_of_digit())
-        {
-            self.tokenizer.scan_ident_sequence(allow_leading_digit)
+        let starts = if less_name {
+            self.tokenizer.is_start_of_less_name()
+        } else {
+            self.tokenizer.is_start_of_ident()
+        };
+        if starts {
+            self.tokenizer.scan_ident_sequence(less_name)
         } else {
             let TokenWithSpan { token, span } = self.tokenizer.bump_without_ws_or_comments()?;
             Err(Error { kind: ErrorKind::Unexpected("<ident>", token.symbol()), span })

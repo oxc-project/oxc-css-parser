@@ -8,3 +8,10 @@ a {
   color: #f00000\9\0;
   color: #f00000\9\0\;
 }
+
+/* an escape right after a leading hyphen is part of the ident (`-\31 x` is `-1x`) */
+.hyphen-escape {
+  a: -\31 x;
+  b: -\31 0px;
+  c: --\31 x;
+}

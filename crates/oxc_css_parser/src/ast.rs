@@ -141,6 +141,15 @@ pub struct Calc<'a> {
     pub right: Box<'a, ComponentValue<'a>>,
 }
 
+/// `( <calc-sum> )` inside a math function: the parens are kept so a redundant pair (`((a + b))`) survives.
+#[derive(Debug)]
+#[cfg_attr(feature = "serialize", derive(Serialize))]
+#[cfg_attr(feature = "serialize", serde(tag = "type", rename_all = "camelCase"))]
+pub struct CalcParenthesized<'a> {
+    pub span: Span,
+    pub expr: Box<'a, ComponentValue<'a>>,
+}
+
 #[derive(Debug)]
 #[cfg_attr(feature = "serialize", derive(Serialize))]
 #[cfg_attr(feature = "serialize", serde(tag = "type", rename_all = "camelCase"))]
@@ -199,6 +208,8 @@ pub enum CombinatorKind {
     Column,
     /// `/deep/` (deprecated shadow-piercing descendant)
     Deep,
+    /// Any other `/name/` (`/shadow/`): less.js's slashed combinator
+    Slashed,
     /// `^` (deprecated shadow child)
     ShadowChild,
     /// `^^` (deprecated shadow descendant)
@@ -227,6 +238,7 @@ pub enum ComplexSelectorChild<'a> {
 pub enum ComponentValue<'a> {
     BracketBlock(BracketBlock<'a>),
     Calc(Calc<'a>),
+    CalcParenthesized(CalcParenthesized<'a>),
     Delimiter(Delimiter),
     Dimension(Dimension<'a>),
     Function(Function<'a>),
@@ -1177,6 +1189,8 @@ pub struct LessOperationOperator {
 pub enum LessOperationOperatorKind {
     Multiply,
     Division,
+    /// `./`, the explicit division of `math=parens-division`
+    DotDivision,
     Plus,
     Minus,
 }

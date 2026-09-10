@@ -90,6 +90,13 @@ impl<'a> Calc<'a> {
     }
 }
 
+impl<'a> CalcParenthesized<'a> {
+    #[inline]
+    pub fn span(&self) -> &Span {
+        &self.span
+    }
+}
+
 impl<'a> ColorProfilePrelude<'a> {
     #[inline]
     pub fn span(&self) -> &Span {
@@ -123,6 +130,7 @@ impl<'a> ComponentValue<'a> {
         match self {
             Self::BracketBlock(value) => value.span(),
             Self::Calc(value) => value.span(),
+            Self::CalcParenthesized(value) => value.span(),
             Self::Delimiter(value) => &value.span,
             Self::Dimension(value) => value.span(),
             Self::Function(value) => value.span(),
