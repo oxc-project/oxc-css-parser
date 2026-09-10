@@ -7,3 +7,14 @@
 .mix-mul (@a: green) {
   color: ~"@{a}";
 }
+
+/* only an exact `@{[\w-]+}` is an interpolation node; the rest is literal text to the parser */
+.mixin {
+  width: ~"@{box-@{suffix}}";
+  weird: ~"@{box}-@{suffix}}";
+  width-str: "@{box-@{suffix}}";
+  weird-str: "@{box}-@{suffix}}";
+  @box: ~"@{box";
+  @open: "@{box";
+  hyphen: "@{-}" "${-}";
+}

@@ -52,10 +52,13 @@ impl<'a> Parser<'a> {
         allow_modulo: bool,
     ) -> PResult<ComponentValue<'a>> {
         let mut left = if precedence >= PRECEDENCE_MULTIPLY {
-            if self.cursor.eat_l_paren()?.is_some() {
+            if let Some((_, lparen_span)) = self.cursor.eat_l_paren()? {
                 let expr = self.parse_calc_expr(allow_modulo)?;
-                self.cursor.expect_r_paren()?;
-                expr
+                let end = self.cursor.expect_r_paren()?.1.end;
+                ComponentValue::CalcParenthesized(CalcParenthesized {
+                    expr: self.alloc(expr),
+                    span: Span { start: lparen_span.start, end },
+                })
             } else if matches!(self.syntax, Syntax::Scss | Syntax::Sass)
                 && matches!(&self.cursor.peek()?.token, Token::Minus(..) | Token::Plus(..))
                 && {

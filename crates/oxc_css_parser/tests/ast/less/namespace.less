@@ -25,3 +25,10 @@
 & when (#ns.options[option]) {}
 & when (#ns.options[option] = true) {}
 & when (@ns[@options][option]) {}
+
+// less.js skips the whitespace before `[` and inside the brackets
+.spaced {
+  indirect-prop: #ns[ $@p ];
+  indirect-prop: #ns   [   $@p   ];
+  chained: #ns [@v] [key];
+}

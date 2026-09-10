@@ -957,8 +957,7 @@ impl<'a> Parse<'a> for SassExtend<'a> {
         let mut end = selectors.span.end;
 
         let optional = if let Some((_, exclamation_span)) = input.cursor.eat_exclamation()? {
-            let (keyword, keyword_span) =
-                input.cursor.expect_ident_without_ws_or_comments(false)?;
+            let (keyword, keyword_span) = input.cursor.expect_ident_without_ws_or_comments()?;
             if keyword.name().eq_ignore_ascii_case("optional") {
                 end = keyword_span.end;
                 let span = Span { start: exclamation_span.start, end: keyword_span.end };

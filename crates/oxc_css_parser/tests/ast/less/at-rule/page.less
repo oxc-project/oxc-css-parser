@@ -1,0 +1,6 @@
+// `@page :first` has the `@name :` shape of a variable, but its value stops at `{`:
+// an at-rule, and the later `;` must not pull the block into a variable
+@page :first {
+  margin: 3cm;
+}
+@x: 1;

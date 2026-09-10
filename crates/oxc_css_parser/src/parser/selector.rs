@@ -117,8 +117,7 @@ impl<'a> Parse<'a> for AnPlusB {
 
             TokenWithSpan { token: Token::Plus(..), .. } => {
                 let plus_span = input.cursor.bump()?.span;
-                let (ident, ident_span) =
-                    input.cursor.expect_ident_without_ws_or_comments(false)?;
+                let (ident, ident_span) = input.cursor.expect_ident_without_ws_or_comments()?;
                 let ident_name = ident.name();
                 if ident_name.eq_ignore_ascii_case("n") {
                     match &input.cursor.peek()?.token {
@@ -526,7 +525,7 @@ impl<'a> Parse<'a> for ClassSelector<'a> {
             end = span.end;
             InterpolableIdent::Placeholder((placeholder, span).into())
         } else if input.syntax == Syntax::Css {
-            let (ident, ident_span) = input.cursor.expect_ident_without_ws_or_comments(false)?;
+            let (ident, ident_span) = input.cursor.expect_ident_without_ws_or_comments()?;
             end = ident_span.end;
             InterpolableIdent::Literal(input.ident(ident, ident_span))
         } else {
@@ -1425,11 +1424,18 @@ impl<'a> Parser<'a> {
             {
                 let deep = self.try_parse(|p| {
                     let start = p.cursor.bump()?.span; // `/`
-                    let ident_end = match p.cursor.peek()? {
+                    let (ident_end, kind) = match p.cursor.peek()? {
                         TokenWithSpan { token: Token::Ident(..), span }
                             if span.start == start.end =>
                         {
-                            p.cursor.bump()?.span.end
+                            let ident = p.cursor.bump()?;
+                            let kind = if ident.is_ident_name_eq_ignore_ascii_case(p.source, "deep")
+                            {
+                                CombinatorKind::Deep
+                            } else {
+                                CombinatorKind::Slashed
+                            };
+                            (ident.span.end, kind)
                         }
                         TokenWithSpan { span, .. } => {
                             return Err(Error {
@@ -1443,7 +1449,7 @@ impl<'a> Parser<'a> {
                             if span.start == ident_end =>
                         {
                             let end = p.cursor.bump()?.span.end;
-                            Ok(Span { start: start.start, end })
+                            Ok((Span { start: start.start, end }, kind))
                         }
                         TokenWithSpan { span, .. } => Err(Error {
                             kind: ErrorKind::TryParseError,
@@ -1452,7 +1458,7 @@ impl<'a> Parser<'a> {
                     }
                 });
                 match deep {
-                    Ok(span) => Ok(Some(Combinator { kind: CombinatorKind::Deep, span })),
+                    Ok((span, kind)) => Ok(Some(Combinator { kind, span })),
                     Err(_) => Ok(None),
                 }
             }

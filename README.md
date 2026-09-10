@@ -67,6 +67,10 @@ Owner: less.js. No postcss-less leniency.
 - No raw fallback for a normal property's value
 - Root declarations parse: less.js accepts them at parse time and fails only at eval
 - The IE `*color` hack as a name prefix and digit-only names (`5: x`), as less.js accepts them
+- Variable and property names are `[\w-]+` (`@-`, `@1`, `$-`), not CSS idents
+- A string interpolates only on an exact `@{name}` / `${name}`; `"@{box"` and the outer `@{box-` of `"@{box-@{suffix}}"` are text
+- An unquoted `url()` body runs to `)`, whitespace and newlines included
+- A variable declaration must reach `;` / `}`: `@page :first { ... }` is an at-rule, and the permissive `@this: () => { ... };` read is tried only when no typed value parses
 
 ### css-in-js parse mode
 

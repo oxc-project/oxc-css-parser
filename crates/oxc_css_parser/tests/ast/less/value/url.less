@@ -4,3 +4,16 @@
   background: url(@{a});
   background: url(~"");
 }
+
+/* less.js reads the body up to `)`: whitespace and newlines included */
+.data {
+  background: url(data:image/png;charset=utf-8;base64,
+    kiVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAABlBMVEUAAAD/
+    kg9C9zwz3gVLMDA/A6P9/AFGGFyjOXZtQAAAAAElFTkSuQmCC);
+  background: url( spaced/path.png );
+}
+
+/* an escape after the whitespace run stays in the body */
+.escaped {
+  background: url(a \) b);
+}

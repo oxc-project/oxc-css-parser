@@ -8,13 +8,13 @@ wpt                         7        5       0         2       5      0        0
 webref                      0        0       0         0       0      0        0      0
 postcss-parser-tests       30       29       1         0      29      1        0      0
 sass-spec               26787    26487      11       289   26487      9        2      0
-less.js                   459      426       9        24     426      1        8      0
+less.js                   459      428       7        24     428      1        6      0
 ------------------------------------------------------------------------
-total                   27283    26947      21       315   26947     11       10      0
+total                   27283    26949      19       315   26949     11        8      0
 
 # by syntax
 syntax                  files  success  failed  expected   clean  recov  harderr  panic
 css                     11788    11751      16        21   11751     11        5      0
 scss                    14750    14519       1       230   14519      0        1      0
 sass                      439      398       1        40     398      0        1      0
-less                      306      279       3        24     279      0        3      0
+less                      306      281       1        24     281      0        1      0
