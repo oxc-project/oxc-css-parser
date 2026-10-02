@@ -45,7 +45,7 @@ Owner: css-syntax-3's syntax layer (tokenizer, rule / declaration / block struct
     the prelude is kept as raw tokens (`UnknownQualifiedRule`)
 - `$var` gets a typed node (`PostcssSimpleVar`, postcss-simple-vars): an AST shape for the formatter's layout, not extra acceptance,
   `$var: value` is already a postcss property name. `$var: value;` at the root is a statement, that is where postcss-simple-vars defines variables
-- Root declarations: the `TopLevelDeclaration` recoverable error. postcss keeps them; not followed
+- Root declarations: the `TopLevelDeclaration` recoverable error, unless the root is a block's contents (below). postcss keeps them; not followed
 - Everything else the spec's syntax layer discards stays rejected (`color red;`, `x: {a:b} more;`),
   and so do shapes the spec keeps but nobody asked for (`"foo" {}`, `( ) {}`, `, .a {}`): the spec is a ceiling, not a floor
 - Errors: css-syntax-3 recovery (EOF closes blocks, bad strings) is kept even where postcss throws
@@ -57,7 +57,7 @@ Owner: dart-sass. No postcss-scss leniency.
 
 - No raw fallback for a normal property's value: the expression grammar owns it
 - A custom property value is text, as dart-sass reads it (`//` is no comment inside)
-- Root declarations: the `TopLevelDeclaration` recoverable error, as dart-sass rejects them
+- Root declarations: the `TopLevelDeclaration` recoverable error, as dart-sass rejects them, unless the root is a block's contents (below)
 - The IE `*color` hack is kept as a name prefix, as dart-sass accepts it
 
 ### Less
@@ -72,12 +72,21 @@ Owner: less.js. No postcss-less leniency.
 - An unquoted `url()` body runs to `)`, whitespace and newlines included
 - A variable declaration must reach `;` / `}`: `@page :first { ... }` is an at-rule, and the permissive `@this: () => { ... };` read is tried only when no typed value parses
 
+### Block contents
+
+Owner: css-syntax-3's "parse a block's contents" (what a `style` attribute holds).
+`block_contents` set, for a fragment rather than a stylesheet (a css-in-js template, a Markdown code block).
+
+- The root follows the variant's rules inside a block
+  - Root declarations are statements, without the error: a fragment is usually a declaration list (`` css`display: flex;` ``)
+  - Less also takes the IE `*color` hack and digit-only names there
+
 ### css-in-js parse mode
 
-SCSS with `template_placeholder` set. It is the only option, and the only place a dialect line is relaxed.
+SCSS with `template_placeholder` set, along with `block_contents`.
+The only place a dialect line is relaxed.
 
 - A backtick-delimited `` `<prefix><digits>` `` is one typed `Token::Placeholder`
-- Root declarations are statements, without the error: a fragment is usually a declaration list (`` css`display: flex;` ``)
 - Nothing from the CSS line comes along; postcss property names extend here only on demand
 
 ## Benchmark

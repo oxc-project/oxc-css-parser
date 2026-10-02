@@ -1,5 +1,5 @@
-/* A root declaration parses but is not a statement outside the css-in-js parse
-   mode (README "Acceptance"). See tests/placeholder.rs. */
+/* A root declaration parses but is not a statement without `block_contents`
+   (README "Acceptance"). See `block_contents_takes_root_declarations`. */
 color: red;
 color : red;
 display    :inline;
