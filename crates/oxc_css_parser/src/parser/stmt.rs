@@ -523,7 +523,9 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
 // <stylesheet> = <rule-list>
 impl<'a> Parse<'a> for Stylesheet<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let statements = input.parse_statements(/* is_top_level */ true)?;
+        // A block's contents root follows the block's rules (README "Acceptance")
+        let statements =
+            input.parse_statements(/* is_top_level */ !input.options.block_contents)?;
         input.cursor.expect_eof()?;
         Ok(Stylesheet { statements, span: Span { start: 0, end: input.source.len() } })
     }
@@ -715,9 +717,7 @@ impl<'a> Parser<'a> {
                         decl.value.last(),
                         Some(ComponentValue::SassNestingDeclaration(..))
                     );
-                    // A root declaration is a statement only in the css-in-js
-                    // parse mode (README "Acceptance").
-                    if is_top_level && self.options.template_placeholder.is_none() {
+                    if is_top_level {
                         self.recoverable_errors
                             .push(Error { kind: ErrorKind::TopLevelDeclaration, span: decl.span });
                     }
@@ -763,8 +763,7 @@ impl<'a> Parser<'a> {
 
     // Block contents: a mix of declarations, nested style rules and at-rules
     // (CSS Syntax `<block-contents>`; `is_top_level` selects the `<stylesheet>`
-    // rule-list, where a declaration is a `TopLevelDeclaration` error except
-    // in the css-in-js parse mode and in Less).
+    // rule-list, where a declaration is a `TopLevelDeclaration` error except in Less).
     // https://drafts.csswg.org/css-syntax-3/#consume-block-contents
     fn parse_statements(
         &mut self,

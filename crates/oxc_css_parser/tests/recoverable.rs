@@ -4,7 +4,10 @@ use codespan_reporting::{
     term,
 };
 use insta::{Settings, assert_snapshot, glob};
-use oxc_css_parser::{Allocator, Parser, Syntax, ast::Stylesheet};
+use oxc_css_parser::{
+    Allocator, Parser, ParserBuilder, ParserOptions, Syntax,
+    ast::{Statement, Stylesheet},
+};
 use std::fs;
 
 #[test]
@@ -71,4 +74,31 @@ fn recoverable_errors_snapshot() {
             assert_snapshot!(format!("{file_name}.error"), errors);
         });
     });
+}
+
+// `recoverable/declaration/top-level.css` pins the strict shape;
+// a block's contents takes the same root declarations as statements (and Less its `*` hack).
+#[test]
+fn block_contents_takes_root_declarations() {
+    for syntax in [Syntax::Css, Syntax::Scss, Syntax::Less] {
+        let allocator = Allocator::default();
+        let source = if syntax == Syntax::Less {
+            "*zoom: 1;\na { b: c }\nd: e"
+        } else {
+            "color: red;\na { b: c }\nd: e"
+        };
+        let mut parser = ParserBuilder::new(&allocator, source)
+            .syntax(syntax)
+            .options(ParserOptions { block_contents: true, ..Default::default() })
+            .build();
+        let stylesheet = parser.parse::<Stylesheet>().unwrap();
+        assert!(parser.recoverable_errors().is_empty(), "{syntax:?}");
+        assert!(
+            matches!(
+                stylesheet.statements.as_slice(),
+                [Statement::Declaration(_), Statement::QualifiedRule(_), Statement::Declaration(_)]
+            ),
+            "{syntax:?}"
+        );
+    }
 }

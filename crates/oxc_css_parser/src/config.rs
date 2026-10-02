@@ -55,4 +55,13 @@ pub struct ParserOptions {
     /// not loadable from a config file.
     #[cfg_attr(feature = "config_serde", serde(skip))]
     pub template_placeholder: Option<TemplatePlaceholder>,
+    /// Parse the root as a block's contents (css-syntax-3 "parse a block's contents"),
+    /// not as a stylesheet: the root follows the rules inside a block,
+    /// so a root declaration is a statement, without the `TopLevelDeclaration` recoverable error.
+    ///
+    /// For a fragment holding what a block holds,
+    /// e.g. a CSS-in-JS template (`` css`display: flex;` ``) or a Markdown code block.
+    /// Less always parses root declarations, so it changes nothing there.
+    #[cfg_attr(feature = "config_serde", serde(default))]
+    pub block_contents: bool,
 }
