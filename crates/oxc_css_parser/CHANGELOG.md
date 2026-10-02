@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.16](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.15...oxc-css-parser-v0.0.16) - 2026-10-02
+
+### Added
+
+- *(parser)* add `block_contents` option to parse the root as a block's contents in css-in-md ([#179](https://github.com/oxc-project/oxc-css-parser/pull/179))
+
 ## [0.0.15](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.14...oxc-css-parser-v0.0.15) - 2026-09-10
 
 ### Fixed
