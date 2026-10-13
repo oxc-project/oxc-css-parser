@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.17](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.16...oxc-css-parser-v0.0.17) - 2026-10-13
+
+### Added
+
+- *(parser)* [**breaking**] interpololate css-in-js placeholder as like scss \#\{\} ([#186](https://github.com/oxc-project/oxc-css-parser/pull/186))
+
 ## [0.0.16](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.15...oxc-css-parser-v0.0.16) - 2026-10-02
 
 ### Added
