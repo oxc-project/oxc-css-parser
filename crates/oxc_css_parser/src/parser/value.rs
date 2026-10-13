@@ -1183,12 +1183,7 @@ impl<'a> Parse<'a> for Ident<'a> {
 // / css-in-js placeholder standing in for one.
 impl<'a> Parse<'a> for InterpolableIdent<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        // A css-in-js placeholder stands in for an interpolated ident anywhere one
-        // is expected (id selector `#${x}`, attribute value `[a=${x}]`, ...).
-        if let Token::Placeholder(..) = input.cursor.peek()?.token {
-            let (placeholder, span) = input.cursor.expect_placeholder()?;
-            return Ok(InterpolableIdent::Placeholder((placeholder, span).into()));
-        }
+        // A css-in-js placeholder (Scss only) goes through `parse_sass_interpolated_ident`.
         match input.syntax {
             Syntax::Css => input.parse().map(InterpolableIdent::Literal),
             Syntax::Scss | Syntax::Sass => input.parse_sass_interpolated_ident(),

@@ -106,9 +106,13 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                     })
                 }),
             // Sass: an interpolation may stand for a whole condition operand
-            // (`@supports #{"(a: b)"} and (c: d)`) or splice into a function
-            // name (`@supports a#{"b"}c(d)`).
-            TokenWithSpan { token: Token::Ident(..) | Token::HashLBrace(..), .. } => {
+            // (`@supports #{"(a: b)"} and (c: d)`)
+            // or splice into a function name (`@supports a#{"b"}c(d)`).
+            // So may a css-in-js placeholder.
+            TokenWithSpan {
+                token: Token::Ident(..) | Token::HashLBrace(..) | Token::Placeholder(..),
+                ..
+            } => {
                 let name = input.parse::<InterpolableIdent>()?;
                 let name_end = name.span().end;
                 match name {
@@ -131,16 +135,19 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                                 if span.start == name_end
                         );
                         // Only a pure interpolation may stand alone
-                        // (`#{"(a: b)"}`); a mixed ident like `a#{b}` still
-                        // needs parens or a function call, as in dart-sass.
-                        let pure_interpolation = matches!(
-                            &name,
-                            InterpolableIdent::SassInterpolated(interpolation)
-                                if matches!(
-                                    interpolation.elements.as_slice(),
-                                    [SassInterpolatedIdentElement::Expression(..)]
-                                )
-                        );
+                        // (`#{"(a: b)"}`, or a placeholder without a glued suffix);
+                        // a mixed ident like `a#{b}` still needs parens or a function call,
+                        // as in dart-sass.
+                        let pure_interpolation = match &name {
+                            InterpolableIdent::SassInterpolated(interpolation) => matches!(
+                                interpolation.elements.as_slice(),
+                                [SassInterpolatedIdentElement::Expression(..)]
+                            ),
+                            InterpolableIdent::Placeholder(placeholder) => {
+                                placeholder.suffix.is_empty()
+                            }
+                            _ => false,
+                        };
                         if glued_lparen {
                             // An unknown function here is `<general-enclosed>`
                             // (css-conditional): its contents are raw tokens.

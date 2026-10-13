@@ -294,6 +294,94 @@ fn media_feature_value_placeholder_glued_to_unit() {
 }
 
 #[test]
+fn placeholders_interpolate_into_declaration_name() {
+    // Glued placeholders and static parts form one interpolated name, like `#{}`
+    // (`${a}-${b}: 1rem` is one declaration, not a bare `${a}-` statement). oxc#27635.
+    let ss = parse("`PLACEHOLDER-0`-`PLACEHOLDER-1`: 1rem;", Some(opts()));
+    assert_eq!(ss.statements.len(), 1);
+    let Statement::Declaration(decl) = &ss.statements[0] else {
+        panic!("expected declaration");
+    };
+    let InterpolableIdent::SassInterpolated(name) = &decl.name else {
+        panic!("expected interpolated name");
+    };
+    assert!(matches!(
+        name.elements.as_slice(),
+        [
+            SassInterpolatedIdentElement::Placeholder(Placeholder { index: 0, suffix: "-", .. }),
+            SassInterpolatedIdentElement::Placeholder(Placeholder { index: 1, suffix: "", .. }),
+        ]
+    ));
+
+    // A static part may lead.
+    let ss = parse("margin-`PLACEHOLDER-0`: 1rem;", Some(opts()));
+    let Statement::Declaration(decl) = &ss.statements[0] else {
+        panic!("expected declaration");
+    };
+    let InterpolableIdent::SassInterpolated(name) = &decl.name else {
+        panic!("expected interpolated name");
+    };
+    assert!(matches!(
+        name.elements.as_slice(),
+        [
+            SassInterpolatedIdentElement::Static(InterpolableIdentStaticPart {
+                raw: "margin-",
+                ..
+            }),
+            SassInterpolatedIdentElement::Placeholder(Placeholder { index: 0, .. }),
+        ]
+    ));
+}
+
+#[test]
+fn placeholder_as_media_condition() {
+    // `@media screen and ${x}`: like `#{$x}`, a placeholder stands for a `<media-in-parens>`.
+    let ss = parse("@media screen and `PLACEHOLDER-0` {a{color:red}}", Some(opts()));
+    let Statement::AtRule(at_rule) = &ss.statements[0] else {
+        panic!("expected at-rule");
+    };
+    let Some(AtRulePrelude::Media(list)) = &at_rule.prelude else {
+        panic!("expected media prelude");
+    };
+    let MediaQuery::WithType(with_type) = &list.queries[0] else {
+        panic!("expected query with type");
+    };
+    let condition = &with_type.condition.as_ref().unwrap().condition;
+    let MediaConditionKind::MediaInParens(in_parens) = &condition.conditions[0] else {
+        panic!("expected media-in-parens");
+    };
+    assert!(matches!(
+        in_parens.kind,
+        MediaInParensKind::Interpolation(InterpolableIdent::Placeholder(Placeholder {
+            index: 0,
+            ..
+        }))
+    ));
+}
+
+#[test]
+fn placeholder_as_supports_condition() {
+    // `@supports ${x}`: like `#{$x}`, a lone placeholder stands for a condition operand.
+    let ss = parse("@supports `PLACEHOLDER-0` {a{color:red}}", Some(opts()));
+    let Statement::AtRule(at_rule) = &ss.statements[0] else {
+        panic!("expected at-rule");
+    };
+    let Some(AtRulePrelude::Supports(condition)) = &at_rule.prelude else {
+        panic!("expected supports prelude");
+    };
+    let SupportsConditionKind::SupportsInParens(in_parens) = &condition.conditions[0] else {
+        panic!("expected supports-in-parens");
+    };
+    assert!(matches!(
+        in_parens.kind,
+        SupportsInParensKind::Interpolation(InterpolableIdent::Placeholder(Placeholder {
+            index: 0,
+            ..
+        }))
+    ));
+}
+
+#[test]
 fn huge_index_does_not_panic() {
     // Regression: an index that overflows u32 must not panic; it fails to match
     // the placeholder shape, so the stray backtick is a value error (not a crash).

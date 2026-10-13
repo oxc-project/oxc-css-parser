@@ -617,6 +617,18 @@ impl InterpolableIdent<'_> {
             Self::LessInterpolated(_) | Self::Placeholder(_) => false,
         }
     }
+
+    /// Whether a css-in-js placeholder is (part of) the ident.
+    pub fn has_placeholder(&self) -> bool {
+        match self {
+            Self::Placeholder(_) => true,
+            Self::SassInterpolated(ident) => ident
+                .elements
+                .iter()
+                .any(|element| matches!(element, SassInterpolatedIdentElement::Placeholder(_))),
+            Self::Literal(_) | Self::LessInterpolated(_) => false,
+        }
+    }
 }
 
 /// An atomic backtick-delimited template placeholder node (see
@@ -1436,7 +1448,9 @@ pub enum MediaInParensKind<'a> {
     MediaCondition(MediaCondition<'a>),
     MediaFeature(Box<'a, MediaFeature<'a>>),
     GeneralEnclosed(TokenSeq<'a>),
-    SassInterpolation(SassInterpolatedIdent<'a>),
+    /// Sass interpolation or css-in-js placeholder standing for the whole `<media-in-parens>`,
+    /// e.g. `@media screen and #{$query} {}`.
+    Interpolation(InterpolableIdent<'a>),
 }
 
 #[derive(Debug)]
@@ -2058,6 +2072,8 @@ pub struct SassInterpolatedIdent<'a> {
 pub enum SassInterpolatedIdentElement<'a> {
     Expression(ComponentValue<'a>),
     Static(InterpolableIdentStaticPart<'a>),
+    /// A css-in-js placeholder interpolated like `#{}` (`x-${a}`, `${a}-${b}`).
+    Placeholder(Placeholder<'a>),
 }
 
 #[derive(Debug)]

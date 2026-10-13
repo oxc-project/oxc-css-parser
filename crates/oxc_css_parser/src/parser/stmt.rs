@@ -46,13 +46,8 @@ impl<'a> Parse<'a> for Declaration<'a> {
         } else {
             None
         };
-        // A css-in-js `${}` placeholder may stand in for the property name
-        // (`${foo}: ${bar}`); it is not a real ident, so accept it directly.
         let name = if let Some(name) = postcss_name {
             name
-        } else if let Token::Placeholder(..) = input.cursor.peek()?.token {
-            let (placeholder, span) = input.cursor.expect_placeholder()?;
-            InterpolableIdent::Placeholder((placeholder, span).into())
         } else if input.state.in_statement
             && input.syntax == Syntax::Less
             && let token = input.cursor.peek()?
@@ -979,8 +974,8 @@ impl<'a> Parser<'a> {
                     // statements, not one). So only attempt the rule when the block
                     // `{` is reachable without an intervening newline-then-selector.
                     //
-                    // A placeholder may also be a declaration property name
-                    // (`${foo}: ${bar}`), so try a declaration before falling back
+                    // A placeholder may also be (part of) a declaration property name
+                    // (`${foo}: ${bar}`, `${a}-${b}: 1rem`), so try a declaration before falling back
                     // to a bare placeholder statement. Same-line only: the `:` of
                     // a rule on the next line (`${mixin}\n:hover { ... }`) must
                     // not be absorbed as a declaration colon — like the qualified
@@ -995,7 +990,7 @@ impl<'a> Parser<'a> {
                         && let Ok(declaration) = self.try_parse(Declaration::parse)
                     {
                         // Reached only via the placeholder token above, so this
-                        // is the `${foo}: ${bar}` form (placeholder property name).
+                        // is the `${foo}: ${bar}` form (placeholder-led property name).
                         statements.push(Statement::Declaration(declaration));
                         is_block_element = true;
                     } else {
