@@ -502,6 +502,7 @@ impl<'a> Parser<'a> {
 
     // An identifier interleaving static parts with `#{ <expression> }` interpolation.
     // https://sass-lang.com/documentation/interpolation
+    // A css-in-js placeholder interpolates the same way; a lone one stays `InterpolableIdent::Placeholder`.
     pub(super) fn parse_sass_interpolated_ident(&mut self) -> PResult<InterpolableIdent<'a>> {
         debug_assert!(matches!(self.syntax, Syntax::Scss | Syntax::Sass));
 
@@ -515,8 +516,8 @@ impl<'a> Parser<'a> {
                     ident_span,
                 )
             }
-            TokenWithSpan { token: Token::HashLBrace(..), .. } => {
-                self.parse_sass_interpolated_ident_expr()?
+            TokenWithSpan { token: Token::HashLBrace(..) | Token::Placeholder(..), .. } => {
+                self.parse_sass_interpolation_element()?
             }
             TokenWithSpan { token, span } => {
                 return Err(Error {
@@ -527,24 +528,26 @@ impl<'a> Parser<'a> {
         };
 
         let mut elements = self.parse_sass_interpolated_ident_rest(&mut end)?;
-        if elements.is_empty()
-            && let SassInterpolatedIdentElement::Static(ident) = first
-        {
-            return Ok(InterpolableIdent::Literal(Ident {
-                name: ident.value,
-                raw: ident.raw,
-                span: ident.span,
-            }));
+        match first {
+            SassInterpolatedIdentElement::Static(ident) if elements.is_empty() => {
+                return Ok(InterpolableIdent::Literal(Ident {
+                    name: ident.value,
+                    raw: ident.raw,
+                    span: ident.span,
+                }));
+            }
+            SassInterpolatedIdentElement::Placeholder(placeholder) if elements.is_empty() => {
+                return Ok(InterpolableIdent::Placeholder(placeholder));
+            }
+            first => elements.insert(0, first),
         }
-
-        elements.insert(0, first);
         Ok(InterpolableIdent::SassInterpolated(SassInterpolatedIdent {
             elements,
             span: Span { start, end },
         }))
     }
 
-    // The static/`#{…}` element sequence after an interpolated ident's first part.
+    // The static/`#{…}`/placeholder element sequence after an interpolated ident's first part.
     pub(super) fn parse_sass_interpolated_ident_rest(
         &mut self,
         end: &mut usize,
@@ -558,9 +561,10 @@ impl<'a> Parser<'a> {
                 ));
             } else if matches!(
                 self.cursor.peek()?,
-                TokenWithSpan { token: Token::HashLBrace(..), span } if *end == span.start
+                TokenWithSpan { token: Token::HashLBrace(..) | Token::Placeholder(..), span }
+                    if *end == span.start
             ) {
-                let (element, span) = self.parse_sass_interpolated_ident_expr()?;
+                let (element, span) = self.parse_sass_interpolation_element()?;
                 *end = span.end;
                 elements.push(element);
             } else {
@@ -569,12 +573,19 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // One `#{ <expression> }` element of an interpolated ident.
-    fn parse_sass_interpolated_ident_expr(
+    // One `#{ <expression> }` (or css-in-js placeholder) element of an interpolated ident.
+    fn parse_sass_interpolation_element(
         &mut self,
     ) -> PResult<(SassInterpolatedIdentElement<'a>, Span)> {
         debug_assert!(matches!(self.syntax, Syntax::Scss | Syntax::Sass));
 
+        if let Token::Placeholder(..) = self.cursor.peek()?.token {
+            let (placeholder, span) = self.cursor.expect_placeholder()?;
+            return Ok((
+                SassInterpolatedIdentElement::Placeholder((placeholder, span).into()),
+                span,
+            ));
+        }
         let start = self.cursor.expect_hash_l_brace()?.1.start;
         let expr = self.parse_maybe_sass_list(/* allow_comma */ true)?;
         let end = self.cursor.expect_r_brace()?.1.end;

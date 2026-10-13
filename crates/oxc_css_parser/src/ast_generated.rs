@@ -1046,7 +1046,7 @@ impl<'a> MediaInParensKind<'a> {
             Self::MediaCondition(value) => value.span(),
             Self::MediaFeature(value) => value.span(),
             Self::GeneralEnclosed(value) => value.span(),
-            Self::SassInterpolation(value) => value.span(),
+            Self::Interpolation(value) => value.span(),
         }
     }
 }
@@ -1511,6 +1511,7 @@ impl<'a> SassInterpolatedIdentElement<'a> {
         match self {
             Self::Expression(value) => value.span(),
             Self::Static(value) => value.span(),
+            Self::Placeholder(value) => &value.span,
         }
     }
 }

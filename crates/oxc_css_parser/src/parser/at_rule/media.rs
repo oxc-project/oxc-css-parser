@@ -123,15 +123,14 @@ impl<'a> Parse<'a> for MediaFeatureComparison {
 impl<'a> Parse<'a> for MediaInParens<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         // Sass allows an interpolation wherever `<media-in-parens>` is expected,
-        // e.g. `@media screen and #{$query} {}`.
+        // e.g. `@media screen and #{$query} {}`. So does a css-in-js placeholder.
         if matches!(input.syntax, Syntax::Scss | Syntax::Sass)
-            && matches!(&input.cursor.peek()?.token, Token::HashLBrace(..))
-            && let InterpolableIdent::SassInterpolated(interpolation) =
-                input.parse_sass_interpolated_ident()?
+            && matches!(&input.cursor.peek()?.token, Token::HashLBrace(..) | Token::Placeholder(..))
         {
-            let span = interpolation.span;
+            let interpolation = input.parse_sass_interpolated_ident()?;
+            let span = *interpolation.span();
             return Ok(MediaInParens {
-                kind: MediaInParensKind::SassInterpolation(interpolation),
+                kind: MediaInParensKind::Interpolation(interpolation),
                 span,
             });
         }
@@ -150,7 +149,7 @@ impl<'a> Parse<'a> for MediaInParensKind<'a> {
                 /* allow_or */ true, /* after_logic_keyword */ false,
             )?;
             // `(#{$x}-width: 1px)`: the interpolation parses as a
-            // `SassInterpolation` media condition, but a trailing `:` means it is
+            // `Interpolation` media condition, but a trailing `:` means it is
             // really a media feature name. Require the closing `)` here so such
             // cases fall through to the media-feature branch below.
             if matches!(&parser.cursor.peek()?.token, Token::RParen(..)) {
