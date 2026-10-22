@@ -13,7 +13,7 @@ pub(super) struct ParserState {
     /// Parsing a declaration that is a statement (style-rule block or stylesheet root),
     /// not a feature query (`@supports`, `@container style()`, `@import supports()`).
     /// Only statements take postcss property names, the IE `*color` hack and
-    /// Less's digit-only names; only feature queries end a value at `)`.
+    /// Less's digit-led names; only feature queries end a value at `)`.
     pub(super) in_statement: bool,
     /// Inside the body of a CSS custom function (`@function --name(...)`,
     /// css-mixins spec). The body holds declarations only — no style rules —
