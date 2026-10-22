@@ -51,8 +51,9 @@ impl<'a> Parse<'a> for Declaration<'a> {
         } else if input.state.in_statement
             && input.syntax == Syntax::Less
             && let token = input.cursor.peek()?
-            && let Some(raw) = token.number_raw(input.source)
-            && raw.bytes().all(|b| b.is_ascii_digit())
+            && matches!(token.token, Token::Number(..) | Token::Dimension(..))
+            && let raw = token.raw(input.source)
+            && raw.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-'))
         {
             let span = token.span;
             input.cursor.bump()?;
@@ -832,16 +833,6 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
-                // `5:-` — less.js's ruleProperty regex (`[_a-zA-Z0-9-]+`)
-                // allows digit-only declaration names
-                Token::Number(..)
-                    if self.syntax == Syntax::Less
-                        && !is_top_level
-                        && self.source.as_bytes().get(span.end) == Some(&b':') =>
-                {
-                    let decl = self.parse_style_rule_declaration()?;
-                    statements.push(Statement::Declaration(decl));
-                }
                 // `.3D(...)` — less.js allows digit-led mixin names, which
                 // arrive as one <dimension-token>; they behave exactly like
                 // `.foo` (`.3D ()`, `.3D;`), so only the leading `.` matters
@@ -860,6 +851,16 @@ impl<'a> Parser<'a> {
                         self.parse().map(Statement::LessMixinCall)?
                     };
                     statements.push(stmt);
+                }
+                // `5:-`, `20rem: 20rem` — less.js's ruleProperty regex (`[_a-zA-Z0-9-]+`)
+                // allows digit-led declaration names
+                Token::Number(..) | Token::Dimension(..)
+                    if self.syntax == Syntax::Less
+                        && !is_top_level
+                        && self.source.as_bytes().get(span.end) == Some(&b':') =>
+                {
+                    let decl = self.parse_style_rule_declaration()?;
+                    statements.push(Statement::Declaration(decl));
                 }
                 // Css takes every remaining lead token through `parse_css_statement` below.
                 Token::Dot(..) | Token::Hash(..)
