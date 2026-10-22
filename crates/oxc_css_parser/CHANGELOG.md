@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.18](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.17...oxc-css-parser-v0.0.18) - 2026-10-22
+
+### Fixed
+
+- *(parser)* allow dimension as property name in Less ([#191](https://github.com/oxc-project/oxc-css-parser/pull/191))
+
 ## [0.0.17](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.16...oxc-css-parser-v0.0.17) - 2026-10-13
 
 ### Added
