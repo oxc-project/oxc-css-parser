@@ -1,5 +1,5 @@
 /* A root declaration parses but is not a statement without `block_contents`
-   (README "Acceptance"). See `block_contents_takes_root_declarations`. */
+   (AGENTS.md "Acceptance"). See `block_contents_takes_root_declarations`. */
 color: red;
 color : red;
 display    :inline;

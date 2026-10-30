@@ -425,7 +425,7 @@ pub struct Declaration<'a> {
     pub span: Span,
     pub name: InterpolableIdent<'a>,
     /// Scss / Less only: the IE `*` hack prefix (`*color: red`).
-    /// In Css the sigil is part of the postcss property name (README "Acceptance").
+    /// In Css the sigil is part of the postcss property name (AGENTS.md "Acceptance").
     #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "Option::is_none"))]
     pub name_prefix: Option<char>,
     pub name_suffix: Option<char>,

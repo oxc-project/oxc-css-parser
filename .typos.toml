@@ -1,0 +1,6 @@
+[files]
+extend-exclude = [
+  # Parser inputs, misspellings included (`gamme`, `qouted`, `\ND`, ...)
+  "benchmark/fixtures",
+  "crates/oxc_css_parser/tests/ast",
+]

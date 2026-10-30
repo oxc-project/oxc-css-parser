@@ -1259,7 +1259,7 @@ impl<'a> Parse<'a> for Url<'a> {
         let (prefix, prefix_span) = input.cursor.expect_ident()?;
         // `url-prefix(...)` and `domain(...)` (Gecko `@document` matchers)
         // take the same unquoted-URL contents as `url(...)` — token-level
-        // scanning would mis-lex `//` in `https://` as a comment.
+        // scanning would lex `//` in `https://` as a comment.
         let prefix_name = prefix.name();
         let base_name = unvendored(&prefix_name);
         if !base_name.eq_ignore_ascii_case("url")

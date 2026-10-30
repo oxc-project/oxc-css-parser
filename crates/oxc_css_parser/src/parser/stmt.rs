@@ -15,7 +15,7 @@ use crate::{
 // <declaration> = <ident-token> : <declaration-value>? [ '!' important ]?
 impl<'a> Parse<'a> for Declaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        // Css: a postcss property name (README "Acceptance").
+        // Css: a postcss property name (AGENTS.md "Acceptance").
         // Statement position only: a feature query keeps the `<ident-token>`
         // grammar, and one the typed grammar rejects (`@supports (*zoom: 1)`)
         // is kept anyway by the `<general-enclosed>` raw fallback.
@@ -519,7 +519,7 @@ impl<'a> Parse<'a> for SimpleBlock<'a> {
 // <stylesheet> = <rule-list>
 impl<'a> Parse<'a> for Stylesheet<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        // A block's contents root follows the block's rules (README "Acceptance")
+        // A block's contents root follows the block's rules (AGENTS.md "Acceptance")
         let statements =
             input.parse_statements(/* is_top_level */ !input.options.block_contents)?;
         input.cursor.expect_eof()?;
@@ -592,7 +592,7 @@ impl<'a> Parser<'a> {
                 // `filter: progid:...`) must be parsed structurally:
                 // the tokenizer needs `scan_string_template` to resume
                 // the string after each `#{...}`, so consuming its
-                // tokens as a plain stream would mis-lex the rest.
+                // tokens as a plain stream would lex the rest wrongly.
                 Token::StrTemplate(..) => {
                     values.push(ComponentValue::InterpolableStr(self.parse()?));
                     continue;
