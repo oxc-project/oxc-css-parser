@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.19](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.18...oxc-css-parser-v0.0.19) - 2026-10-30
+
+### Other
+
+- consolidate docs into AGENTS.md ([#194](https://github.com/oxc-project/oxc-css-parser/pull/194))
+
 ## [0.0.18](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.17...oxc-css-parser-v0.0.18) - 2026-10-22
 
 ### Fixed
