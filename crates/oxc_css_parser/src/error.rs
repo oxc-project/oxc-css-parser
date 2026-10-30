@@ -90,7 +90,7 @@ pub enum ErrorKind {
     UnexpectedLessMixinCall,
     UnexpectedSimpleBlock,
     /// A Css / Scss root declaration without `ParserOptions::block_contents`
-    /// (README "Acceptance"). Not emitted in Less.
+    /// (AGENTS.md "Acceptance"). Not emitted in Less.
     TopLevelDeclaration,
     /// CSS Syntax §5.5.6: a declaration value hit a top-level `{}` block,
     /// so the statement is not a declaration;

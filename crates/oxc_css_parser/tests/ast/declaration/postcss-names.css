@@ -1,4 +1,4 @@
-/* Css property names follow postcss (README "Acceptance"). */
+/* Css property names follow postcss (AGENTS.md "Acceptance"). */
 .hacks {
   *zoom: 1;
   _width: 200px;

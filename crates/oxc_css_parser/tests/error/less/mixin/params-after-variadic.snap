@@ -2,7 +2,7 @@
 source: crates/oxc_css_parser/tests/error.rs
 ---
 error: expect token `;`, but found `{`
-  ┌─ params-after-varadic.less:1:23
+  ┌─ params-after-variadic.less:1:23
   │
 1 │ .mixin(@a, @b..., @c) {}
   │                       ^
