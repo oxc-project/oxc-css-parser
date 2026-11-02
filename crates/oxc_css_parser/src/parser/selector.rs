@@ -345,8 +345,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
                         span: Span { start, end },
                     }
                 } else {
-                    let span = *ident_span;
-                    WqName { name: ident, prefix: None, span }
+                    WqName { name: ident, prefix: None, span: ident_span }
                 }
             }
             TokenWithSpan { token: Token::Asterisk(..), .. } => {
@@ -489,7 +488,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
             match &input.cursor.peek()?.token {
                 Token::Ident(..) | Token::HashLBrace(..) => {
                     let ident = input.parse::<InterpolableIdent>()?;
-                    let span = *ident.span();
+                    let span = ident.span();
                     Some(AttributeSelectorModifier { ident, span })
                 }
                 _ => None,
@@ -532,7 +531,7 @@ impl<'a> Parse<'a> for ClassSelector<'a> {
         } else {
             let ident = input.parse::<InterpolableIdent>()?;
             let ident_span = ident.span();
-            util::assert_no_ws_or_comment(&dot_span, ident_span)?;
+            util::assert_no_ws_or_comment(dot_span, ident_span)?;
             end = ident_span.end;
             ident
         };
@@ -771,7 +770,7 @@ impl<'a> Parse<'a> for LanguageRange<'a> {
 impl<'a> Parse<'a> for LanguageRangeList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<LanguageRange>()?;
-        let mut span = *first.span();
+        let mut span = first.span();
 
         let mut ranges = input.vec1(first);
         let mut comma_spans = input.vec();
@@ -839,7 +838,7 @@ impl<'a> Parse<'a> for NestingSelector<'a> {
 impl<'a> Parse<'a> for Nth<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let index = input.parse::<NthIndex>()?;
-        let mut span = *index.span();
+        let mut span = index.span();
         let matcher = if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "of")
         {
             let matcher = input.parse::<NthMatcher>()?;
@@ -907,7 +906,7 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
         let (_, colon_span) = input.cursor.expect_colon()?;
         let name = input.parse::<InterpolableIdent>()?;
         let name_span = name.span();
-        util::assert_no_ws(input.source, &colon_span, name_span)?;
+        util::assert_no_ws(input.source, colon_span, name_span)?;
 
         let mut end = name_span.end;
 
@@ -1034,13 +1033,13 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
         let name = if input.syntax == Syntax::Css {
             let (ident, ident_span) = input.cursor.expect_ident()?;
             end = ident_span.end;
-            util::assert_no_ws(input.source, &colon_colon_span, &ident_span)?;
+            util::assert_no_ws(input.source, colon_colon_span, ident_span)?;
             InterpolableIdent::Literal(input.ident(ident, ident_span))
         } else {
             let name = input.parse::<InterpolableIdent>()?;
             let name_span = name.span();
             end = name_span.end;
-            util::assert_no_ws(input.source, &colon_colon_span, name_span)?;
+            util::assert_no_ws(input.source, colon_colon_span, name_span)?;
             name
         };
 
@@ -1059,7 +1058,7 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
                             input.cursor.peek()?.token,
                             Token::Ident(..) | Token::HashLBrace(..) | Token::AtLBraceVar(..)
                         ) {
-                            let mut span = *first.span();
+                            let mut span = first.span();
                             let mut idents = input.vec_with_capacity(2);
                             idents.push(first);
                             while matches!(
@@ -1249,7 +1248,7 @@ impl<'a> Parse<'a> for SimpleSelector<'a> {
             }
             TokenWithSpan { token: Token::Placeholder(..), .. } => {
                 let name = input.parse::<InterpolableIdent>()?;
-                let span = *name.span();
+                let span = name.span();
                 Ok(SimpleSelector::Type(TypeSelector::TagName(TagNameSelector {
                     name: WqName { name, prefix: None, span },
                     span,
@@ -1299,7 +1298,7 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
 
                 let prefix = match ident_or_asterisk {
                     Some(IdentOrAsterisk::Ident(ident)) => {
-                        let mut span = *ident.span();
+                        let mut span = ident.span();
                         span.end = bar_token_span.end;
                         NsPrefix { kind: Some(NsPrefixKind::Ident(ident)), span }
                     }
@@ -1320,7 +1319,7 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
                     TokenWithSpan { token: Token::Ident(..) | Token::HashLBrace(..), .. } => {
                         let name = input.parse::<InterpolableIdent>()?;
                         let name_span = name.span();
-                        util::assert_no_ws(input.source, &prefix.span, name_span)?;
+                        util::assert_no_ws(input.source, prefix.span, name_span)?;
                         let span = Span { start: prefix.span.start, end: name_span.end };
                         Ok(TypeSelector::TagName(TagNameSelector {
                             name: WqName { name, prefix: Some(prefix), span },
@@ -1329,7 +1328,7 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
                     }
                     TokenWithSpan { token: Token::Asterisk(..), .. } => {
                         let asterisk_span = input.cursor.bump()?.span;
-                        util::assert_no_ws(input.source, &prefix.span, &asterisk_span)?;
+                        util::assert_no_ws(input.source, prefix.span, asterisk_span)?;
                         let span = Span { start: prefix.span.start, end: asterisk_span.end };
                         Ok(TypeSelector::Universal(UniversalSelector {
                             prefix: Some(prefix),
@@ -1344,7 +1343,7 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
 
             _ => match ident_or_asterisk {
                 Some(IdentOrAsterisk::Ident(ident)) => {
-                    let span = *ident.span();
+                    let span = ident.span();
                     Ok(TypeSelector::TagName(TagNameSelector {
                         name: WqName { name: ident, prefix: None, span },
                         span,

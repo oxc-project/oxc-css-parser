@@ -45,7 +45,7 @@ impl<'a> Parse<'a> for LayerName<'a> {
             if span.start == end {
                 let span = input.cursor.bump()?.span;
                 let ident = input.parse::<InterpolableIdent>()?;
-                util::assert_no_ws_or_comment(&span, ident.span())?;
+                util::assert_no_ws_or_comment(span, ident.span())?;
                 end = ident.span().end;
                 idents.push(ident);
             } else {
@@ -60,7 +60,7 @@ impl<'a> Parse<'a> for LayerName<'a> {
         if let Some(invalid_ident) = invalid_ident {
             input.recoverable_errors.push(Error {
                 kind: crate::error::ErrorKind::CSSWideKeywordDisallowed,
-                span: *invalid_ident.span(),
+                span: invalid_ident.span(),
             });
         }
 

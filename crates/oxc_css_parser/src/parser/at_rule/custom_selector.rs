@@ -13,10 +13,10 @@ impl<'a> Parse<'a> for CustomSelector<'a> {
 
         let (_, colon_span) = input.cursor.expect_colon()?;
         if let Some(prefix_arg) = &prefix_arg {
-            util::assert_no_ws_or_comment(&prefix_arg.span, &colon_span)?;
+            util::assert_no_ws_or_comment(prefix_arg.span, colon_span)?;
         }
         let name = input.parse::<Ident>()?;
-        util::assert_no_ws_or_comment(&colon_span, &name.span)?;
+        util::assert_no_ws_or_comment(colon_span, name.span)?;
 
         let args = if matches!(input.cursor.peek()?.token, Token::LParen(..)) {
             Some(input.parse::<CustomSelectorArgs>()?)

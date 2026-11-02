@@ -66,7 +66,7 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
                 }
             },
         };
-        let mut span = *href.span();
+        let mut span = href.span();
 
         let structured = input.try_parse(Self::parse_structured_tail);
         let (layer, supports, media, modifiers) = match structured {

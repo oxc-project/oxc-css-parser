@@ -478,7 +478,7 @@ impl<'a> Parser<'a> {
         while let Some((_, exclamation_span)) = self.cursor.eat_exclamation()? {
             let keyword = self.parse::<Ident>()?;
             let keyword_span = keyword.span;
-            util::assert_no_ws_or_comment(&exclamation_span, &keyword_span)?;
+            util::assert_no_ws_or_comment(exclamation_span, keyword_span)?;
             end = Some(keyword_span.end);
 
             // duplicated flags (`!default !default`) are accepted, as in dart-sass
@@ -802,7 +802,7 @@ impl<'a> Parser<'a> {
         };
 
         let expr_span = member.span();
-        util::assert_no_ws_or_comment(&dot_span, expr_span)?;
+        util::assert_no_ws_or_comment(dot_span, expr_span)?;
 
         let span = Span { start: module.span.start, end: expr_span.end };
         Ok(SassQualifiedName { module, member, span })
@@ -855,7 +855,7 @@ impl<'a> Parse<'a> for SassAtRoot<'a> {
             SassAtRootKind::Selector(input.parse()?)
         };
 
-        let span = *kind.span();
+        let span = kind.span();
         Ok(SassAtRoot { kind, span })
     }
 }
@@ -1038,7 +1038,7 @@ impl<'a> Parse<'a> for SassForward<'a> {
 
         input.eat_sass_line_continuation()?;
         let path = input.parse::<InterpolableStr>()?;
-        let mut span = *path.span();
+        let mut span = path.span();
 
         let prefix = if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "as")
         {
@@ -1253,7 +1253,7 @@ impl<'a> Parse<'a> for SassInclude<'a> {
 
         input.eat_sass_line_continuation()?;
         let name = input.parse::<FunctionName>()?;
-        let mut span = *name.span();
+        let mut span = name.span();
 
         let arguments = if matches!(input.cursor.peek()?.token, Token::LParen(..)) {
             let arguments = input.parse::<SassIncludeArgs>()?;
@@ -1520,7 +1520,7 @@ impl<'a> Parse<'a> for SassPlaceholderSelector<'a> {
         let (_, percent_span) = input.cursor.expect_percent()?;
         let name = input.parse::<InterpolableIdent>()?;
         let name_span = name.span();
-        util::assert_no_ws_or_comment(&percent_span, name_span)?;
+        util::assert_no_ws_or_comment(percent_span, name_span)?;
         let span = Span { start: percent_span.start, end: name_span.end };
         Ok(SassPlaceholderSelector { name, span })
     }
@@ -1533,7 +1533,7 @@ impl<'a> Parse<'a> for SassUse<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         input.eat_sass_line_continuation()?;
         let path = input.parse::<InterpolableStr>()?;
-        let mut span = *path.span();
+        let mut span = path.span();
 
         let namespace =
             if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "as") {
@@ -1612,9 +1612,8 @@ impl<'a> Parse<'a> for SassVariableDeclaration<'a> {
 
         let namespace = if let Some((ident_token, span)) = input.cursor.eat_ident()? {
             let (_, dot_span) = input.cursor.expect_dot()?;
-            util::assert_no_ws_or_comment(&span, &dot_span)?;
-            let TokenWithSpan { span: next_span, .. } = input.cursor.peek()?;
-            util::assert_no_ws_or_comment(&dot_span, next_span)?;
+            util::assert_no_ws_or_comment(span, dot_span)?;
+            util::assert_no_ws_or_comment(dot_span, input.cursor.peek()?.span)?;
             Some(input.ident(ident_token, span))
         } else {
             None
@@ -1660,7 +1659,7 @@ impl<'a> Parse<'a> for UnknownSassAtRule<'a> {
         let (_, at_span) = input.cursor.expect_at()?;
         let name = input.parse_sass_interpolated_ident()?;
         let name_span = name.span();
-        util::assert_no_ws_or_comment(&at_span, name_span)?;
+        util::assert_no_ws_or_comment(at_span, name_span)?;
 
         let (prelude, block, end) = input.parse_unknown_at_rule()?;
         let span = Span { start: at_span.start, end: end.unwrap_or(name_span.end) };

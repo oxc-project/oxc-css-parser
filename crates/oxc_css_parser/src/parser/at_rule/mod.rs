@@ -605,7 +605,7 @@ impl<'a> Parser<'a> {
             if has_substitution {
                 Ok(raw)
             } else {
-                Err(Error { kind: ErrorKind::TryParseError, span: *raw.span() })
+                Err(Error { kind: ErrorKind::TryParseError, span: raw.span() })
             }
         })
     }

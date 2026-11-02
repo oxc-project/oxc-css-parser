@@ -81,7 +81,7 @@ impl<'a> Parse<'a> for PseudoPage<'a> {
         let name = input.parse::<InterpolableIdent>()?;
 
         let name_span = name.span();
-        util::assert_no_ws_or_comment(&colon_span, name_span)?;
+        util::assert_no_ws_or_comment(colon_span, name_span)?;
         let mut end = name_span.end;
 
         let arg = match input.cursor.peek()? {

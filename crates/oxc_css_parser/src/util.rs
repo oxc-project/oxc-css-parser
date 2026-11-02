@@ -118,7 +118,7 @@ pub fn handle_escape_in<'a>(s: &'a str, allocator: &'a Allocator) -> &'a str {
     }
 }
 
-pub(crate) fn assert_no_ws_or_comment(left: &Span, right: &Span) -> PResult<()> {
+pub(crate) fn assert_no_ws_or_comment(left: Span, right: Span) -> PResult<()> {
     debug_assert!(left.end <= right.start);
     if left.end == right.start {
         Ok(())
@@ -130,7 +130,7 @@ pub(crate) fn assert_no_ws_or_comment(left: &Span, right: &Span) -> PResult<()> 
     }
 }
 
-pub(crate) fn assert_no_ws(source: &str, start: &Span, end: &Span) -> PResult<()> {
+pub(crate) fn assert_no_ws(source: &str, start: Span, end: Span) -> PResult<()> {
     if has_ws(source, start.end, end.start) {
         Err(Error {
             kind: ErrorKind::UnexpectedWhitespace,
