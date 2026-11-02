@@ -141,12 +141,12 @@ pub(crate) fn assert_no_ws(source: &str, start: &Span, end: &Span) -> PResult<()
     }
 }
 
-pub(crate) fn has_ws(source: &str, start: usize, end: usize) -> bool {
+pub(crate) fn has_ws(source: &str, start: u32, end: u32) -> bool {
     debug_assert!(start <= end);
     if end == start {
         false
     } else {
-        match (source.as_bytes().get(start), source.as_bytes().get(end - 1)) {
+        match (source.as_bytes().get(start as usize), source.as_bytes().get(end as usize - 1)) {
             (Some(first), Some(last)) => first.is_ascii_whitespace() || last.is_ascii_whitespace(),
             (Some(first), _) => first.is_ascii_whitespace(),
             (_, Some(last)) => last.is_ascii_whitespace(),

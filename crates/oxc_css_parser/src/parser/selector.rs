@@ -4,7 +4,7 @@ use crate::{
     ast::*,
     error::{Error, ErrorKind, PResult},
     pos::Span,
-    tokenizer::{Token, TokenWithSpan, token},
+    tokenizer::{Token, TokenWithSpan, compact_offset, token},
     util,
 };
 
@@ -41,7 +41,8 @@ impl<'a> Parse<'a> for AnPlusB {
         match input.cursor.peek()? {
             TokenWithSpan { token: Token::Dimension(..), .. } => {
                 let (token::Dimension { value, unit }, span) = input.cursor.expect_dimension()?;
-                let value_span = Span { start: span.start, end: span.start + value.raw.len() };
+                let value_span =
+                    Span { start: span.start, end: span.start + compact_offset(value.raw.len()) };
                 let unit_name = unit.name();
                 if unit_name.eq_ignore_ascii_case("n") {
                     match &input.cursor.peek()?.token {
@@ -101,7 +102,7 @@ impl<'a> Parse<'a> for AnPlusB {
                 } else if let Some(b) = parse_ndashdigit_b(
                     &unit_name,
                     "n-",
-                    Span { start: span.start + value.raw.len() + 2, end: span.end },
+                    Span { start: value_span.end + 2, end: span.end },
                 ) {
                     // syntax: <ndashdigit-dimension>
                     // examples: '1n-1'
@@ -1362,7 +1363,7 @@ impl<'a> Parser<'a> {
     // <combinator> = '>' | '+' | '~' | [ '|' '|' ]
     // An absent combinator between two compounds is the descendant combinator
     // (whitespace), which this returns as `CombinatorKind::Descendant`.
-    fn parse_combinator(&mut self, pos: usize) -> PResult<Option<Combinator>> {
+    fn parse_combinator(&mut self, pos: u32) -> PResult<Option<Combinator>> {
         match self.cursor.peek()? {
             TokenWithSpan {
                 token:
@@ -1468,12 +1469,12 @@ impl<'a> Parser<'a> {
                 token: Token::Unknown(..),
                 span,
             } if !matches!(self.syntax, Syntax::Scss | Syntax::Sass)
-                && self.source.as_bytes().get(span.start) == Some(&b'^') =>
+                && self.source.as_bytes().get(span.start as usize) == Some(&b'^') =>
             {
                 let start = self.cursor.bump()?.span.start;
                 if matches!(&self.cursor.peek()?.token, Token::Unknown(..))
                     && self.cursor.peek()?.span.start == start + 1
-                    && self.source.as_bytes().get(start + 1) == Some(&b'^')
+                    && self.source.as_bytes().get(start as usize + 1) == Some(&b'^')
                 {
                     let end = self.cursor.bump()?.span.end;
                     Ok(Some(Combinator {

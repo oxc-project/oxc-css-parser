@@ -44,9 +44,9 @@ fn recoverable_errors_snapshot() {
                 recoverable_errors
                     .iter()
                     .map(|error| {
-                        Diagnostic::error()
-                            .with_message(error.kind.to_string())
-                            .with_labels(vec![Label::primary((), error.span.start..error.span.end)])
+                        Diagnostic::error().with_message(error.kind.to_string()).with_labels(vec![
+                            Label::primary((), error.span.start as usize..error.span.end as usize),
+                        ])
                     })
                     .for_each(|diagnostic| {
                         term::emit_to_string(&mut errors, &config, &file, &diagnostic).unwrap();
@@ -54,9 +54,10 @@ fn recoverable_errors_snapshot() {
                 errors
             }
             Err(error) => {
-                let diagnostic = Diagnostic::error()
-                    .with_message(error.kind.to_string())
-                    .with_labels(vec![Label::primary((), error.span.start..error.span.end)]);
+                let diagnostic =
+                    Diagnostic::error().with_message(error.kind.to_string()).with_labels(vec![
+                        Label::primary((), error.span.start as usize..error.span.end as usize),
+                    ]);
                 let error = term::emit_into_string(&config, &file, &diagnostic).unwrap();
                 panic!("\n{error}");
             }

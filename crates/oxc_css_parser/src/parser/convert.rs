@@ -5,15 +5,16 @@ use crate::{
         InterpolableUrlStaticPart, Number, Placeholder, Str,
     },
     error::{Error, ErrorKind, PResult},
-    tokenizer::token,
+    tokenizer::{compact_offset, token},
 };
 
 impl<'a> TryFrom<(token::Dimension<'a>, Span)> for Dimension<'a> {
     type Error = Error;
 
     fn try_from((token, span): (token::Dimension<'a>, Span)) -> PResult<Self> {
-        let value_span = Span { start: span.start, end: span.start + token.value.raw.len() };
-        let unit_span = Span { start: span.start + token.value.raw.len(), end: span.end };
+        let number_end = span.start + compact_offset(token.value.raw.len());
+        let value_span = Span { start: span.start, end: number_end };
+        let unit_span = Span { start: number_end, end: span.end };
 
         let value = (token.value, value_span).try_into()?;
         let unit = Ident::from((token.unit, unit_span));

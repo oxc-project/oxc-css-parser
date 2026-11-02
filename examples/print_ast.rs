@@ -41,7 +41,7 @@ fn print_error(path: &Path, code: &str, error: &Error) {
     let file = SimpleFile::new(path.file_name().unwrap().to_str().unwrap(), &code);
     let diagnostic = Diagnostic::error()
         .with_message(error.kind.to_string())
-        .with_labels(vec![Label::primary((), error.span.start..error.span.end)]);
+        .with_labels(vec![Label::primary((), error.span.start as usize..error.span.end as usize)]);
     let writer = StandardStream::stderr(ColorChoice::Always);
     let config = term::Config::default();
     term::emit_to_write_style(&mut writer.lock(), &config, &file, &diagnostic).unwrap();

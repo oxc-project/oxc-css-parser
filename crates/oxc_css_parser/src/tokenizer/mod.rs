@@ -21,7 +21,7 @@ pub mod token;
 #[derive(Clone)]
 struct ByteIndices<'a> {
     iter: std::slice::Iter<'a, u8>,
-    offset: usize,
+    offset: u32,
 }
 
 impl<'a> ByteIndices<'a> {
@@ -32,7 +32,7 @@ impl<'a> ByteIndices<'a> {
 }
 
 impl Iterator for ByteIndices<'_> {
-    type Item = (usize, u8);
+    type Item = (u32, u8);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -74,6 +74,9 @@ pub struct Tokenizer<'a> {
     template_placeholder: Option<TemplatePlaceholder>,
     comments: Option<ArenaVec<'a, Comment<'a>>>,
     pub(crate) state: TokenizerState<'a>,
+    /// The source doesn't fit in `u32` spans.
+    /// It is replaced with `""`, so the first read hits EOF and reports `SourceTooLong`.
+    source_too_long: bool,
 }
 
 impl<'a> Tokenizer<'a> {
@@ -84,6 +87,8 @@ impl<'a> Tokenizer<'a> {
         template_placeholder: Option<TemplatePlaceholder>,
         collect_comments: bool,
     ) -> Self {
+        let source_too_long = u32::try_from(source.len()).is_err();
+        let source = if source_too_long { "" } else { source };
         let mut chars = ByteIndices::new(source).peekable();
         if syntax == Syntax::Sass {
             while chars.next_if(|(_, c)| matches!(c, b'\n' | b'\r')).is_some() {}
@@ -103,6 +108,7 @@ impl<'a> Tokenizer<'a> {
                 sass_interpolation_opener_pending: false,
                 line_comments_seen: 0,
             },
+            source_too_long,
         }
     }
 
@@ -154,18 +160,25 @@ impl<'a> Tokenizer<'a> {
         self.next()
     }
 
-    pub fn current_offset(&mut self) -> usize {
-        if let Some((offset, _)) = self.state.chars.peek() { *offset } else { self.source.len() }
+    pub fn current_offset(&mut self) -> u32 {
+        if let Some((offset, _)) = self.state.chars.peek() {
+            *offset
+        } else {
+            compact_offset(self.source.len())
+        }
     }
 
     #[inline]
-    fn peek_two_bytes(&self) -> Option<(usize, u8, u8)> {
+    fn peek_two_bytes(&self) -> Option<(u32, u8, u8)> {
         let mut iter = self.state.chars.clone();
         iter.next().zip(iter.next()).map(|((start, first), (_, second))| (start, first, second))
     }
 
     #[cold]
     fn build_eof_error(&mut self) -> Error {
+        if self.source_too_long {
+            return Error { kind: ErrorKind::SourceTooLong, span: Span { start: 0, end: 0 } };
+        }
         let offset = self.current_offset();
         Error { kind: ErrorKind::UnexpectedEof, span: Span { start: offset, end: offset } }
     }
@@ -255,6 +268,9 @@ impl<'a> Tokenizer<'a> {
             (Some((_, b'`')), _) if self.syntax == Syntax::Less => self.scan_backtick_code(),
             (Some(..), ..) => self.scan_punc(),
             (None, ..) => {
+                if self.source_too_long {
+                    return Err(self.build_eof_error());
+                }
                 let offset = self.current_offset();
                 Ok(TokenWithSpan {
                     token: Token::Eof(Eof {}),
@@ -382,7 +398,7 @@ impl<'a> Tokenizer<'a> {
                 }
                 Some(..) => {}
                 None => {
-                    content_end = self.source.len();
+                    content_end = self.current_offset();
                     end = content_end;
                     break;
                 }
@@ -390,7 +406,8 @@ impl<'a> Tokenizer<'a> {
         }
 
         if let Some(comments) = &mut self.comments {
-            let content = unsafe { self.source.get_unchecked(start + 2..content_end) };
+            let content =
+                unsafe { self.source.get_unchecked(start as usize + 2..content_end as usize) };
             comments.push(Comment { content, kind: CommentKind::Block, span: Span { start, end } });
         }
     }
@@ -426,7 +443,7 @@ impl<'a> Tokenizer<'a> {
                     self.state.chars.next();
                 }
                 None => {
-                    end = self.source.len();
+                    end = self.current_offset();
                     break;
                 }
             }
@@ -438,7 +455,7 @@ impl<'a> Tokenizer<'a> {
         // after code is plain whitespace with no children.
         let starts_line = || {
             let bytes = self.source.as_bytes();
-            let mut i = start;
+            let mut i = start as usize;
             while i > 0 && matches!(bytes[i - 1], b' ' | b'\t') {
                 i -= 1;
             }
@@ -451,7 +468,7 @@ impl<'a> Tokenizer<'a> {
         };
 
         if let Some(comments) = &mut self.comments {
-            let content = unsafe { self.source.get_unchecked(start + 2..end) };
+            let content = unsafe { self.source.get_unchecked(start as usize + 2..end as usize) };
             comments.push(Comment { content, kind: CommentKind::Line, span: Span { start, end } });
         }
     }
@@ -460,7 +477,7 @@ impl<'a> Tokenizer<'a> {
     /// deeper than the line the comment started on), returning the new
     /// comment end offset. The terminating newline is left unconsumed so the
     /// usual indentation scanning still runs.
-    fn consume_sass_comment_continuation(&mut self, mut end: usize) -> usize {
+    fn consume_sass_comment_continuation(&mut self, mut end: u32) -> u32 {
         let base = self.state.current_indent;
         loop {
             let mut probe = self.state.chars.clone();
@@ -560,20 +577,20 @@ impl<'a> Tokenizer<'a> {
                     break;
                 }
                 None => {
-                    end = self.source.len();
+                    end = self.current_offset();
                     break;
                 }
             }
         }
 
         debug_assert!(start < end);
-        let raw = unsafe { self.source.get_unchecked(start..end) };
+        let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
         Ok((Ident { raw, escaped }, Span { start, end }))
     }
 
     // An escaped code point: '\' followed by a hex digits run or any character.
     // https://drafts.csswg.org/css-syntax-3/#consume-escaped-code-point
-    fn scan_escape(&mut self, backslash_consumed: bool) -> PResult<usize> {
+    fn scan_escape(&mut self, backslash_consumed: bool) -> PResult<u32> {
         if !backslash_consumed {
             self.state.chars.next(); // consume `\\`
         }
@@ -631,7 +648,7 @@ impl<'a> Tokenizer<'a> {
                     break;
                 }
                 None => {
-                    end = self.source.len();
+                    end = self.current_offset();
                     break;
                 }
             }
@@ -659,7 +676,7 @@ impl<'a> Tokenizer<'a> {
                             break;
                         }
                         None => {
-                            end = self.source.len();
+                            end = self.current_offset();
                             break;
                         }
                     }
@@ -686,7 +703,7 @@ impl<'a> Tokenizer<'a> {
                         break;
                     }
                     None => {
-                        end = self.source.len();
+                        end = self.current_offset();
                         break;
                     }
                 }
@@ -694,7 +711,7 @@ impl<'a> Tokenizer<'a> {
         }
 
         debug_assert!(start < end);
-        let raw = unsafe { self.source.get_unchecked(start..end) };
+        let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
         Ok((Number { raw }, Span { start, end }))
     }
 
@@ -726,7 +743,7 @@ impl<'a> Tokenizer<'a> {
         let (unit, unit_span) = self.scan_ident_sequence(false)?;
         Ok(TokenWithSpan {
             token: Token::Dimension(DimensionMeta {
-                number_end: compact_offset(value_span.end),
+                number_end: value_span.end,
                 unit_escaped: unit.escaped,
             }),
             span: Span { start: value_span.start, end: unit_span.end },
@@ -778,14 +795,14 @@ impl<'a> Tokenizer<'a> {
                 None => {
                     return Err(Error {
                         kind: ErrorKind::UnterminatedString,
-                        span: Span { start, end: self.source.len() },
+                        span: Span { start, end: self.current_offset() },
                     });
                 }
             }
         }
 
         debug_assert!(start + 1 < end);
-        let raw = unsafe { self.source.get_unchecked(start..end) };
+        let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
         Ok((Str { raw, escaped }, Span { start, end }))
     }
 
@@ -837,7 +854,7 @@ impl<'a> Tokenizer<'a> {
                 }
                 Some(..) => {}
                 None => {
-                    let end = self.source.len();
+                    let end = self.current_offset();
                     if self.syntax == Syntax::Css {
                         return Ok(TokenWithSpan {
                             token: Token::BadStr(BadStrMeta {}),
@@ -878,14 +895,14 @@ impl<'a> Tokenizer<'a> {
                     end = i + 1;
                     debug_assert!(start < end);
 
-                    let raw = unsafe { self.source.get_unchecked(start..i + 1) };
+                    let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
                     let span = Span { start, end };
                     return Ok((StrTemplate { raw, escaped, head: false, tail: true }, span));
                 }
                 Some((end, c @ b'#' | c @ b'@' | c @ b'$'))
                     if self.is_start_of_interpolation_in_str_template(c) =>
                 {
-                    let raw = unsafe { self.source.get_unchecked(start..end) };
+                    let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
                     let span = Span { start, end };
                     return Ok((StrTemplate { raw, escaped, head: false, tail: false }, span));
                 }
@@ -961,13 +978,13 @@ impl<'a> Tokenizer<'a> {
                     break;
                 }
                 None => {
-                    end = self.source.len();
+                    end = self.current_offset();
                     break;
                 }
             }
         }
         if end > start {
-            let raw = unsafe { self.source.get_unchecked(start..end) };
+            let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
             Ok(Some((Ident { escaped, raw }, Span { start, end })))
         } else {
             Ok(None)
@@ -1070,12 +1087,12 @@ impl<'a> Tokenizer<'a> {
                     debug_assert!(start <= end);
 
                     self.state.paren_depth = self.state.paren_depth.saturating_sub(1);
-                    let raw = unsafe { self.source.get_unchecked(start..end) };
+                    let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
                     let span = Span { start, end };
                     return Ok((UrlTemplate { raw, escaped, tail: true }, span));
                 }
                 Some((end, b'#')) if self.is_start_of_interpolation_in_url_template() => {
-                    let raw = unsafe { self.source.get_unchecked(start..end) };
+                    let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
                     let span = Span { start, end };
                     return Ok((UrlTemplate { raw, escaped, tail: false }, span));
                 }
@@ -1083,7 +1100,9 @@ impl<'a> Tokenizer<'a> {
                     if self.url_body_ws_run_ends()? {
                         return Ok((
                             UrlTemplate {
-                                raw: unsafe { self.source.get_unchecked(start..end) },
+                                raw: unsafe {
+                                    self.source.get_unchecked(start as usize..end as usize)
+                                },
                                 escaped,
                                 tail: true,
                             },
@@ -1157,7 +1176,7 @@ impl<'a> Tokenizer<'a> {
                     break;
                 }
                 None => {
-                    end = self.source.len();
+                    end = self.current_offset();
                     break;
                 }
             }
@@ -1247,8 +1266,9 @@ impl<'a> Tokenizer<'a> {
     /// the closing backtick and any glued suffix), or `None` when the option is
     /// unset or the shape doesn't match. An index that overflows `u32` doesn't
     /// match (so the caller errors) instead of panicking. Does not advance.
-    fn match_placeholder(&self, at: usize) -> Option<(PlaceholderMeta, usize)> {
+    fn match_placeholder(&self, at: u32) -> Option<(PlaceholderMeta, u32)> {
         let source = self.source;
+        let at = at as usize;
         let ph = self.template_placeholder?;
         // `at` is the opening backtick.
         let after_open = source[at + 1..].strip_prefix(ph.prefix)?;
@@ -1269,7 +1289,10 @@ impl<'a> Tokenizer<'a> {
             .take_while(|&b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b >= 0x80)
             .count();
         let end = close_end + suffix_len;
-        Some((PlaceholderMeta { index, suffix_start: compact_offset(close_end) }, end))
+        Some((
+            PlaceholderMeta { index, suffix_start: compact_offset(close_end) },
+            compact_offset(end),
+        ))
     }
 
     /// If a placeholder begins exactly at the current position, scan and return
@@ -1279,7 +1302,7 @@ impl<'a> Tokenizer<'a> {
     /// on the main dispatch having already emitted the token.
     pub(crate) fn scan_placeholder(&mut self) -> Option<TokenWithSpan<'a>> {
         let start = self.current_offset();
-        if !self.source[start..].starts_with('`') {
+        if !self.source[start as usize..].starts_with('`') {
             return None;
         }
         let (placeholder, end) = self.match_placeholder(start)?;
@@ -1631,7 +1654,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     #[cold]
-    fn scan_cdc(&mut self, start: usize) -> PResult<TokenWithSpan<'a>> {
+    fn scan_cdc(&mut self, start: u32) -> PResult<TokenWithSpan<'a>> {
         self.state.chars.next();
         self.state.chars.next();
         self.state.chars.next();
@@ -1678,16 +1701,21 @@ fn is_start_of_ident(c: u8) -> bool {
     c.is_ascii_alphabetic() || c == b'-' || c == b'_' || !c.is_ascii() || c == b'\\'
 }
 
+/// `Tokenizer::new` never keeps a source that doesn't fit in `u32`,
+/// so any offset into a tokenized one does.
 #[inline]
-fn compact_offset(offset: usize) -> u32 {
-    u32::try_from(offset).expect("source is too large for compact token offsets")
+#[expect(clippy::cast_possible_truncation)]
+pub(crate) fn compact_offset(offset: usize) -> u32 {
+    debug_assert!(u32::try_from(offset).is_ok());
+    offset as u32
 }
 
 /// Whether an identifier starts at byte offset `at` of `source`, using the
 /// same dash lookahead as the tokenizer's dispatch (`-x` starts one, a lone
 /// `-` doesn't).
-pub(crate) fn ident_starts_at(source: &str, at: usize) -> bool {
+pub(crate) fn ident_starts_at(source: &str, at: u32) -> bool {
     let bytes = source.as_bytes();
+    let at = at as usize;
     match bytes.get(at) {
         Some(b'-') => matches!(bytes.get(at + 1), Some(&c) if is_start_of_ident(c) && c != b'-'),
         Some(&c) => is_start_of_ident(c),

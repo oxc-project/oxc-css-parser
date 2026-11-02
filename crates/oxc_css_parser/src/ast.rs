@@ -2710,7 +2710,7 @@ pub struct WqName<'a> {
 
 #[cfg(target_pointer_width = "64")]
 const _: () = {
-    assert!(size_of::<SimpleSelector<'static>>() == 160);
-    assert!(size_of::<MediaFeature<'static>>() == 88);
-    assert!(size_of::<MediaQuery<'static>>() == 96);
+    assert!(size_of::<SimpleSelector<'static>>() == 120);
+    assert!(size_of::<MediaFeature<'static>>() == 64);
+    assert!(size_of::<MediaQuery<'static>>() == 80);
 };

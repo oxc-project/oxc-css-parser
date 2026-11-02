@@ -97,8 +97,7 @@ impl<'a> Parser<'a> {
         tokens: &mut oxc_allocator::Vec<'a, TokenWithSpan<'a>>,
     ) -> PResult<()> {
         let head = self.cursor.bump()?;
-        let quote = head.span.start;
-        let quote = self.source.as_bytes().get(quote).copied().unwrap_or(b'"');
+        let quote = self.source.as_bytes().get(head.span.start as usize).copied().unwrap_or(b'"');
         let mut tail = matches!(&head.token, Token::StrTemplate(template) if template.tail);
         tokens.push(head);
         while !tail {

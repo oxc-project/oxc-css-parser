@@ -37,7 +37,7 @@ impl<'a> Parse<'a> for Declaration<'a> {
             && input
                 .source
                 .as_bytes()
-                .get(span.end)
+                .get(span.end as usize)
                 .is_some_and(|b| !b.is_ascii_whitespace() && *b != b'/')
         {
             let start = span.start;
@@ -302,7 +302,7 @@ impl<'a> Parser<'a> {
             && self
                 .source
                 .as_bytes()
-                .get(span.end)
+                .get(span.end as usize)
                 .is_none_or(|b| b.is_ascii_whitespace() || matches!(b, b':' | b';' | b'{' | b'}')))
     }
 
@@ -347,7 +347,7 @@ impl<'a> Parser<'a> {
         if end == start || Some(end) == ident_only_end || !pairs.is_empty() {
             return Err(Error { kind: ErrorKind::ExpectRule, span: Span { start, end } });
         }
-        let raw = &self.source[start..end];
+        let raw = &self.source[start as usize..end as usize];
         Ok(InterpolableIdent::Literal(Ident { name: raw, raw, span: Span { start, end } }))
     }
 
@@ -522,8 +522,8 @@ impl<'a> Parse<'a> for Stylesheet<'a> {
         // A block's contents root follows the block's rules (AGENTS.md "Acceptance")
         let statements =
             input.parse_statements(/* is_top_level */ !input.options.block_contents)?;
-        input.cursor.expect_eof()?;
-        Ok(Stylesheet { statements, span: Span { start: 0, end: input.source.len() } })
+        let (_, eof) = input.cursor.expect_eof()?;
+        Ok(Stylesheet { statements, span: Span { start: 0, end: eof.end } })
     }
 }
 
@@ -581,7 +581,7 @@ impl<'a> Parser<'a> {
                 // `<bad-string-token>`.
                 Token::BadStr(..) => {
                     let span = self.cursor.peek()?.span;
-                    let kind = if span.end == self.source.len() {
+                    let kind = if span.end as usize == self.source.len() {
                         ErrorKind::UnterminatedString
                     } else {
                         ErrorKind::BadString
@@ -839,7 +839,7 @@ impl<'a> Parser<'a> {
                 Token::Dot(..) | Token::Hash(..) | Token::Dimension(..)
                     if self.syntax == Syntax::Less
                         && (!matches!(token, Token::Dimension(..))
-                            || self.source.as_bytes().get(span.start) == Some(&b'.')) =>
+                            || self.source.as_bytes().get(span.start as usize) == Some(&b'.')) =>
                 {
                     let stmt = if let Ok(stmt) = self.try_parse(Parser::parse_less_qualified_rule) {
                         is_block_element = true;
@@ -857,7 +857,7 @@ impl<'a> Parser<'a> {
                 Token::Number(..) | Token::Dimension(..)
                     if self.syntax == Syntax::Less
                         && !is_top_level
-                        && self.source.as_bytes().get(span.end) == Some(&b':') =>
+                        && self.source.as_bytes().get(span.end as usize) == Some(&b':') =>
                 {
                     let decl = self.parse_style_rule_declaration()?;
                     statements.push(Statement::Declaration(decl));
@@ -1208,8 +1208,8 @@ impl<'a> Parser<'a> {
     /// Deliberately NOT a tokenizer: it never early-exits on `;`/`}`
     /// (those may sit inside an attribute string or comment),
     /// so it can't misclassify a same-line selector containing them.
-    fn placeholder_starts_qualified_rule(&self, from: usize) -> bool {
-        let bytes = &self.source.as_bytes()[from..];
+    fn placeholder_starts_qualified_rule(&self, from: u32) -> bool {
+        let bytes = &self.source.as_bytes()[from as usize..];
         // Immediately-adjacent non-whitespace (`${p}:hover`, `${p},`) means the
         // placeholder is a compound-selector piece: only `{` matters from here, regardless of newlines.
         if bytes.first().is_some_and(|b| !b.is_ascii_whitespace()) {
@@ -1242,8 +1242,8 @@ impl<'a> Parser<'a> {
     /// declaration `${mixin}: disabled { ... }`). Whether a same-line follower
     /// actually forms a declaration is left to `Declaration::parse`, which
     /// rolls back if this guess was wrong.
-    fn placeholder_starts_declaration(&self, from: usize) -> bool {
-        for &b in &self.source.as_bytes()[from..] {
+    fn placeholder_starts_declaration(&self, from: u32) -> bool {
+        for &b in &self.source.as_bytes()[from as usize..] {
             match b {
                 // A bare `\r` counts as a newline too, same as
                 // `placeholder_starts_qualified_rule` above.

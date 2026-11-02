@@ -23,7 +23,7 @@ type SassParams<'a> = (
     oxc_allocator::Vec<'a, SassParameter<'a>>,
     Option<SassArbitraryParameter<'a>>,
     oxc_allocator::Vec<'a, Span>, // comma spans
-    usize,                        // end pos
+    u32,                          // end pos
 );
 
 impl<'a> Parser<'a> {
@@ -472,9 +472,7 @@ impl<'a> Parser<'a> {
     }
 
     // Trailing declaration flags: [ '!' [ default | global ] ]*
-    fn parse_sass_flags(
-        &mut self,
-    ) -> PResult<(oxc_allocator::Vec<'a, SassFlag<'a>>, Option<usize>)> {
+    fn parse_sass_flags(&mut self) -> PResult<(oxc_allocator::Vec<'a, SassFlag<'a>>, Option<u32>)> {
         let mut flags: oxc_allocator::Vec<'a, SassFlag<'a>> = self.vec_with_capacity(1);
         let mut end = None;
         while let Some((_, exclamation_span)) = self.cursor.eat_exclamation()? {
@@ -550,7 +548,7 @@ impl<'a> Parser<'a> {
     // The static/`#{…}`/placeholder element sequence after an interpolated ident's first part.
     pub(super) fn parse_sass_interpolated_ident_rest(
         &mut self,
-        end: &mut usize,
+        end: &mut u32,
     ) -> PResult<oxc_allocator::Vec<'a, SassInterpolatedIdentElement<'a>>> {
         let mut elements = self.vec();
         loop {

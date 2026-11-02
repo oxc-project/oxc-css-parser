@@ -8,7 +8,7 @@ use crate::{
     config::Syntax,
     error::{Error, ErrorKind, PResult},
     pos::Span,
-    tokenizer::{Token, TokenWithSpan, Tokenizer, token},
+    tokenizer::{Token, TokenWithSpan, Tokenizer, compact_offset, token},
     util,
 };
 pub use builder::ParserBuilder;
@@ -612,8 +612,9 @@ impl<'a> Parser<'a> {
         token: token::Dimension<'a>,
         span: crate::Span,
     ) -> PResult<Dimension<'a>> {
-        let value_span = crate::Span { start: span.start, end: span.start + token.value.raw.len() };
-        let unit_span = crate::Span { start: span.start + token.value.raw.len(), end: span.end };
+        let number_end = span.start + compact_offset(token.value.raw.len());
+        let value_span = crate::Span { start: span.start, end: number_end };
+        let unit_span = crate::Span { start: number_end, end: span.end };
         let value = (token.value, value_span).try_into()?;
         let unit = self.ident(token.unit, unit_span);
         let kind = convert::dimension_kind(unit.name);
