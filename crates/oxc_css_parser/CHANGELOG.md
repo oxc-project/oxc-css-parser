@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.19](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.18...oxc-css-parser-v0.0.19) - 2026-11-02
+
+### Other
+
+- *(parser)* [**breaking**] return value from span() ([#199](https://github.com/oxc-project/oxc-css-parser/pull/199))
+- *(parser)* [**breaking**] remove unused token-to-AST conversions ([#198](https://github.com/oxc-project/oxc-css-parser/pull/198))
+- *(parser)* [**breaking**] use `u32` for `Span { start, end }` ([#197](https://github.com/oxc-project/oxc-css-parser/pull/197))
+- consolidate docs into AGENTS.md ([#194](https://github.com/oxc-project/oxc-css-parser/pull/194))
+
 ## [0.0.18](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.17...oxc-css-parser-v0.0.18) - 2026-10-22
 
 ### Fixed
