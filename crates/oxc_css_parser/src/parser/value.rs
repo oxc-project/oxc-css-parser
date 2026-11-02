@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
                 && matches!(&self.cursor.peek()?.token, Token::Minus(..) | Token::Plus(..))
                 && {
                     let span = &self.cursor.peek()?.span;
-                    self.source.as_bytes().get(span.end) == Some(&b'(')
+                    self.source.as_bytes().get(span.end as usize) == Some(&b'(')
                 }
             {
                 // SassScript allows a unary sign glued to a parenthesized
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
             && matches!(left, ComponentValue::Function(..))
         {
             let left_end = left.span().end;
-            let split_op = |raw: &str, start: usize| CalcOperator {
+            let split_op = |raw: &str, start: u32| CalcOperator {
                 kind: if raw.starts_with('+') {
                     CalcOperatorKind::Plus
                 } else {
@@ -970,7 +970,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let source = self.source.get(span_start + 1..span_end).ok_or(Error {
+        let source = self.source.get(span_start as usize + 1..span_end as usize).ok_or(Error {
             kind: ErrorKind::InvalidUnicodeRange,
             span: Span { start: span_start + 1, end: span_end },
         })?;

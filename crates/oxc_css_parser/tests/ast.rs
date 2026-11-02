@@ -33,9 +33,10 @@ fn ast_parse() {
             }
             Err(error) => {
                 let file = SimpleFile::new(path.file_name().unwrap().to_str().unwrap(), &code);
-                let diagnostic = Diagnostic::error()
-                    .with_message(error.kind.to_string())
-                    .with_labels(vec![Label::primary((), error.span.start..error.span.end)]);
+                let diagnostic =
+                    Diagnostic::error().with_message(error.kind.to_string()).with_labels(vec![
+                        Label::primary((), error.span.start as usize..error.span.end as usize),
+                    ]);
                 let config = term::Config::default();
                 let error = term::emit_into_string(&config, &file, &diagnostic).unwrap();
                 panic!("\n{error}");

@@ -30,7 +30,7 @@ fn first_declaration_value<'a>(ss: &'a Stylesheet<'static>) -> &'a [ComponentVal
 }
 
 fn text<'a>(code: &'a str, span: &oxc_css_parser::pos::Span) -> &'a str {
-    &code[span.start..span.end]
+    span.slice(code)
 }
 
 // A parenthesized calc operand keeps its parens, redundant pairs included.

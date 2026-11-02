@@ -98,7 +98,7 @@ impl<'a> Parser<'a> {
     fn parse_less_guard_paren_condition(
         &mut self,
         needs_parens: bool,
-    ) -> PResult<(LessCondition<'a>, usize)> {
+    ) -> PResult<(LessCondition<'a>, u32)> {
         let condition = self
             .with_state(ParserState {
                 less_ctx: self.state.less_ctx | LESS_CTX_ALLOW_DIV,
@@ -280,7 +280,7 @@ impl<'a> Parser<'a> {
     // The static/`@{…}`/`${…}` element sequence after an interpolated ident's first part.
     pub(super) fn parse_less_interpolated_ident_rest(
         &mut self,
-        end: &mut usize,
+        end: &mut u32,
     ) -> PResult<oxc_allocator::Vec<'a, LessInterpolatedIdentElement<'a>>> {
         let mut elements = self.vec();
         loop {
@@ -387,7 +387,7 @@ impl<'a> Parser<'a> {
                     // less.js's keyword regex also matches a bare `-`
                     // (`a:hover when (2 = true) {5:-}`); only treat it as one
                     // when a terminator follows immediately
-                    let end = self.cursor.peek()?.span.end;
+                    let end = self.cursor.peek()?.span.end as usize;
                     if matches!(self.source.as_bytes().get(end), None | Some(b';' | b'}')) {
                         let span = self.cursor.bump()?.span;
                         ComponentValue::InterpolableIdent(InterpolableIdent::Literal(Ident {
@@ -1026,7 +1026,7 @@ impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
                     input.cursor.expect_name_without_ws_or_comments(/* less_name */ true)?;
 
                 let end = input.cursor.expect_r_brace()?.1.end;
-                elements.push(match input.source.as_bytes().get(start) {
+                elements.push(match input.source.as_bytes().get(start as usize) {
                     Some(b'@') => LessInterpolatedStrElement::Variable(LessVariableInterpolation {
                         name: input.ident(name, name_span),
                         span: Span { start, end },
@@ -1097,7 +1097,7 @@ impl<'a> Parse<'a> for LessLookupName<'a> {
         let is_dollar = {
             let TokenWithSpan { token, span } = input.cursor.peek()?;
             matches!(token, Token::Unknown(..))
-                && input.source.as_bytes().get(span.start) == Some(&b'$')
+                && input.source.as_bytes().get(span.start as usize) == Some(&b'$')
         };
         match input.cursor.peek()?.token {
             Token::AtKeyword(..) => input.parse().map(LessLookupName::LessVariable),
@@ -1494,7 +1494,7 @@ impl<'a> Parse<'a> for LessMixinCallee<'a> {
                 let TokenWithSpan { token, span } = input.cursor.peek()?;
                 matches!(token, Token::Dot(..) | Token::Hash(..))
                     || (matches!(token, Token::Dimension(..))
-                        && input.source.as_bytes().get(span.start) == Some(&b'.'))
+                        && input.source.as_bytes().get(span.start as usize) == Some(&b'.'))
             };
             if at_name {
                 let name = input.parse::<LessMixinName>()?;
@@ -1553,10 +1553,10 @@ impl<'a> Parse<'a> for LessMixinName<'a> {
         match input.cursor.bump()? {
             // `.3D` — a digit-led name arrives as one <dimension-token>
             TokenWithSpan { token: Token::Dimension(..), span }
-                if input.source.as_bytes().get(span.start) == Some(&b'.') =>
+                if input.source.as_bytes().get(span.start as usize) == Some(&b'.') =>
             {
                 let name_span = Span { start: span.start + 1, end: span.end };
-                let raw = &input.source[name_span.start..name_span.end];
+                let raw = name_span.slice(input.source);
                 Ok(LessMixinName::ClassSelector(ClassSelector {
                     name: InterpolableIdent::Literal(Ident { name: raw, raw, span: name_span }),
                     span,
@@ -1991,6 +1991,6 @@ fn can_be_division_operand(left: &ComponentValue) -> bool {
 
 /// Whether the byte at `pos` in `source` is ASCII whitespace. Used to tell a
 /// `+`/`-` binary operator (followed by whitespace) from a value sign.
-fn is_followed_by_whitespace(source: &str, pos: usize) -> bool {
-    source.as_bytes().get(pos).is_some_and(u8::is_ascii_whitespace)
+fn is_followed_by_whitespace(source: &str, pos: u32) -> bool {
+    source.as_bytes().get(pos as usize).is_some_and(u8::is_ascii_whitespace)
 }

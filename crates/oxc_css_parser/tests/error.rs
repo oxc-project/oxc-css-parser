@@ -29,9 +29,10 @@ fn error_snapshot() {
             ),
             Err(error) => {
                 let file = SimpleFile::new(file_name, &code);
-                let diagnostic = Diagnostic::error()
-                    .with_message(error.kind.to_string())
-                    .with_labels(vec![Label::primary((), error.span.start..error.span.end)]);
+                let diagnostic =
+                    Diagnostic::error().with_message(error.kind.to_string()).with_labels(vec![
+                        Label::primary((), error.span.start as usize..error.span.end as usize),
+                    ]);
                 let config = term::Config::default();
                 term::emit_into_string(&config, &file, &diagnostic).unwrap()
             }

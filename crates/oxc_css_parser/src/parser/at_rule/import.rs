@@ -21,7 +21,7 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
         // (`@import url("theme.css")`), which the `Url::parse` arm handles.
         let sass_unquoted_path = input.syntax == Syntax::Sass
             && matches!(input.cursor.peek()?, TokenWithSpan { token: Token::Ident(..), span }
-                if input.source.as_bytes().get(span.end) != Some(&b'('));
+                if input.source.as_bytes().get(span.end as usize) != Some(&b'('));
         let href = match &input.cursor.peek()?.token {
             Token::Str(..) | Token::StrTemplate(..) => input.parse().map(ImportPreludeHref::Str)?,
             Token::Ident(..) if sass_unquoted_path => {
@@ -34,7 +34,7 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
                 {
                     end = input.cursor.bump()?.span.end;
                 }
-                let raw = unsafe { input.source.get_unchecked(start..end) };
+                let raw = unsafe { input.source.get_unchecked(start as usize..end as usize) };
                 let span = Span { start, end };
                 ImportPreludeHref::Str(InterpolableStr::Literal(Str { value: raw, raw, span }))
             }

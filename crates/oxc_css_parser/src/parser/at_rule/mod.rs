@@ -623,7 +623,7 @@ impl<'a> Parser<'a> {
     // https://drafts.csswg.org/css-syntax-3/#consume-at-rule
     pub(super) fn parse_unknown_at_rule(
         &mut self,
-    ) -> PResult<(Option<UnknownAtRulePrelude<'a>>, Option<SimpleBlock<'a>>, Option<usize>)> {
+    ) -> PResult<(Option<UnknownAtRulePrelude<'a>>, Option<SimpleBlock<'a>>, Option<u32>)> {
         let prelude = self.parse_unknown_at_rule_prelude()?;
         let block = match &self.cursor.peek()?.token {
             // An unknown at-rule's children parse generically; in Sass that

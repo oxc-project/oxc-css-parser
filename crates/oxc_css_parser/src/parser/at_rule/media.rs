@@ -325,7 +325,7 @@ impl<'a> Parser<'a> {
             self.syntax == Syntax::Css
                 && peek.ident(self.source).is_some()
                 && !peek.is_ident_name_eq_ignore_ascii_case(self.source, "not")
-                && self.source.as_bytes().get(peek.span.end) != Some(&b'(')
+                && self.source.as_bytes().get(peek.span.end as usize) != Some(&b'(')
         };
         if relax_bare_ident {
             let token = self.cursor.bump()?;

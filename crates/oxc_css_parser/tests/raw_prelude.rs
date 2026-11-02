@@ -14,6 +14,6 @@ fn raw_prelude_keeps_semicolons_inside_balanced_groups() {
         let Statement::UnknownQualifiedRule(rule) = statement else {
             panic!("expected raw-prelude rule, got {statement:?}");
         };
-        assert_eq!(&source[rule.prelude.span.start..rule.prelude.span.end], expected);
+        assert_eq!(rule.prelude.span.slice(source), expected);
     }
 }

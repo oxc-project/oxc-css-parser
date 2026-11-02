@@ -173,7 +173,7 @@ pub struct UrlTemplateMeta {
 impl TokenWithSpanData {
     #[inline]
     pub fn raw<'s>(&self, source: &'s str) -> &'s str {
-        &source[self.span.start..self.span.end]
+        self.span.slice(source)
     }
 
     #[inline]
@@ -186,7 +186,7 @@ impl TokenWithSpanData {
         match self.token {
             TokenData::AtKeyword(meta) => Some(AtKeyword {
                 ident: Ident {
-                    raw: &source[self.span.start + 1..self.span.end],
+                    raw: &source[self.span.start as usize + 1..self.span.end as usize],
                     escaped: meta.escaped,
                 },
             }),
@@ -199,7 +199,7 @@ impl TokenWithSpanData {
         match self.token {
             TokenData::AtLBraceVar(meta) => Some(AtLBraceVar {
                 ident: Ident {
-                    raw: &source[self.span.start + 2..self.span.end - 1],
+                    raw: &source[self.span.start as usize + 2..self.span.end as usize - 1],
                     escaped: meta.escaped,
                 },
             }),
@@ -219,9 +219,9 @@ impl TokenWithSpanData {
             TokenData::Dimension(meta) => {
                 let number_end = meta.number_end as usize;
                 Some(Dimension {
-                    value: Number { raw: &source[self.span.start..number_end] },
+                    value: Number { raw: &source[self.span.start as usize..number_end] },
                     unit: Ident {
-                        raw: &source[number_end..self.span.end],
+                        raw: &source[number_end..self.span.end as usize],
                         escaped: meta.unit_escaped,
                     },
                 })
@@ -233,7 +233,9 @@ impl TokenWithSpanData {
     #[inline]
     pub fn dimension_value_raw<'s>(&self, source: &'s str) -> Option<&'s str> {
         match self.token {
-            TokenData::Dimension(meta) => Some(&source[self.span.start..meta.number_end as usize]),
+            TokenData::Dimension(meta) => {
+                Some(&source[self.span.start as usize..meta.number_end as usize])
+            }
             _ => None,
         }
     }
@@ -243,7 +245,7 @@ impl TokenWithSpanData {
         match self.token {
             TokenData::DollarLBraceVar(meta) => Some(DollarLBraceVar {
                 ident: Ident {
-                    raw: &source[self.span.start + 2..self.span.end - 1],
+                    raw: &source[self.span.start as usize + 2..self.span.end as usize - 1],
                     escaped: meta.escaped,
                 },
             }),
@@ -256,7 +258,7 @@ impl TokenWithSpanData {
         match self.token {
             TokenData::DollarVar(meta) => Some(DollarVar {
                 ident: Ident {
-                    raw: &source[self.span.start + 1..self.span.end],
+                    raw: &source[self.span.start as usize + 1..self.span.end as usize],
                     escaped: meta.escaped,
                 },
             }),
@@ -268,7 +270,7 @@ impl TokenWithSpanData {
     pub fn hash<'s>(&self, source: &'s str) -> Option<Hash<'s>> {
         match self.token {
             TokenData::Hash(meta) => Some(Hash {
-                raw: &source[self.span.start + 1..self.span.end],
+                raw: &source[self.span.start as usize + 1..self.span.end as usize],
                 escaped: meta.escaped,
             }),
             _ => None,
@@ -278,7 +280,7 @@ impl TokenWithSpanData {
     #[inline]
     pub fn hash_raw<'s>(&self, source: &'s str) -> Option<&'s str> {
         matches!(self.token, TokenData::Hash(..))
-            .then(|| &source[self.span.start + 1..self.span.end])
+            .then(|| &source[self.span.start as usize + 1..self.span.end as usize])
     }
 
     #[inline]
@@ -322,7 +324,7 @@ impl TokenWithSpanData {
     #[inline]
     pub fn percentage<'s>(&self, source: &'s str) -> Option<Percentage<'s>> {
         matches!(self.token, TokenData::Percentage(..)).then(|| Percentage {
-            value: Number { raw: &source[self.span.start..self.span.end - 1] },
+            value: Number { raw: &source[self.span.start as usize..self.span.end as usize - 1] },
         })
     }
 
@@ -331,7 +333,7 @@ impl TokenWithSpanData {
         match self.token {
             TokenData::Placeholder(meta) => Some(Placeholder {
                 index: meta.index,
-                suffix: &source[meta.suffix_start as usize..self.span.end],
+                suffix: &source[meta.suffix_start as usize..self.span.end as usize],
             }),
             _ => None,
         }

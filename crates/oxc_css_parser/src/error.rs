@@ -19,6 +19,8 @@ pub enum ErrorKind {
     Unexpected(/* expected */ &'static str, /* actual */ &'static str),
     ExpectOneOf(/* expected */ Vec<&'static str>, /* actual */ &'static str),
 
+    /// The source exceeds the maximum supported size (4 GiB): spans store `u32` offsets.
+    SourceTooLong,
     UnknownToken,
     InvalidNumber,
     InvalidEscape,
@@ -117,6 +119,7 @@ impl Display for ErrorKind {
             Self::Unexpected(expected, actual) => {
                 write!(f, "expect token `{expected}`, but found `{actual}`")
             }
+            Self::SourceTooLong => write!(f, "source exceeds the maximum supported size (4 GiB)"),
             Self::ExpectOneOf(expected, actual) => {
                 if let [init @ .., last] = &expected[..] {
                     let joined = init

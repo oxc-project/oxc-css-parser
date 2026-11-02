@@ -141,11 +141,13 @@ fn scss_custom_property_reads_line_comment_syntax_as_text() {
     assert!(matches!(decls[1].value[..], [ComponentValue::Url(..)]));
     assert!(decls[2].value_is_raw);
     let value = &decls[2].value;
-    let value_span = value.first().unwrap().span().start..value.last().unwrap().span().end;
+    let value_span =
+        value.first().unwrap().span().start as usize..value.last().unwrap().span().end as usize;
     assert_eq!(&code[value_span], "1 // note");
     assert!(decls[3].value_is_raw);
     let value = &decls[3].value;
-    let value_span = value.first().unwrap().span().start..value.last().unwrap().span().end;
+    let value_span =
+        value.first().unwrap().span().start as usize..value.last().unwrap().span().end as usize;
     assert_eq!(&code[value_span], "*/ // after");
 }
 
@@ -201,7 +203,8 @@ fn scss_custom_property_escaped_hash_does_not_start_interpolation() {
     assert_eq!(decls.len(), 2, "{decls:#?}");
     assert!(decls[0].value_is_raw);
     let value = &decls[0].value;
-    let value_span = value.first().unwrap().span().start..value.last().unwrap().span().end;
+    let value_span =
+        value.first().unwrap().span().start as usize..value.last().unwrap().span().end as usize;
     assert_eq!(&code[value_span], "\\#{ // }");
 }
 
