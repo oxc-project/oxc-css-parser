@@ -337,7 +337,7 @@ impl<'a> Parse<'a> for ContainerPrelude<'a> {
             (Some(name), Some(condition)) => {
                 Span { start: name.span().start, end: condition.span.end }
             }
-            (Some(name), None) => *name.span(),
+            (Some(name), None) => name.span(),
             (None, Some(condition)) => condition.span,
             (None, None) => unreachable!(),
         };

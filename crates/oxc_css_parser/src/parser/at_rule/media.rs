@@ -63,7 +63,7 @@ impl<'a> Parse<'a> for MediaFeature<'a> {
                     ComponentValue::InterpolableIdent(ident),
                 ),
                 _ => {
-                    let span = *ident.span();
+                    let span = ident.span();
                     Ok(MediaFeature::Boolean(MediaFeatureBoolean {
                         name: MediaFeatureName::Ident(ident),
                         span,
@@ -128,7 +128,7 @@ impl<'a> Parse<'a> for MediaInParens<'a> {
             && matches!(&input.cursor.peek()?.token, Token::HashLBrace(..) | Token::Placeholder(..))
         {
             let interpolation = input.parse_sass_interpolated_ident()?;
-            let span = *interpolation.span();
+            let span = interpolation.span();
             return Ok(MediaInParens {
                 kind: MediaInParensKind::Interpolation(interpolation),
                 span,
@@ -249,7 +249,7 @@ impl<'a> Parse<'a> for MediaQuery<'a> {
 impl<'a> Parse<'a> for MediaQueryList<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<MediaQuery>()?;
-        let mut span = *first.span();
+        let mut span = first.span();
 
         let mut queries = input.vec1(first);
         let mut comma_spans = input.vec();
@@ -302,7 +302,7 @@ impl<'a> Parse<'a> for MediaQueryWithType<'a> {
                 None
             };
 
-        let mut span = *media_type.span();
+        let mut span = media_type.span();
         if let Some(modifier) = &modifier {
             span.start = modifier.span.start;
         }
@@ -449,7 +449,7 @@ impl<'a> Parser<'a> {
             {
                 self.recoverable_errors.push(Error {
                     kind: ErrorKind::ExpectMediaFeatureName,
-                    span: *name_or_right.span(),
+                    span: name_or_right.span(),
                 });
             }
             let span = Span { start: left.span().start, end: name_or_right.span().end };

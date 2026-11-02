@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
             } else if matches!(self.syntax, Syntax::Scss | Syntax::Sass)
                 && matches!(&self.cursor.peek()?.token, Token::Minus(..) | Token::Plus(..))
                 && {
-                    let span = &self.cursor.peek()?.span;
+                    let span = self.cursor.peek()?.span;
                     self.source.as_bytes().get(span.end as usize) == Some(&b'(')
                 }
             {
@@ -338,7 +338,7 @@ impl<'a> Parser<'a> {
                                 } = name
                                 {
                                     let (_, lparen_span) = parser.cursor.expect_l_paren()?;
-                                    util::assert_no_ws_or_comment(&name.span, &lparen_span)?;
+                                    util::assert_no_ws_or_comment(name.span, lparen_span)?;
                                     let args = parser.parse_function_args()?;
                                     let (_, Span { end, .. }) = parser.cursor.expect_r_paren()?;
                                     let span = Span { start: name.span.start, end };
@@ -1051,7 +1051,7 @@ impl<'a> Parse<'a> for ComponentValues<'a> {
     /// This is for public-use only. For internal code of oxc-css-parser, **DO NOT** use.
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first = input.parse::<ComponentValue>()?;
-        let mut span = *first.span();
+        let mut span = first.span();
 
         let mut values = input.vec_with_capacity(4);
         values.push(first);
@@ -1107,7 +1107,7 @@ impl<'a> Parse<'a> for Function<'a> {
         let name = input.parse::<FunctionName>()?;
         match input.cursor.peek()? {
             TokenWithSpan { token: Token::LParen(..), span } => {
-                util::assert_no_ws_or_comment(name.span(), span)?;
+                util::assert_no_ws_or_comment(name.span(), *span)?;
                 match name {
                     FunctionName::Ident(name) => input.parse_function(name),
                     name => {

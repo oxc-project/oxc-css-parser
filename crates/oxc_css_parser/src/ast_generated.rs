@@ -5,14 +5,14 @@ use crate::{ast::*, pos::Span};
 // Span accessors
 impl<'a> AtRule<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> AtRulePrelude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Charset(value) => value.span(),
             Self::ColorProfile(value) => value.span(),
@@ -56,14 +56,14 @@ impl<'a> AtRulePrelude<'a> {
 
 impl<'a> AttributeSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> AttributeSelectorValue<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Ident(value) => value.span(),
             Self::Str(value) => value.span(),
@@ -78,28 +78,28 @@ impl<'a> AttributeSelectorValue<'a> {
 
 impl<'a> BracketBlock<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> Calc<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> CalcParenthesized<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ColorProfilePrelude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::DashedIdent(value) => value.span(),
             Self::DeviceCmyk(value) => value.span(),
@@ -109,32 +109,32 @@ impl<'a> ColorProfilePrelude<'a> {
 
 impl<'a> ComplexSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ComplexSelectorChild<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::CompoundSelector(value) => value.span(),
-            Self::Combinator(value) => &value.span,
+            Self::Combinator(value) => value.span,
         }
     }
 }
 
 impl<'a> ComponentValue<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::BracketBlock(value) => value.span(),
             Self::Calc(value) => value.span(),
             Self::CalcParenthesized(value) => value.span(),
-            Self::Delimiter(value) => &value.span,
+            Self::Delimiter(value) => value.span,
             Self::Dimension(value) => value.span(),
             Self::Function(value) => value.span(),
-            Self::HexColor(value) => &value.span,
+            Self::HexColor(value) => value.span,
             Self::IdSelector(value) => value.span(),
             Self::ImportantAnnotation(value) => value.span(),
             Self::InterpolableIdent(value) => value.span(),
@@ -152,13 +152,13 @@ impl<'a> ComponentValue<'a> {
             Self::LessVariableCall(value) => value.span(),
             Self::LessNegativeValue(value) => value.span(),
             Self::LessParenthesizedOperation(value) => value.span(),
-            Self::LessPercentKeyword(value) => &value.span,
+            Self::LessPercentKeyword(value) => value.span,
             Self::LessPropertyVariable(value) => value.span(),
             Self::LessVariable(value) => value.span(),
             Self::LessVariableVariable(value) => value.span(),
             Self::Number(value) => value.span(),
             Self::Percentage(value) => value.span(),
-            Self::Placeholder(value) => &value.span,
+            Self::Placeholder(value) => value.span,
             Self::PostcssSimpleVar(value) => value.span(),
             Self::Ratio(value) => value.span(),
             Self::SassArbitraryArgument(value) => value.span(),
@@ -172,7 +172,7 @@ impl<'a> ComponentValue<'a> {
             Self::SassParentSelector(value) => value.span(),
             Self::SassUnaryExpression(value) => value.span(),
             Self::SassVariable(value) => value.span(),
-            Self::TokenWithSpan(value) => &value.span,
+            Self::TokenWithSpan(value) => value.span,
             Self::UnicodeRange(value) => value.span(),
             Self::Url(value) => value.span(),
         }
@@ -181,35 +181,35 @@ impl<'a> ComponentValue<'a> {
 
 impl<'a> ComponentValues<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> CompoundSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> CompoundSelectorList<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ContainerCondition<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ContainerConditionKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::QueryInParens(value) => value.span(),
             Self::And(value) => value.span(),
@@ -221,42 +221,42 @@ impl<'a> ContainerConditionKind<'a> {
 
 impl<'a> ContainerConditionAnd<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ContainerConditionNot<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ContainerConditionOr<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ContainerPrelude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> CustomMedia<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> CustomMediaValue<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::MediaQueryList(value) => value.span(),
             Self::True(value) => value.span(),
@@ -267,56 +267,56 @@ impl<'a> CustomMediaValue<'a> {
 
 impl<'a> CustomSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> CustomSelectorArg<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> CustomSelectorArgs<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> CustomSelectorPrelude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> Declaration<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> Dimension<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> DocumentPrelude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> DocumentPreludeMatcher<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Url(value) => value.span(),
             Self::Function(value) => value.span(),
@@ -326,7 +326,7 @@ impl<'a> DocumentPreludeMatcher<'a> {
 
 impl<'a> FontFamilyName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Str(value) => value.span(),
             Self::Unquoted(value) => value.span(),
@@ -336,40 +336,40 @@ impl<'a> FontFamilyName<'a> {
 
 impl<'a> Function<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> FunctionName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Ident(value) => value.span(),
             Self::SassQualifiedName(value) => value.span(),
-            Self::LessListFunction(value) => &value.span,
-            Self::LessFormatFunction(value) => &value.span,
+            Self::LessListFunction(value) => value.span,
+            Self::LessFormatFunction(value) => value.span,
         }
     }
 }
 
 impl<'a> Ident<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ImportPrelude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ImportPreludeHref<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Str(value) => value.span(),
             Self::Url(value) => value.span(),
@@ -380,7 +380,7 @@ impl<'a> ImportPreludeHref<'a> {
 
 impl<'a> ImportPreludeLayer<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Empty(value) => value.span(),
             Self::WithName(value) => value.span(),
@@ -390,14 +390,14 @@ impl<'a> ImportPreludeLayer<'a> {
 
 impl<'a> ImportPreludeSupports<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ImportPreludeSupportsKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::SupportsCondition(value) => value.span(),
             Self::Declaration(value) => value.span(),
@@ -407,26 +407,26 @@ impl<'a> ImportPreludeSupportsKind<'a> {
 
 impl<'a> InterpolableIdent<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Literal(value) => value.span(),
             Self::SassInterpolated(value) => value.span(),
             Self::LessInterpolated(value) => value.span(),
-            Self::Placeholder(value) => &value.span,
+            Self::Placeholder(value) => value.span,
         }
     }
 }
 
 impl<'a> InterpolableIdentStaticPart<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> InterpolableStr<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Literal(value) => value.span(),
             Self::SassInterpolated(value) => value.span(),
@@ -437,42 +437,42 @@ impl<'a> InterpolableStr<'a> {
 
 impl<'a> InterpolableStrStaticPart<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> InterpolableUrlStaticPart<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> IdSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ImportantAnnotation<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> KeyframeBlock<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> KeyframeSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Ident(value) => value.span(),
             Self::Percentage(value) => value.span(),
@@ -483,14 +483,14 @@ impl<'a> KeyframeSelector<'a> {
 
 impl<'a> KeyframeTimelineRange<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> KeyframesName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Ident(value) => value.span(),
             Self::Str(value) => value.span(),
@@ -502,7 +502,7 @@ impl<'a> KeyframesName<'a> {
 
 impl<'a> LanguageRange<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Str(value) => value.span(),
             Self::Ident(value) => value.span(),
@@ -512,42 +512,42 @@ impl<'a> LanguageRange<'a> {
 
 impl<'a> LanguageRangeList<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LayerName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LayerNames<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessBinaryCondition<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessBinaryOperation<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessCondition<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Binary(value) => value.span(),
             Self::Negated(value) => value.span(),
@@ -559,84 +559,84 @@ impl<'a> LessCondition<'a> {
 
 impl<'a> LessAnonymousMixin<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessConditionalQualifiedRule<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessConditions<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessDetachedRuleset<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessEscapedStr<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessExtend<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessExtendList<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessExtendRule<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessImportOptions<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessImportPrelude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessInterpolatedIdent<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessInterpolatedIdentElement<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Variable(value) => value.span(),
             Self::Property(value) => value.span(),
@@ -647,14 +647,14 @@ impl<'a> LessInterpolatedIdentElement<'a> {
 
 impl<'a> LessInterpolatedStr<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessInterpolatedStrElement<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Variable(value) => value.span(),
             Self::Property(value) => value.span(),
@@ -665,28 +665,28 @@ impl<'a> LessInterpolatedStrElement<'a> {
 
 impl<'a> LessJavaScriptSnippet<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessList<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessLookup<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessLookupName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::LessVariable(value) => value.span(),
             Self::LessVariableVariable(value) => value.span(),
@@ -699,14 +699,14 @@ impl<'a> LessLookupName<'a> {
 
 impl<'a> LessLookups<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinArgument<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Named(value) => value.span(),
             Self::Value(value) => value.span(),
@@ -717,44 +717,44 @@ impl<'a> LessMixinArgument<'a> {
 
 impl<'a> LessMixinArguments<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinCall<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinCallee<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinCalleeChild<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinDefinition<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
-            Self::ClassSelector(value) => &value.span,
+            Self::ClassSelector(value) => value.span,
             Self::IdSelector(value) => value.span(),
         }
     }
@@ -762,28 +762,28 @@ impl<'a> LessMixinName<'a> {
 
 impl<'a> LessMixinNamedArgument<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinNamedParameter<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinNamedParameterDefaultValue<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinParameter<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Named(value) => value.span(),
             Self::Unnamed(value) => value.span(),
@@ -794,14 +794,14 @@ impl<'a> LessMixinParameter<'a> {
 
 impl<'a> LessMixinParameters<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinParameterName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Variable(value) => value.span(),
             Self::PropertyVariable(value) => value.span(),
@@ -811,35 +811,35 @@ impl<'a> LessMixinParameterName<'a> {
 
 impl<'a> LessMixinUnnamedParameter<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinVariadicArgument<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessMixinVariadicParameter<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessNamespaceValue<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessNamespaceValueCallee<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::LessMixinCall(value) => value.span(),
             Self::LessVariable(value) => value.span(),
@@ -849,42 +849,42 @@ impl<'a> LessNamespaceValueCallee<'a> {
 
 impl<'a> LessNegatedCondition<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessNegativeValue<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessParenthesizedCondition<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessParenthesizedOperation<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessPlugin<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessPluginPath<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Str(value) => value.span(),
             Self::Url(value) => value.span(),
@@ -894,84 +894,84 @@ impl<'a> LessPluginPath<'a> {
 
 impl<'a> LessPropertyInterpolation<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl LessPropertyMerge {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessPropertyVariable<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessVariable<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessVariableCall<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessVariableDeclaration<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessVariableInterpolation<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> LessVariableVariable<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaAnd<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaCondition<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaConditionAfterMediaType<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaConditionKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::MediaInParens(value) => value.span(),
             Self::And(value) => value.span(),
@@ -983,7 +983,7 @@ impl<'a> MediaConditionKind<'a> {
 
 impl<'a> MediaFeature<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Plain(value) => value.span(),
             Self::Boolean(value) => value.span(),
@@ -995,7 +995,7 @@ impl<'a> MediaFeature<'a> {
 
 impl<'a> MediaFeatureName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Ident(value) => value.span(),
             Self::PostcssSimpleVar(value) => value.span(),
@@ -1006,42 +1006,42 @@ impl<'a> MediaFeatureName<'a> {
 
 impl<'a> MediaFeatureBoolean<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaFeaturePlain<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaFeatureRange<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaFeatureRangeInterval<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaInParens<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaInParensKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::MediaCondition(value) => value.span(),
             Self::MediaFeature(value) => value.span(),
@@ -1053,21 +1053,21 @@ impl<'a> MediaInParensKind<'a> {
 
 impl<'a> MediaNot<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaOr<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaQuery<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::ConditionOnly(value) => value.span(),
             Self::WithType(value) => value.span(),
@@ -1080,28 +1080,28 @@ impl<'a> MediaQuery<'a> {
 
 impl<'a> MediaQueryList<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> MediaQueryWithType<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> NamespacePrelude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> NamespacePreludeUri<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Str(value) => value.span(),
             Self::Url(value) => value.span(),
@@ -1111,21 +1111,21 @@ impl<'a> NamespacePreludeUri<'a> {
 
 impl<'a> NestingSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> NsPrefix<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> NsPrefixKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Ident(value) => value.span(),
             Self::Universal(value) => value.span(),
@@ -1135,89 +1135,89 @@ impl<'a> NsPrefixKind<'a> {
 
 impl NsPrefixUniversal {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> Nth<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> NthIndex<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Odd(value) => value.span(),
             Self::Even(value) => value.span(),
             Self::Integer(value) => value.span(),
-            Self::AnPlusB(value) => &value.span,
+            Self::AnPlusB(value) => value.span,
         }
     }
 }
 
 impl<'a> Number<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> PageSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> PageSelectorList<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> Percentage<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> PostcssSimpleVar<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> PostcssSimpleVarDeclaration<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> PseudoClassSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> PseudoClassSelectorArg<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> PseudoClassSelectorArgKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::CompoundSelectorList(value) => value.span(),
             Self::Ident(value) => value.span(),
@@ -1234,21 +1234,21 @@ impl<'a> PseudoClassSelectorArgKind<'a> {
 
 impl<'a> PseudoElementSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> PseudoElementSelectorArg<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> PseudoElementSelectorArgKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::CompoundSelector(value) => value.span(),
             Self::CompoundSelectorList(value) => value.span(),
@@ -1261,35 +1261,35 @@ impl<'a> PseudoElementSelectorArgKind<'a> {
 
 impl<'a> IdentList<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> PseudoPage<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> QualifiedRule<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> QueryInParens<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> QueryInParensKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::ContainerCondition(value) => value.span(),
             Self::SizeFeature(value) => value.span(),
@@ -1302,49 +1302,49 @@ impl<'a> QueryInParensKind<'a> {
 
 impl<'a> Ratio<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> RelativeSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> RelativeSelectorList<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassArbitraryArgument<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassArbitraryParameter<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassAtRoot<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassAtRootKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Selector(value) => value.span(),
             Self::Query(value) => value.span(),
@@ -1354,14 +1354,14 @@ impl<'a> SassAtRootKind<'a> {
 
 impl<'a> SassAtRootQuery<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassAtRootQueryRule<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Ident(value) => value.span(),
             Self::Str(value) => value.span(),
@@ -1371,70 +1371,70 @@ impl<'a> SassAtRootQueryRule<'a> {
 
 impl<'a> SassBinaryExpression<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassConditionalClause<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassContent<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassEach<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassExtend<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassFlag<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassFor<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl SassForBoundary {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassForward<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassForwardMember<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Ident(value) => value.span(),
             Self::Variable(value) => value.span(),
@@ -1444,88 +1444,88 @@ impl<'a> SassForwardMember<'a> {
 
 impl<'a> SassForwardPrefix<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassForwardVisibility<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassFunction<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassIfAtRule<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassImportPrelude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassInclude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassIncludeArgs<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassIncludeContentBlockParams<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassInterpolatedIdent<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassInterpolatedIdentElement<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Expression(value) => value.span(),
             Self::Static(value) => value.span(),
-            Self::Placeholder(value) => &value.span,
+            Self::Placeholder(value) => value.span,
         }
     }
 }
 
 impl<'a> SassInterpolatedStr<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassInterpolatedStrElement<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Expression(value) => value.span(),
             Self::Static(value) => value.span(),
@@ -1535,14 +1535,14 @@ impl<'a> SassInterpolatedStrElement<'a> {
 
 impl<'a> SassInterpolatedUrl<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassInterpolatedUrlElement<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Expression(value) => value.span(),
             Self::Static(value) => value.span(),
@@ -1552,56 +1552,56 @@ impl<'a> SassInterpolatedUrlElement<'a> {
 
 impl<'a> SassKeywordArgument<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassList<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassMap<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassMapItem<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassMixin<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassModuleConfig<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassModuleConfigItem<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassModuleMemberName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Ident(value) => value.span(),
             Self::Variable(value) => value.span(),
@@ -1611,84 +1611,84 @@ impl<'a> SassModuleMemberName<'a> {
 
 impl<'a> SassNestingDeclaration<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassParameter<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassParameterDefaultValue<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassParameters<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassParenthesizedExpression<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassPlaceholderSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassQualifiedName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassUnaryExpression<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl SassUnnamedNamespace {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassUse<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassUseNamespace<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassUseNamespaceKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Named(value) => value.span(),
             Self::Unnamed(value) => value.span(),
@@ -1698,28 +1698,28 @@ impl<'a> SassUseNamespaceKind<'a> {
 
 impl<'a> SassVariable<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SassVariableDeclaration<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ScopeEnd<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ScopePrelude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::StartOnly(value) => value.span(),
             Self::EndOnly(value) => value.span(),
@@ -1730,37 +1730,37 @@ impl<'a> ScopePrelude<'a> {
 
 impl<'a> ScopeStart<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> ScopeStartWithEnd<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SelectorList<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SimpleBlock<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SimpleSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
-            Self::Class(value) => &value.span,
+            Self::Class(value) => value.span,
             Self::Id(value) => value.span(),
             Self::Type(value) => value.span(),
             Self::Attribute(value) => value.span(),
@@ -1774,7 +1774,7 @@ impl<'a> SimpleSelector<'a> {
 
 impl<'a> Statement<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::AtRule(value) => value.span(),
             Self::Declaration(value) => value.span(),
@@ -1786,7 +1786,7 @@ impl<'a> Statement<'a> {
             Self::LessMixinDefinition(value) => value.span(),
             Self::LessVariableCall(value) => value.span(),
             Self::LessVariableDeclaration(value) => value.span(),
-            Self::Placeholder(value) => &value.span,
+            Self::Placeholder(value) => value.span,
             Self::PostcssSimpleVarDeclaration(value) => value.span(),
             Self::QualifiedRule(value) => value.span(),
             Self::SassIfAtRule(value) => value.span(),
@@ -1799,21 +1799,21 @@ impl<'a> Statement<'a> {
 
 impl<'a> Str<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> StyleCondition<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> StyleConditionKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::StyleInParens(value) => value.span(),
             Self::And(value) => value.span(),
@@ -1825,35 +1825,35 @@ impl<'a> StyleConditionKind<'a> {
 
 impl<'a> StyleConditionAnd<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> StyleConditionNot<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> StyleConditionOr<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> StyleInParens<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> StyleInParensKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Condition(value) => value.span(),
             Self::Feature(value) => value.span(),
@@ -1863,7 +1863,7 @@ impl<'a> StyleInParensKind<'a> {
 
 impl<'a> StyleQuery<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Condition(value) => value.span(),
             Self::Feature(value) => value.span(),
@@ -1874,28 +1874,28 @@ impl<'a> StyleQuery<'a> {
 
 impl<'a> Stylesheet<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SupportsAnd<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SupportsCondition<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SupportsConditionKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Not(value) => value.span(),
             Self::And(value) => value.span(),
@@ -1907,21 +1907,21 @@ impl<'a> SupportsConditionKind<'a> {
 
 impl<'a> SupportsDecl<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SupportsInParens<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SupportsInParensKind<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::SupportsCondition(value) => value.span(),
             Self::Feature(value) => value.span(),
@@ -1935,35 +1935,35 @@ impl<'a> SupportsInParensKind<'a> {
 
 impl<'a> SupportsNot<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> SupportsOr<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> TagNameSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> TokenSeq<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> TypeSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::TagName(value) => value.span(),
             Self::Universal(value) => value.span(),
@@ -1973,21 +1973,21 @@ impl<'a> TypeSelector<'a> {
 
 impl<'a> UnicodeRange<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> UniversalSelector<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> UnknownAtRulePrelude<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::ComponentValue(value) => value.span(),
             Self::TokenSeq(value) => value.span(),
@@ -1997,35 +1997,35 @@ impl<'a> UnknownAtRulePrelude<'a> {
 
 impl<'a> UnknownQualifiedRule<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> UnknownSassAtRule<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> UnquotedFontFamilyName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> Url<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 impl<'a> UrlModifier<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
             Self::Ident(value) => value.span(),
             Self::Function(value) => value.span(),
@@ -2035,9 +2035,9 @@ impl<'a> UrlModifier<'a> {
 
 impl<'a> UrlValue<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> Span {
         match self {
-            Self::Raw(value) => &value.span,
+            Self::Raw(value) => value.span,
             Self::SassInterpolated(value) => value.span(),
             Self::Str(value) => value.span(),
             Self::LessEscapedStr(value) => value.span(),
@@ -2047,7 +2047,7 @@ impl<'a> UrlValue<'a> {
 
 impl<'a> WqName<'a> {
     #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+    pub fn span(&self) -> Span {
+        self.span
     }
 }

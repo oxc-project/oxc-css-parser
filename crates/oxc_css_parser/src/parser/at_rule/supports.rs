@@ -28,7 +28,7 @@ impl<'a> Parse<'a> for SupportsCondition<'a> {
             })
         } else {
             let first = input.parse::<SupportsInParens>()?;
-            let mut span = *first.span();
+            let mut span = first.span();
             let mut conditions = input.vec1(SupportsConditionKind::SupportsInParens(first));
             while input.cursor.peek()?.ident(input.source).is_some() {
                 if input.cursor.peek()?.is_ident_name_eq_ignore_ascii_case(input.source, "and") {
@@ -158,7 +158,7 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                                 span,
                             })
                         } else if pure_interpolation {
-                            let span = *name.span();
+                            let span = name.span();
                             Ok(SupportsInParens {
                                 kind: SupportsInParensKind::Interpolation(name),
                                 span,

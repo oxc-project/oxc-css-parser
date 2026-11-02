@@ -785,7 +785,7 @@ impl<'a> Parse<'a> for LessConditions<'a> {
         };
 
         let first = input.parse_less_condition(true)?;
-        let mut span = *first.span();
+        let mut span = first.span();
 
         let mut conditions = input.vec1(first);
         let mut comma_spans = input.vec();
@@ -913,7 +913,7 @@ impl<'a> Parse<'a> for LessExtendRule<'a> {
         }
 
         let pseudo_class_selector = input.parse::<PseudoClassSelector>()?;
-        util::assert_no_ws_or_comment(&nesting_selector.span, &pseudo_class_selector.span)?;
+        util::assert_no_ws_or_comment(nesting_selector.span, pseudo_class_selector.span)?;
         let span = Span { start: nesting_selector.span.start, end: pseudo_class_selector.span.end };
 
         let InterpolableIdent::Literal(name_of_extend @ Ident { raw: "extend", .. }) =
@@ -1108,7 +1108,7 @@ impl<'a> Parse<'a> for LessLookupName<'a> {
             Token::Unknown(..) if is_dollar => {
                 let dollar_span = input.cursor.bump()?.span;
                 let variable = input.parse::<LessVariable>()?;
-                util::assert_no_ws_or_comment(&dollar_span, &variable.span)?;
+                util::assert_no_ws_or_comment(dollar_span, variable.span)?;
                 let span = Span { start: dollar_span.start, end: variable.span.end };
                 Ok(LessLookupName::LessPropertyInterpolation(LessPropertyInterpolation {
                     name: variable.name,
@@ -1350,7 +1350,7 @@ impl<'a> Parser<'a> {
                                 LessMixinParameterName::PropertyVariable(property)
                             }
                             value => {
-                                let span = *value.span();
+                                let span = value.span();
                                 params.push(LessMixinParameter::Unnamed(
                                     LessMixinUnnamedParameter { value, span },
                                 ));
@@ -1392,11 +1392,10 @@ impl<'a> Parser<'a> {
                         (_, rparen_span) = self.cursor.expect_r_paren()?;
                         break 'params;
                     } else {
-                        let span = *name_span;
                         params.push(LessMixinParameter::Named(LessMixinNamedParameter {
                             name,
                             value: None,
-                            span,
+                            span: name_span,
                         }));
                     }
                 }
@@ -1481,7 +1480,7 @@ impl<'a> Parser<'a> {
 impl<'a> Parse<'a> for LessMixinCallee<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let first_name = input.parse::<LessMixinName>()?;
-        let mut span = *first_name.span();
+        let mut span = first_name.span();
 
         let mut children =
             input.vec1(LessMixinCalleeChild { name: first_name, combinator: None, span });
@@ -1615,7 +1614,7 @@ impl<'a> Parse<'a> for LessNamespaceValue<'a> {
         let callee_span = callee.span();
 
         let lookups = input.parse::<LessLookups>()?;
-        util::assert_no_ws_or_comment(callee_span, &lookups.span)?;
+        util::assert_no_ws_or_comment(callee_span, lookups.span)?;
 
         let span = Span { start: callee_span.start, end: lookups.span.end };
         Ok(LessNamespaceValue { callee, lookups, span })
@@ -1853,7 +1852,7 @@ impl<'a> Parse<'a> for LessVariableVariable<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, at_span) = input.cursor.expect_at()?;
         let variable = input.parse::<LessVariable>()?;
-        util::assert_no_ws_or_comment(&at_span, &variable.span)?;
+        util::assert_no_ws_or_comment(at_span, variable.span)?;
 
         let span = Span { start: at_span.start, end: variable.span.end };
         Ok(LessVariableVariable { variable, span })
