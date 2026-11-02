@@ -1,28 +1,9 @@
 use crate::{
     Span,
-    ast::{
-        Dimension, DimensionKind, Ident, InterpolableIdentStaticPart, InterpolableStrStaticPart,
-        InterpolableUrlStaticPart, Number, Placeholder, Str,
-    },
+    ast::{DimensionKind, Ident, Number, Placeholder},
     error::{Error, ErrorKind, PResult},
-    tokenizer::{compact_offset, token},
+    tokenizer::token,
 };
-
-impl<'a> TryFrom<(token::Dimension<'a>, Span)> for Dimension<'a> {
-    type Error = Error;
-
-    fn try_from((token, span): (token::Dimension<'a>, Span)) -> PResult<Self> {
-        let number_end = span.start + compact_offset(token.value.raw.len());
-        let value_span = Span { start: span.start, end: number_end };
-        let unit_span = Span { start: number_end, end: span.end };
-
-        let value = (token.value, value_span).try_into()?;
-        let unit = Ident::from((token.unit, unit_span));
-        let kind = dimension_kind(unit.name);
-
-        Ok(Dimension { value, unit, kind, span })
-    }
-}
 
 pub(super) fn dimension_kind(unit_name: &str) -> DimensionKind {
     if unit_name.eq_ignore_ascii_case("px")
@@ -104,12 +85,6 @@ impl<'a> From<(token::Placeholder<'a>, Span)> for Placeholder<'a> {
     }
 }
 
-impl<'a> From<(token::Ident<'a>, Span)> for InterpolableIdentStaticPart<'a> {
-    fn from((token, span): (token::Ident<'a>, Span)) -> Self {
-        InterpolableIdentStaticPart { value: token.raw, raw: token.raw, span }
-    }
-}
-
 impl<'a> TryFrom<(token::Number<'a>, Span)> for Number<'a> {
     type Error = Error;
 
@@ -119,34 +94,5 @@ impl<'a> TryFrom<(token::Number<'a>, Span)> for Number<'a> {
             .parse()
             .map_err(|_| Error { kind: ErrorKind::InvalidNumber, span })
             .map(|value| Self { value, raw: token.raw, span })
-    }
-}
-
-impl<'a> From<(token::StrTemplate<'a>, Span)> for InterpolableStrStaticPart<'a> {
-    fn from((token, span): (token::StrTemplate<'a>, Span)) -> Self {
-        let raw_without_quotes = if token.tail {
-            unsafe { token.raw.get_unchecked(0..token.raw.len() - 1) }
-        } else if token.head {
-            unsafe { token.raw.get_unchecked(1..token.raw.len()) }
-        } else {
-            token.raw
-        };
-        let value = raw_without_quotes;
-        Self { value, raw: token.raw, span }
-    }
-}
-
-impl<'a> From<(token::UrlTemplate<'a>, Span)> for InterpolableUrlStaticPart<'a> {
-    fn from((token, span): (token::UrlTemplate<'a>, Span)) -> Self {
-        let value = token.raw;
-        Self { value, raw: token.raw, span }
-    }
-}
-
-impl<'a> From<(token::Str<'a>, Span)> for Str<'a> {
-    fn from((str, span): (token::Str<'a>, Span)) -> Self {
-        let raw_without_quotes = unsafe { str.raw.get_unchecked(1..str.raw.len() - 1) };
-        let value = raw_without_quotes;
-        Self { value, raw: str.raw, span }
     }
 }
