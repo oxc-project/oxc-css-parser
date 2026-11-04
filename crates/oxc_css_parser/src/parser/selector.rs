@@ -955,9 +955,18 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
                         if name.eq_ignore_ascii_case("not")
                             || name.eq_ignore_ascii_case("is")
                             || name.eq_ignore_ascii_case("where")
-                            || name.eq_ignore_ascii_case("matches")
-                            || name.eq_ignore_ascii_case("global") =>
+                            || name.eq_ignore_ascii_case("matches") =>
                     {
+                        input.parse().map(PseudoClassSelectorArgKind::SelectorList)?
+                    }
+                    InterpolableIdent::Literal(Ident { name, .. })
+                        if name.eq_ignore_ascii_case("global")
+                            || name.eq_ignore_ascii_case("local")
+                            || name.eq_ignore_ascii_case("deep")
+                            || name.eq_ignore_ascii_case("slotted") =>
+                    {
+                        // scoping wrappers that take a selector list:
+                        // CSS Modules `:global()` / `:local()` and Vue SFC `:deep()` / `:slotted()`
                         input.parse().map(PseudoClassSelectorArgKind::SelectorList)?
                     }
                     InterpolableIdent::Literal(Ident { name, .. })
