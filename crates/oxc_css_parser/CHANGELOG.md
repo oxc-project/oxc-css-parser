@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.20](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.19...oxc-css-parser-v0.0.20) - 2026-11-04
+
+### Added
+
+- *(parser)* support Vue SFC style selectors ([#201](https://github.com/oxc-project/oxc-css-parser/pull/201))
+
 ## [0.0.19](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.18...oxc-css-parser-v0.0.19) - 2026-11-02
 
 ### Other
