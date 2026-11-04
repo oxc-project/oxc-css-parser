@@ -227,4 +227,10 @@ h1:-webkit-any(.h1class, #bar) {}
 :global(a.active) {}
 :global(div > a, div + button) {}
 
+:local(a) {}
+:local(.a .b, .c) {}
+:deep(.a [role='tablist']) {}
+:deep(button + button) {}
+:slotted(.a > div) {}
+
 :/**/hover {}
