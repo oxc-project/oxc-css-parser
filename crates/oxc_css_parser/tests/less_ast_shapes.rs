@@ -67,6 +67,25 @@ fn dot_division_is_its_own_operator() {
     assert_eq!(text(code, &op.op.span), "./");
 }
 
+// less.js skips whitespace between `~` and its string, so `~ "x"` is the escaped string
+// `~"x"`: in a declaration and in a variable, where it was a raw two-token list.
+#[test]
+fn escaped_string_allows_whitespace_after_tilde() {
+    let code = "a { w: ~ \"x\"; @v: ~\n  'y'; }";
+    let ss = parse_less(code);
+    let [ComponentValue::LessEscapedStr(escaped)] = first_declaration_value(&ss) else {
+        panic!("expected an escaped string, got {:?}", first_declaration_value(&ss));
+    };
+    assert_eq!(text(code, &escaped.span), "~ \"x\"");
+    let Statement::LessVariableDeclaration(decl) = &first_rule(&ss).block.statements[1] else {
+        panic!("expected a variable declaration");
+    };
+    let ComponentValue::LessEscapedStr(escaped) = &decl.value else {
+        panic!("expected an escaped string, got {:?}", decl.value);
+    };
+    assert_eq!(text(code, &escaped.span), "~\n  'y'");
+}
+
 // `/deep/` keeps its own kind; any other less.js `/name/` is `Slashed`, its name in the span.
 #[test]
 fn slashed_combinators_keep_their_name() {
