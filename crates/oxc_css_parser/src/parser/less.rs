@@ -817,7 +817,16 @@ impl<'a> Parse<'a> for LessConditions<'a> {
 // A detached ruleset (a `{ <block> }` stored in a variable).
 impl<'a> Parse<'a> for LessDetachedRuleset<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        let block = input.parse::<SimpleBlock>()?;
+        // less.js `detachedRuleset` reads its body with `block`, like any ruleset's, and a
+        // selector `element` there can be a percentage (`\d+%` or `\d+\.\d+%`), so the block
+        // can carry keyframe blocks for a mixin to place inside `@keyframes`
+        // (`.m(@frames) { @keyframes x { @frames(); } }`), as a mixin definition's body can.
+        let block = input
+            .with_state(ParserState {
+                less_ctx: input.state.less_ctx | LESS_CTX_ALLOW_KEYFRAME_BLOCK,
+                ..input.state.clone()
+            })
+            .parse::<SimpleBlock>()?;
         let span = block.span;
         Ok(LessDetachedRuleset { block, span })
     }
