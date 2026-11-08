@@ -97,3 +97,34 @@ fn permissive_variable_value_still_parses() {
     let ss = parse_less("@this: () => { anything; until the semi; };");
     assert!(matches!(&ss.statements[0], Statement::LessVariableDeclaration(..)));
 }
+
+// less.js reads a detached ruleset's block like any ruleset's, so it holds keyframe blocks,
+// both as a variable value and as a mixin argument.
+#[test]
+fn detached_ruleset_holds_keyframe_blocks() {
+    let code = "@f: { 0%, 50.5% { top: 0; } };\n.k(b; { 100% { top: 1px; } });";
+    let ss = parse_less(code);
+    let keyframe_block = |value: &ComponentValue<'static>| {
+        let ComponentValue::LessDetachedRuleset(ruleset) = value else {
+            panic!("expected a detached ruleset, got {value:?}");
+        };
+        let [Statement::KeyframeBlock(block)] = &ruleset.block.statements[..] else {
+            panic!("expected one keyframe block, got {:?}", ruleset.block.statements);
+        };
+        text(code, &block.span)
+    };
+    let Statement::LessVariableDeclaration(decl) = &ss.statements[0] else {
+        panic!("expected a variable declaration, got {:?}", ss.statements[0]);
+    };
+    assert_eq!(keyframe_block(&decl.value), "0%, 50.5% { top: 0; }");
+    let Statement::LessMixinCall(call) = &ss.statements[1] else {
+        panic!("expected a mixin call, got {:?}", ss.statements[1]);
+    };
+    let Some(LessMixinArguments { args, .. }) = &call.args else {
+        panic!("expected arguments");
+    };
+    let [_, LessMixinArgument::Value(value)] = &args[..] else {
+        panic!("expected two arguments, got {args:?}");
+    };
+    assert_eq!(keyframe_block(value), "100% { top: 1px; }");
+}
