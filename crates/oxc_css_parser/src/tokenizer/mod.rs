@@ -328,7 +328,7 @@ impl<'a> Tokenizer<'a> {
         indent
     }
 
-    fn skip_ws(&mut self) {
+    pub(crate) fn skip_ws(&mut self) {
         while let Some((_, c)) = self.state.chars.peek() {
             if c.is_ascii_whitespace() {
                 self.state.chars.next();
