@@ -1,6 +1,6 @@
 use super::{
     Parser,
-    state::{LESS_CTX_ALLOW_DIV, LESS_CTX_ALLOW_KEYFRAME_BLOCK, ParserState, QualifiedRuleContext},
+    state::{LESS_CTX_ALLOW_DIV, ParserState, QualifiedRuleContext},
 };
 use crate::{
     Parse,
@@ -1535,12 +1535,7 @@ impl<'a> Parse<'a> for LessMixinDefinition<'a> {
             None
         };
 
-        let block = input
-            .with_state(ParserState {
-                less_ctx: input.state.less_ctx | LESS_CTX_ALLOW_KEYFRAME_BLOCK,
-                ..input.state.clone()
-            })
-            .parse::<SimpleBlock>()?;
+        let block = input.parse::<SimpleBlock>()?;
 
         let span = Span { start: name.span().start, end: block.span.end };
 

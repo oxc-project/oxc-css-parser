@@ -2389,6 +2389,8 @@ pub enum SimpleSelector<'a> {
     PseudoClass(Box<'a, PseudoClassSelector<'a>>),
     PseudoElement(Box<'a, PseudoElementSelector<'a>>),
     Nesting(NestingSelector<'a>),
+    /// less.js accepts a percentage as a selector element, e.g. `@f: { 50% {} }`
+    LessPercentage(Percentage<'a>),
     SassPlaceholder(SassPlaceholderSelector<'a>),
 }
 

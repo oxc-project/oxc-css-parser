@@ -1,7 +1,7 @@
 suite: less.js
 sha: 8ae2cc3bfa79f0718ad6fe5f263a1d6819fe9d5c
-files: 459   success: 428   failed: 7   expected: 24
-clean: 428  recovered: 1  hard_error: 6  panic: 0
+files: 459   success: 429   failed: 7   expected: 23
+clean: 429  recovered: 1  hard_error: 6  panic: 0
 
 failures:
 ERROR    packages/test-data/tests-config/debug/all/linenumbers-all.css    expect token `:`, but found `{`
@@ -15,7 +15,6 @@ RECOVER  packages/test-data/tests-unit/urls/actual.css    unterminated string
 expected failures (error tests, correct behavior):
 ERROR    packages/test-data/tests-error/eval/multiple-guards-on-css-selectors.less    expect token `;`, but found `<ident>`
 ERROR    packages/test-data/tests-error/eval/multiple-guards-on-css-selectors2.less    expect token `;`, but found `,`
-ERROR    packages/test-data/tests-error/parse/at-rules-unmatching-block.less    CSS rule is expected
 ERROR    packages/test-data/tests-error/parse/bad-variable-declaration1.less    CSS rule is expected
 ERROR    packages/test-data/tests-error/parse/custom-property-unmatched-block-1.less    CSS rule is expected
 ERROR    packages/test-data/tests-error/parse/custom-property-unmatched-block-2.less    expect token `<eof>`, but found `}`

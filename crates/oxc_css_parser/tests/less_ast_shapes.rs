@@ -122,3 +122,68 @@ fn permissive_variable_value_still_parses() {
     let ss = parse_less("@this: () => { anything; until the semi; };");
     assert!(matches!(&ss.statements[0], Statement::LessVariableDeclaration(..)));
 }
+
+// less.js accepts a percentage as a selector element, so it is a rule outside `@keyframes`:
+// in a detached ruleset and next to other selectors.
+#[test]
+fn percentage_is_a_selector_outside_keyframes() {
+    let code = "@keyframes: { 0%, 50.5% { top: 0; } };
+@v: fn({ from, 50% { top: 0; } });
+.a 50% {}
+@keyframes k { from, 50% {} 50% {} }";
+    let ss = parse_less(code);
+    let rule_selector = |value: &ComponentValue<'static>| {
+        let ComponentValue::LessDetachedRuleset(ruleset) = value else {
+            panic!("expected a detached ruleset, got {value:?}");
+        };
+        let [Statement::QualifiedRule(rule)] = &ruleset.block.statements[..] else {
+            panic!("expected one rule, got {:?}", ruleset.block.statements);
+        };
+        text(code, &rule.selector.span)
+    };
+    // `@keyframes:` is a variable, not the at-rule.
+    let Statement::LessVariableDeclaration(decl) = &ss.statements[0] else {
+        panic!("expected a variable declaration, got {:?}", ss.statements[0]);
+    };
+    assert_eq!(rule_selector(&decl.value), "0%, 50.5%");
+    let Statement::LessVariableDeclaration(decl) = &ss.statements[1] else {
+        panic!("expected a variable declaration, got {:?}", ss.statements[1]);
+    };
+    let ComponentValue::Function(func) = &decl.value else {
+        panic!("expected a function, got {:?}", decl.value);
+    };
+    let [arg] = &func.args[..] else {
+        panic!("expected one argument, got {:?}", func.args);
+    };
+    assert_eq!(rule_selector(arg), "from, 50%");
+
+    // `.a 50%`: a descendant combinator, then the percentage compound
+    let Statement::QualifiedRule(rule) = &ss.statements[2] else {
+        panic!("expected a rule, got {:?}", ss.statements[2]);
+    };
+    let [_, ComplexSelectorChild::Combinator(..), ComplexSelectorChild::CompoundSelector(compound)] =
+        &rule.selector.selectors[0].children[..]
+    else {
+        panic!("expected `.a 50%`, got {:?}", rule.selector.selectors[0].children);
+    };
+    let [SimpleSelector::LessPercentage(percentage)] = &compound.children[..] else {
+        panic!("expected a percentage selector, got {:?}", compound.children);
+    };
+    assert_eq!(text(code, &percentage.span), "50%");
+
+    // Inside `@keyframes` it stays a keyframe block, ident-led or not.
+    let Statement::AtRule(at_rule) = &ss.statements[3] else {
+        panic!("expected an at-rule, got {:?}", ss.statements[3]);
+    };
+    let Some(block) = &at_rule.block else {
+        panic!("expected a block");
+    };
+    assert!(
+        matches!(
+            &block.statements[..],
+            [Statement::KeyframeBlock(..), Statement::KeyframeBlock(..)]
+        ),
+        "expected keyframe blocks, got {:?}",
+        block.statements
+    );
+}
