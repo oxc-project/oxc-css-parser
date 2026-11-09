@@ -1255,6 +1255,12 @@ impl<'a> Parse<'a> for SimpleSelector<'a> {
             {
                 input.parse().map(SimpleSelector::SassPlaceholder)
             }
+            // Inside `@keyframes` it is a keyframe selector instead (`from, 50% {}`)
+            TokenWithSpan { token: Token::Percentage(..), .. }
+                if input.syntax == Syntax::Less && !input.state.in_keyframes_at_rule =>
+            {
+                input.parse().map(SimpleSelector::LessPercentage)
+            }
             TokenWithSpan { token: Token::Placeholder(..), .. } => {
                 let name = input.parse::<InterpolableIdent>()?;
                 let span = name.span();
@@ -1375,7 +1381,7 @@ impl<'a> Parser<'a> {
         match self.cursor.peek()? {
             TokenWithSpan {
                 token:
-                    Token::Ident(..)
+                    token @ (Token::Ident(..)
                     | Token::Dot(..)
                     | Token::Hash(..)
                     | Token::Colon(..)
@@ -1388,15 +1394,17 @@ impl<'a> Parser<'a> {
                     | Token::NumberSign(..)
                     | Token::HashLBrace(..)
                     | Token::Percent(..) // Sass `%placeholder` descendant
-                    | Token::Placeholder(..), // `${a} ${b}` descendant
+                    | Token::Percentage(..) // Less `.a 50%` descendant
+                    | Token::Placeholder(..)), // `${a} ${b}` descendant
                 span,
-            } if pos < span.start => Ok(Some(Combinator {
-                kind: CombinatorKind::Descendant,
-                span: Span {
-                    start: pos,
-                    end: span.start,
-                },
-            })),
+            } if pos < span.start
+                && (self.syntax == Syntax::Less || !matches!(token, Token::Percentage(..))) =>
+            {
+                Ok(Some(Combinator {
+                    kind: CombinatorKind::Descendant,
+                    span: Span { start: pos, end: span.start },
+                }))
+            }
             TokenWithSpan {
                 token: Token::GreaterThan(..),
                 ..

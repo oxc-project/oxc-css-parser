@@ -1767,6 +1767,7 @@ impl<'a> SimpleSelector<'a> {
             Self::PseudoClass(value) => value.span(),
             Self::PseudoElement(value) => value.span(),
             Self::Nesting(value) => value.span(),
+            Self::LessPercentage(value) => value.span(),
             Self::SassPlaceholder(value) => value.span(),
         }
     }

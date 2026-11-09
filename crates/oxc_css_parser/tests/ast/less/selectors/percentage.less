@@ -1,0 +1,14 @@
+/* less.js accepts a percentage as a selector element, outside `@keyframes` too */
+50% {}
+.a, 50% {}
+50%, .a {}
+.a 50% {}
+50% > a {}
+a {
+  from, 50% {}
+}
+.mixin() {
+  0%, 100% {}
+}
+@frames: { 5.5% {} .5% {} -5% {} 1e1% {} };
+.mixin(x; { 100% {} });

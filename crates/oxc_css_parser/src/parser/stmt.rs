@@ -1107,11 +1107,14 @@ impl<'a> Parser<'a> {
                 Token::Percentage(..)
                     if self.state.in_keyframes_at_rule
                         || self.state.sass_ctx & super::state::SASS_CTX_ALLOW_KEYFRAME_BLOCK
-                            != 0
-                        || self.state.less_ctx & super::state::LESS_CTX_ALLOW_KEYFRAME_BLOCK
                             != 0 =>
                 {
                     statements.push(Statement::KeyframeBlock(self.parse()?));
+                    is_block_element = true;
+                }
+                // Outside `@keyframes`, a Less percentage is a selector (`@f: { 50% {} }`)
+                Token::Percentage(..) if self.syntax == Syntax::Less => {
+                    statements.push(self.parse_less_qualified_rule()?);
                     is_block_element = true;
                 }
                 Token::RBrace(..) | Token::Eof(..) | Token::Dedent(..) => break,

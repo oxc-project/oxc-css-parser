@@ -35,7 +35,6 @@ pub(super) const SASS_CTX_ALLOW_KEYFRAME_BLOCK: u8 = 4;
 pub(super) const SASS_CTX_IN_PARENS: u8 = 8;
 
 pub(super) const LESS_CTX_ALLOW_DIV: u8 = 1;
-pub(super) const LESS_CTX_ALLOW_KEYFRAME_BLOCK: u8 = 2;
 
 impl<'a> Parser<'a> {
     pub(super) fn with_state(&mut self, state: ParserState) -> WithState<'a, '_> {
