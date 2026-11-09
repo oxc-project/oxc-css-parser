@@ -98,8 +98,7 @@ fn permissive_variable_value_still_parses() {
     assert!(matches!(&ss.statements[0], Statement::LessVariableDeclaration(..)));
 }
 
-// less.js reads a detached ruleset's block like any ruleset's, so it holds keyframe blocks,
-// both as a variable value and as a mixin argument.
+// A detached ruleset can hold keyframe blocks, as a variable value or a mixin argument.
 #[test]
 fn detached_ruleset_holds_keyframe_blocks() {
     let code = "@f: { 0%, 50.5% { top: 0; } };\n.k(b; { 100% { top: 1px; } });";
