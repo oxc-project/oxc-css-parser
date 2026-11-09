@@ -67,16 +67,23 @@ fn dot_division_is_its_own_operator() {
     assert_eq!(text(code, &op.op.span), "./");
 }
 
-// An escaped string can have whitespace, including a newline, after the `~`.
+// An escaped string can have whitespace, including a newline, and comments after the `~`.
 #[test]
 fn escaped_string_allows_whitespace_after_tilde() {
-    let code = "a { w: ~ \"x\"; @v: ~\n  'y'; }";
-    let ss = parse_less(code);
-    let [ComponentValue::LessEscapedStr(escaped)] = first_declaration_value(&ss) else {
-        panic!("expected an escaped string, got {:?}", first_declaration_value(&ss));
+    let escaped = |code: &'static str| {
+        let ss = parse_less(code);
+        let [ComponentValue::LessEscapedStr(escaped)] = first_declaration_value(&ss) else {
+            panic!("expected an escaped string, got {:?}", first_declaration_value(&ss));
+        };
+        text(code, &escaped.span)
     };
-    assert_eq!(text(code, &escaped.span), "~ \"x\"");
-    let Statement::LessVariableDeclaration(decl) = &first_rule(&ss).block.statements[1] else {
+    assert_eq!(escaped("a { w: ~ \"x\"; }"), "~ \"x\"");
+    assert_eq!(escaped("a { w: ~ /* c */ \"x\"; }"), "~ /* c */ \"x\"");
+
+    // A variable value is parsed on its own path.
+    let code = "a { @v: ~\n  'y'; }";
+    let ss = parse_less(code);
+    let Statement::LessVariableDeclaration(decl) = &first_rule(&ss).block.statements[0] else {
         panic!("expected a variable declaration");
     };
     let ComponentValue::LessEscapedStr(escaped) = &decl.value else {
