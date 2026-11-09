@@ -67,8 +67,7 @@ fn dot_division_is_its_own_operator() {
     assert_eq!(text(code, &op.op.span), "./");
 }
 
-// less.js skips whitespace between `~` and its string, so `~ "x"` is the escaped string
-// `~"x"`: in a declaration and in a variable, where it was a raw two-token list.
+// An escaped string can have whitespace, including a newline, after the `~`.
 #[test]
 fn escaped_string_allows_whitespace_after_tilde() {
     let code = "a { w: ~ \"x\"; @v: ~\n  'y'; }";

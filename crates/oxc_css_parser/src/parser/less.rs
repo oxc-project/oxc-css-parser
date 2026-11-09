@@ -829,9 +829,8 @@ impl<'a> Parse<'a> for LessDetachedRuleset<'a> {
 impl<'a> Parse<'a> for LessEscapedStr<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let (_, Span { start, .. }) = input.cursor.expect_tilde()?;
-        // less.js `entities.quoted` takes the `~` with `$char`, which skips the whitespace
-        // after it, so `~ "raw value"` is the same escaped string. `$char` skips comments
-        // too; this doesn't, since `LessEscapedStr` has no place to keep one.
+        // less.js allows whitespace after the `~`, so `~ "x"` is the same as `~"x"`.
+        // Comments are not skipped, because `LessEscapedStr` has nowhere to keep one.
         input.cursor.tokenizer.skip_ws();
         let str = {
             let (str, span) = input.cursor.tokenizer.scan_string_only()?;
