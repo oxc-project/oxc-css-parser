@@ -280,7 +280,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    fn skip_ws_or_comment(&mut self) -> Option<TokenWithSpan<'a>> {
+    pub(crate) fn skip_ws_or_comment(&mut self) -> Option<TokenWithSpan<'a>> {
         // Indentation is significant only in the indented syntax, and not inside a
         // `(...)` group — there newlines are ignored (multi-line param/arg lists),
         // just like in SCSS.

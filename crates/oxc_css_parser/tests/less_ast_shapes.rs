@@ -67,6 +67,31 @@ fn dot_division_is_its_own_operator() {
     assert_eq!(text(code, &op.op.span), "./");
 }
 
+// An escaped string can have whitespace, including a newline, and comments after the `~`.
+#[test]
+fn escaped_string_allows_whitespace_after_tilde() {
+    let escaped = |code: &'static str| {
+        let ss = parse_less(code);
+        let [ComponentValue::LessEscapedStr(escaped)] = first_declaration_value(&ss) else {
+            panic!("expected an escaped string, got {:?}", first_declaration_value(&ss));
+        };
+        text(code, &escaped.span)
+    };
+    assert_eq!(escaped("a { w: ~ \"x\"; }"), "~ \"x\"");
+    assert_eq!(escaped("a { w: ~ /* c */ \"x\"; }"), "~ /* c */ \"x\"");
+
+    // A variable value is parsed on its own path.
+    let code = "a { @v: ~\n  'y'; }";
+    let ss = parse_less(code);
+    let Statement::LessVariableDeclaration(decl) = &first_rule(&ss).block.statements[0] else {
+        panic!("expected a variable declaration");
+    };
+    let ComponentValue::LessEscapedStr(escaped) = &decl.value else {
+        panic!("expected an escaped string, got {:?}", decl.value);
+    };
+    assert_eq!(text(code, &escaped.span), "~\n  'y'");
+}
+
 // `/deep/` keeps its own kind; any other less.js `/name/` is `Slashed`, its name in the span.
 #[test]
 fn slashed_combinators_keep_their_name() {
