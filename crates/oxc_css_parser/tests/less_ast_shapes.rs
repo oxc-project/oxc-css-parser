@@ -130,7 +130,7 @@ fn percentage_is_a_selector_outside_keyframes() {
     let code = "@keyframes: { 0%, 50.5% { top: 0; } };
 @v: fn({ from, 50% { top: 0; } });
 .a 50% {}
-@keyframes k { from, 50% {} 50% {} }";
+@keyframes k { from, 50% {} 50% {} FROM {} foo {} from when (@x) {} }";
     let ss = parse_less(code);
     let rule_selector = |value: &ComponentValue<'static>| {
         let ComponentValue::LessDetachedRuleset(ruleset) = value else {
@@ -171,7 +171,8 @@ fn percentage_is_a_selector_outside_keyframes() {
     };
     assert_eq!(text(code, &percentage.span), "50%");
 
-    // Inside `@keyframes` it stays a keyframe block, ident-led or not.
+    // Inside `@keyframes` it stays a keyframe block, ident-led or not;
+    // only `from` / `to` (any case) leads one there, any other ident-led rule stays a rule.
     let Statement::AtRule(at_rule) = &ss.statements[3] else {
         panic!("expected an at-rule, got {:?}", ss.statements[3]);
     };
@@ -181,7 +182,13 @@ fn percentage_is_a_selector_outside_keyframes() {
     assert!(
         matches!(
             &block.statements[..],
-            [Statement::KeyframeBlock(..), Statement::KeyframeBlock(..)]
+            [
+                Statement::KeyframeBlock(..),
+                Statement::KeyframeBlock(..),
+                Statement::KeyframeBlock(..),
+                Statement::QualifiedRule(..),
+                Statement::LessConditionalQualifiedRule(..),
+            ]
         ),
         "expected keyframe blocks, got {:?}",
         block.statements

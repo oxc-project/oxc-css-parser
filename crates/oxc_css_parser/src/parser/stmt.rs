@@ -810,7 +810,22 @@ impl<'a> Parser<'a> {
                             }
                         }
                         Syntax::Less => {
-                            if let Ok(stmt) = self.try_parse(Parser::parse_less_qualified_rule) {
+                            // `from` / `to` in `@keyframes` is a keyframe selector, as in Css and Scss;
+                            // any other ident-led rule there stays a rule, as less.js reads it
+                            let is_keyframe_keyword = self.state.in_keyframes_at_rule
+                                && self.cursor.peek()?.ident(self.source).is_some_and(|ident| {
+                                    let name = ident.name();
+                                    name.eq_ignore_ascii_case("from")
+                                        || name.eq_ignore_ascii_case("to")
+                                });
+                            if is_keyframe_keyword
+                                && let Ok(block) = self.try_parse(KeyframeBlock::parse)
+                            {
+                                statements.push(Statement::KeyframeBlock(block));
+                                is_block_element = true;
+                            } else if let Ok(stmt) =
+                                self.try_parse(Parser::parse_less_qualified_rule)
+                            {
                                 statements.push(stmt);
                                 is_block_element = true;
                             } else if let Ok(decl) =
@@ -820,6 +835,7 @@ impl<'a> Parser<'a> {
                             {
                                 statements.push(Statement::Declaration(decl));
                             } else if self.state.in_keyframes_at_rule {
+                                // timeline ranges (`entry 0%`), or an unknown keyframe selector error
                                 statements.push(Statement::KeyframeBlock(self.parse()?));
                                 is_block_element = true;
                             } else {
