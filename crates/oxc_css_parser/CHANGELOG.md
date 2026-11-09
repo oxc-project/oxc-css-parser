@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.21](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.20...oxc-css-parser-v0.0.21) - 2026-11-09
+
+### Fixed
+
+- *(parser)* [**breaking**] allow % as Less selector ([#206](https://github.com/oxc-project/oxc-css-parser/pull/206))
+- *(parser)* allow whitespace between Less `~` and its string ([#203](https://github.com/oxc-project/oxc-css-parser/pull/203))
+
 ## [0.0.20](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.19...oxc-css-parser-v0.0.20) - 2026-11-04
 
 ### Added

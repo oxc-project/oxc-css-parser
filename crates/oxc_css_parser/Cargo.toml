@@ -1,6 +1,6 @@
 [package]
 name = "oxc-css-parser"
-version = "0.0.20"
+version = "0.0.21"
 edition = "2024"
 rust-version = "1.95.0"
 authors = []
