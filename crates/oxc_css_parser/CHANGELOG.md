@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.22](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.21...oxc-css-parser-v0.0.22) - 2026-11-12
+
+### Fixed
+
+- *(parser)* support invaild supports selector() ([#210](https://github.com/oxc-project/oxc-css-parser/pull/210))
+- *(parser)* parse Less from|tp in keyframes as selector ([#207](https://github.com/oxc-project/oxc-css-parser/pull/207))
+
 ## [0.0.21](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.20...oxc-css-parser-v0.0.21) - 2026-11-09
 
 ### Fixed
