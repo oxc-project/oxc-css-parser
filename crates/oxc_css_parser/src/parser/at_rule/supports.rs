@@ -95,8 +95,7 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                     })
                 })
                 .or_else(|_| {
-                    // <general-enclosed>: MQ L4 catch-all (referenced from <supports-condition>),
-                    // evaluates false at runtime.
+                    // <general-enclosed>: MQ L4 catch-all (referenced from <supports-condition>), evaluates false at runtime
                     let (_, Span { start, .. }) = input.cursor.expect_l_paren()?;
                     let tokens = input.parse_tokens_in_parens()?;
                     let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
@@ -105,8 +104,7 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                         span: Span { start, end },
                     })
                 }),
-            // Sass: an interpolation may stand for a whole condition operand
-            // (`@supports #{"(a: b)"} and (c: d)`)
+            // Sass: an interpolation may stand for a whole condition operand (`@supports #{"(a: b)"} and (c: d)`)
             // or splice into a function name (`@supports a#{"b"}c(d)`).
             // So may a css-in-js placeholder.
             TokenWithSpan {
@@ -115,62 +113,51 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
             } => {
                 let name = input.parse::<InterpolableIdent>()?;
                 let name_end = name.span().end;
-                match name {
-                    InterpolableIdent::Literal(function_ident)
-                        if function_ident.name.eq_ignore_ascii_case("selector") =>
-                    {
-                        input.cursor.expect_l_paren()?;
-                        let selector_list = input.parse::<SelectorList>()?;
-                        input.cursor.expect_r_paren()?;
-                        let span = selector_list.span;
-                        Ok(SupportsInParens {
-                            kind: SupportsInParensKind::Selector(selector_list),
-                            span,
-                        })
-                    }
-                    name => {
-                        let glued_lparen = matches!(
-                            input.cursor.peek()?,
-                            TokenWithSpan { token: Token::LParen(..), span }
-                                if span.start == name_end
-                        );
-                        // Only a pure interpolation may stand alone
-                        // (`#{"(a: b)"}`, or a placeholder without a glued suffix);
-                        // a mixed ident like `a#{b}` still needs parens or a function call,
-                        // as in dart-sass.
-                        let pure_interpolation = match &name {
-                            InterpolableIdent::SassInterpolated(interpolation) => matches!(
-                                interpolation.elements.as_slice(),
-                                [SassInterpolatedIdentElement::Expression(..)]
-                            ),
-                            InterpolableIdent::Placeholder(placeholder) => {
-                                placeholder.suffix.is_empty()
-                            }
-                            _ => false,
-                        };
-                        if glued_lparen {
-                            // An unknown function here is `<general-enclosed>`
-                            // (css-conditional): its contents are raw tokens.
-                            let function = input.parse_raw_function(name)?;
-                            let span = function.span;
-                            Ok(SupportsInParens {
-                                kind: SupportsInParensKind::Function(function),
-                                span,
-                            })
-                        } else if pure_interpolation {
-                            let span = name.span();
-                            Ok(SupportsInParens {
-                                kind: SupportsInParensKind::Interpolation(name),
-                                span,
-                            })
-                        } else {
-                            let TokenWithSpan { token, span } = input.cursor.peek()?;
-                            Err(Error {
-                                kind: ErrorKind::Unexpected("'('", token.symbol()),
-                                span: *span,
-                            })
-                        }
-                    }
+                if matches!(&name, InterpolableIdent::Literal(function_ident)
+                    if function_ident.name.eq_ignore_ascii_case("selector"))
+                    && let Ok(selector_list) = input.try_parse(|parser| {
+                        parser.cursor.expect_l_paren()?;
+                        let selector_list = parser.parse::<SelectorList>()?;
+                        parser.cursor.expect_r_paren()?;
+                        Ok(selector_list)
+                    })
+                {
+                    let span = selector_list.span;
+                    return Ok(SupportsInParens {
+                        kind: SupportsInParensKind::Selector(selector_list),
+                        span,
+                    });
+                }
+                // Otherwise `selector(A < B)` is `<general-enclosed>` as any unknown function (css-conditional-4),
+                // so it falls through to the raw function below.
+                let glued_lparen = matches!(
+                    input.cursor.peek()?,
+                    TokenWithSpan { token: Token::LParen(..), span }
+                        if span.start == name_end
+                );
+                // Only a pure interpolation may stand alone
+                // (`#{"(a: b)"}`, or a placeholder without a glued suffix);
+                // a mixed ident like `a#{b}` still needs parens or a function call, as in dart-sass.
+                let pure_interpolation = match &name {
+                    InterpolableIdent::SassInterpolated(interpolation) => matches!(
+                        interpolation.elements.as_slice(),
+                        [SassInterpolatedIdentElement::Expression(..)]
+                    ),
+                    InterpolableIdent::Placeholder(placeholder) => placeholder.suffix.is_empty(),
+                    _ => false,
+                };
+                if glued_lparen {
+                    // An unknown function here is `<general-enclosed>` (css-conditional):
+                    // its contents are raw tokens.
+                    let function = input.parse_raw_function(name)?;
+                    let span = function.span;
+                    Ok(SupportsInParens { kind: SupportsInParensKind::Function(function), span })
+                } else if pure_interpolation {
+                    let span = name.span();
+                    Ok(SupportsInParens { kind: SupportsInParensKind::Interpolation(name), span })
+                } else {
+                    let TokenWithSpan { token, span } = input.cursor.peek()?;
+                    Err(Error { kind: ErrorKind::Unexpected("'('", token.symbol()), span: *span })
                 }
             }
             TokenWithSpan { token, span } => {

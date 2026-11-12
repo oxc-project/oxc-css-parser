@@ -6,3 +6,7 @@
 @supports (not all) {}
 @supports (--custom-feature: 10) and (display: grid) {}
 @supports (foo bar) or (display: grid) {}
+/* `selector()` whose argument is not a <complex-selector> is <general-enclosed> too. */
+@supports selector(A < B) {}
+@supports selector() {}
+@supports selector(.a) and selector(A ~~ B) {}
