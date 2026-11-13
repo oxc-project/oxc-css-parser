@@ -2,7 +2,7 @@
 name = "oxc-css-parser"
 version = "0.0.22"
 edition = "2024"
-rust-version = "1.95.0"
+rust-version = "1.98.0"
 authors = []
 description = "Parser for CSS, SCSS, Sass, and Less."
 repository = "https://github.com/oxc-project/oxc-css-parser"
@@ -42,3 +42,6 @@ path = "../../examples/json.rs"
 [[example]]
 name = "print_ast"
 path = "../../examples/print_ast.rs"
+
+# Opt out of `[workspace.lints]` until its warnings are fixed.
+[lints]
