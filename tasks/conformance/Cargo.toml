@@ -17,5 +17,4 @@ path = "src/main.rs"
 [dependencies]
 oxc-css-parser = { path = "../../crates/oxc_css_parser" }
 
-# Opt out of `[workspace.lints]` until its warnings are fixed.
 [lints]
