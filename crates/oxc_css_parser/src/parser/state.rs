@@ -48,7 +48,7 @@ pub(super) struct WithState<'a, 'p> {
     original_state: ParserState,
 }
 
-impl<'a, 'p> Deref for WithState<'a, 'p> {
+impl<'a> Deref for WithState<'a, '_> {
     type Target = Parser<'a>;
 
     fn deref(&self) -> &Self::Target {
@@ -56,13 +56,13 @@ impl<'a, 'p> Deref for WithState<'a, 'p> {
     }
 }
 
-impl<'a, 'p> DerefMut for WithState<'a, 'p> {
+impl DerefMut for WithState<'_, '_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.parser
     }
 }
 
-impl<'a, 'p> Drop for WithState<'a, 'p> {
+impl Drop for WithState<'_, '_> {
     fn drop(&mut self) {
         mem::swap(&mut self.parser.state, &mut self.original_state);
     }

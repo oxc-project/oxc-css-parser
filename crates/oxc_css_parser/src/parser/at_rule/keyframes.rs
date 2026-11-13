@@ -31,7 +31,7 @@ impl<'a> Parse<'a> for KeyframeBlock<'a> {
             .parse::<SimpleBlock>()?;
 
         let span = Span { start, end: block.span.end };
-        Ok(KeyframeBlock { selectors, comma_spans, block, span })
+        Ok(KeyframeBlock { span, selectors, comma_spans, block })
     }
 }
 
@@ -49,40 +49,39 @@ fn is_timeline_range_name(name: &str) -> bool {
 //                     | <timeline-range-name> <percentage [0,100]>
 impl<'a> Parse<'a> for KeyframeSelector<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        match &input.cursor.peek()?.token {
-            Token::Percentage(..) => Ok(KeyframeSelector::Percentage(input.parse()?)),
-            _ => {
-                let ident = input.parse::<InterpolableIdent>()?;
-                // Scroll-driven animations attach keyframes to a named
-                // timeline range: `entry 0%`, `exit-crossing 100%`.
-                if let Token::Percentage(..) = &input.cursor.peek()?.token {
-                    if let InterpolableIdent::Literal(ident) = &ident
-                        && !is_timeline_range_name(ident.name)
-                    {
-                        input.recoverable_errors.push(Error {
-                            kind: ErrorKind::UnknownKeyframeSelectorIdent,
-                            span: ident.span,
-                        });
-                    }
-                    let percentage = input.parse::<Percentage>()?;
-                    let span = Span { start: ident.span().start, end: percentage.span.end };
-                    return Ok(KeyframeSelector::TimelineRange(KeyframeTimelineRange {
-                        name: ident,
-                        percentage,
-                        span,
-                    }));
-                }
+        if let Token::Percentage(..) = &input.cursor.peek()?.token {
+            Ok(KeyframeSelector::Percentage(input.parse()?))
+        } else {
+            let ident = input.parse::<InterpolableIdent>()?;
+            // Scroll-driven animations attach keyframes to a named
+            // timeline range: `entry 0%`, `exit-crossing 100%`.
+            if let Token::Percentage(..) = &input.cursor.peek()?.token {
                 if let InterpolableIdent::Literal(ident) = &ident
-                    && !ident.name.eq_ignore_ascii_case("from")
-                    && !ident.name.eq_ignore_ascii_case("to")
+                    && !is_timeline_range_name(ident.name)
                 {
                     input.recoverable_errors.push(Error {
                         kind: ErrorKind::UnknownKeyframeSelectorIdent,
                         span: ident.span,
                     });
                 }
-                Ok(KeyframeSelector::Ident(ident))
+                let percentage = input.parse::<Percentage>()?;
+                let span = Span { start: ident.span().start, end: percentage.span.end };
+                return Ok(KeyframeSelector::TimelineRange(KeyframeTimelineRange {
+                    name: ident,
+                    percentage,
+                    span,
+                }));
             }
+            if let InterpolableIdent::Literal(ident) = &ident
+                && !ident.name.eq_ignore_ascii_case("from")
+                && !ident.name.eq_ignore_ascii_case("to")
+            {
+                input.recoverable_errors.push(Error {
+                    kind: ErrorKind::UnknownKeyframeSelectorIdent,
+                    span: ident.span,
+                });
+            }
+            Ok(KeyframeSelector::Ident(ident))
         }
     }
 }

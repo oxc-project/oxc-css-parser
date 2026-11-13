@@ -46,7 +46,7 @@ impl<'a> Parse<'a> for ContainerCondition<'a> {
             if let Some(last) = conditions.last() {
                 span.end = last.span().end;
             }
-            Ok(ContainerCondition { conditions, span })
+            Ok(ContainerCondition { span, conditions })
         }
     }
 }
@@ -58,7 +58,7 @@ impl<'a> Parse<'a> for ContainerConditionAnd<'a> {
         if keyword.name.eq_ignore_ascii_case("and") {
             let query_in_parens = input.parse::<QueryInParens>()?;
             let span = Span { start: keyword.span.start, end: query_in_parens.span.end };
-            Ok(ContainerConditionAnd { keyword, query_in_parens, span })
+            Ok(ContainerConditionAnd { span, keyword, query_in_parens })
         } else {
             Err(Error { kind: ErrorKind::ExpectContainerConditionAnd, span: keyword.span })
         }
@@ -72,7 +72,7 @@ impl<'a> Parse<'a> for ContainerConditionNot<'a> {
         if keyword.name.eq_ignore_ascii_case("not") {
             let query_in_parens = input.parse::<QueryInParens>()?;
             let span = Span { start: keyword.span.start, end: query_in_parens.span.end };
-            Ok(ContainerConditionNot { keyword, query_in_parens, span })
+            Ok(ContainerConditionNot { span, keyword, query_in_parens })
         } else {
             Err(Error { kind: ErrorKind::ExpectContainerConditionNot, span: keyword.span })
         }
@@ -86,7 +86,7 @@ impl<'a> Parse<'a> for ContainerConditionOr<'a> {
         if keyword.name.eq_ignore_ascii_case("or") {
             let query_in_parens = input.parse::<QueryInParens>()?;
             let span = Span { start: keyword.span.start, end: query_in_parens.span.end };
-            Ok(ContainerConditionOr { keyword, query_in_parens, span })
+            Ok(ContainerConditionOr { span, keyword, query_in_parens })
         } else {
             Err(Error { kind: ErrorKind::ExpectContainerConditionOr, span: keyword.span })
         }
@@ -202,7 +202,7 @@ impl<'a> Parse<'a> for StyleCondition<'a> {
             if let Some(last) = conditions.last() {
                 span.end = last.span().end;
             }
-            Ok(StyleCondition { conditions, span })
+            Ok(StyleCondition { span, conditions })
         }
     }
 }
@@ -228,7 +228,7 @@ impl<'a> Parse<'a> for StyleConditionNot<'a> {
         if keyword.name.eq_ignore_ascii_case("not") {
             let style_in_parens = input.parse::<StyleInParens>()?;
             let span = Span { start: keyword.span.start, end: style_in_parens.span.end };
-            Ok(StyleConditionNot { keyword, style_in_parens, span })
+            Ok(StyleConditionNot { span, keyword, style_in_parens })
         } else {
             Err(Error { kind: ErrorKind::ExpectStyleConditionNot, span: keyword.span })
         }
@@ -242,7 +242,7 @@ impl<'a> Parse<'a> for StyleConditionOr<'a> {
         if keyword.name.eq_ignore_ascii_case("or") {
             let style_in_parens = input.parse::<StyleInParens>()?;
             let span = Span { start: keyword.span.start, end: style_in_parens.span.end };
-            Ok(StyleConditionOr { keyword, style_in_parens, span })
+            Ok(StyleConditionOr { span, keyword, style_in_parens })
         } else {
             Err(Error { kind: ErrorKind::ExpectStyleConditionOr, span: keyword.span })
         }
@@ -341,6 +341,6 @@ impl<'a> Parse<'a> for ContainerPrelude<'a> {
             (None, Some(condition)) => condition.span,
             (None, None) => unreachable!(),
         };
-        Ok(ContainerPrelude { name, condition, span })
+        Ok(ContainerPrelude { span, name, condition })
     }
 }

@@ -182,9 +182,8 @@ impl<'a> Parser<'a> {
                 if needs_parens {
                     let TokenWithSpan { token, span } = self.cursor.bump()?;
                     return Err(Error { kind: ErrorKind::Unexpected("(", token.symbol()), span });
-                } else {
-                    self.parse_less_condition_atom()?
                 }
+                self.parse_less_condition_atom()?
             }
         } else {
             self.parse_less_condition_recursively(needs_parens, precedence + 1)?
@@ -346,7 +345,7 @@ impl<'a> Parser<'a> {
                 self.cursor.bump()?;
                 let (_, Span { end, .. }) = self.cursor.expect_r_paren()?;
                 let span = Span { start: variable.span.start, end };
-                Ok(ComponentValue::LessVariableCall(LessVariableCall { variable, span }))
+                Ok(ComponentValue::LessVariableCall(LessVariableCall { span, variable }))
             }
             TokenWithSpan { token: Token::LBracket(..), span }
                 if variable.span.end == span.start =>
@@ -501,10 +500,10 @@ impl<'a> Parser<'a> {
                     let span = Span { start: left.span().start, end: number_span.end };
                     let right = {
                         let span = Span { start: number_span.start + 1, end: number_span.end };
-                        let raw = unsafe { number.raw.get_unchecked(1..number.raw.len()) };
+                        let raw = &number.raw[1..];
                         raw.parse()
                             .map_err(|_| Error { kind: ErrorKind::InvalidNumber, span })
-                            .map(|value| ComponentValue::Number(Number { value, raw, span }))?
+                            .map(|value| ComponentValue::Number(Number { span, value, raw }))?
                     };
                     left = ComponentValue::LessBinaryOperation(LessBinaryOperation {
                         left: self.alloc(left),
@@ -533,14 +532,7 @@ impl<'a> Parser<'a> {
                     let mut right = {
                         self.dimension(
                             crate::token::Dimension {
-                                value: crate::token::Number {
-                                    raw: unsafe {
-                                        dimension
-                                            .value
-                                            .raw
-                                            .get_unchecked(1..dimension.value.raw.len())
-                                    },
-                                },
+                                value: crate::token::Number { raw: &dimension.value.raw[1..] },
                                 unit: dimension.unit,
                             },
                             Span { start: dimension_span.start + 1, end: dimension_span.end },
@@ -717,17 +709,16 @@ impl<'a> Parser<'a> {
                     }
                     if separator == ListSeparatorKind::Space {
                         break;
+                    }
+                    if separator == ListSeparatorKind::Unknown {
+                        separator = ListSeparatorKind::Comma;
+                    }
+                    let TokenWithSpan { span, .. } = self.cursor.bump()?;
+                    end = span.end;
+                    if let Some(spans) = &mut comma_spans {
+                        spans.push(span);
                     } else {
-                        if separator == ListSeparatorKind::Unknown {
-                            separator = ListSeparatorKind::Comma;
-                        }
-                        let TokenWithSpan { span, .. } = self.cursor.bump()?;
-                        end = span.end;
-                        if let Some(spans) = &mut comma_spans {
-                            spans.push(span);
-                        } else {
-                            comma_spans = Some(self.vec1(span));
-                        }
+                        comma_spans = Some(self.vec1(span));
                     }
                 }
                 Token::Exclamation(..) => {
@@ -767,7 +758,7 @@ impl<'a> Parser<'a> {
 
             let span = Span { start: single_value.span().start, end };
             elements.insert(0, single_value);
-            Ok(ComponentValue::LessList(LessList { elements, comma_spans, span }))
+            Ok(ComponentValue::LessList(LessList { span, elements, comma_spans }))
         }
     }
 }
@@ -808,7 +799,7 @@ impl<'a> Parse<'a> for LessConditions<'a> {
         if let Some(last) = conditions.last() {
             span.end = last.span().end;
         }
-        Ok(LessConditions { conditions, when_span, comma_spans, span })
+        Ok(LessConditions { span, conditions, when_span, comma_spans })
     }
 }
 
@@ -819,7 +810,7 @@ impl<'a> Parse<'a> for LessDetachedRuleset<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
         let block = input.parse::<SimpleBlock>()?;
         let span = block.span;
-        Ok(LessDetachedRuleset { block, span })
+        Ok(LessDetachedRuleset { span, block })
     }
 }
 
@@ -836,7 +827,7 @@ impl<'a> Parse<'a> for LessEscapedStr<'a> {
             input.str(str, span)
         };
         let span = Span { start, end: str.span().end };
-        Ok(LessEscapedStr { str, span })
+        Ok(LessEscapedStr { span, str })
     }
 }
 
@@ -876,7 +867,7 @@ impl<'a> Parse<'a> for LessExtend<'a> {
             selector.children.truncate(len - 2);
         }
 
-        Ok(LessExtend { selector, all, span })
+        Ok(LessExtend { span, selector, all })
     }
 }
 
@@ -899,7 +890,7 @@ impl<'a> Parse<'a> for LessExtendList<'a> {
         if let Some(last) = elements.last() {
             span.end = last.span.end;
         }
-        Ok(LessExtendList { elements, comma_spans, span })
+        Ok(LessExtendList { span, elements, comma_spans })
     }
 }
 
@@ -931,7 +922,7 @@ impl<'a> Parse<'a> for LessExtendRule<'a> {
             return Err(Error { kind: ErrorKind::ExpectLessExtendRule, span });
         };
 
-        Ok(LessExtendRule { nesting_selector, name_of_extend, extend, span })
+        Ok(LessExtendRule { span, nesting_selector, name_of_extend, extend })
     }
 }
 
@@ -1043,7 +1034,7 @@ impl<'a> Parse<'a> for LessInterpolatedStr<'a> {
             is_parsing_static_part = !is_parsing_static_part;
         }
 
-        Ok(LessInterpolatedStr { elements, span })
+        Ok(LessInterpolatedStr { span, elements })
     }
 }
 
@@ -1057,10 +1048,7 @@ impl<'a> Parse<'a> for LessJavaScriptSnippet<'a> {
             code: &token.raw[1..token.raw.len() - 1],
             raw: token.raw,
             escaped: tilde.is_some(),
-            span: Span {
-                start: tilde.map(|(_, span)| span.start).unwrap_or(span.start),
-                end: span.end,
-            },
+            span: Span { start: tilde.map_or(span.start, |(_, span)| span.start), end: span.end },
         })
     }
 }
@@ -1138,7 +1126,7 @@ impl<'a> Parse<'a> for LessLookups<'a> {
         if let Some(last) = lookups.last() {
             span.end = last.span.end;
         }
-        Ok(LessLookups { lookups, span })
+        Ok(LessLookups { span, lookups })
     }
 }
 
@@ -1217,10 +1205,10 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                             };
                             let span = Span { start: name.span().start, end: value.span().end };
                             args.push(LessMixinArgument::Named(LessMixinNamedArgument {
+                                span,
                                 name,
                                 colon_span,
                                 value,
-                                span,
                             }));
                         } else if let Some((_, dotdotdot_span)) = input.cursor.eat_dot_dot_dot()? {
                             // unlike definitions, call-site spreads may appear
@@ -1228,8 +1216,8 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                             // `.aa(@y, @x..., and again, @y...)`
                             let span = Span { start: name.span().start, end: dotdotdot_span.end };
                             args.push(LessMixinArgument::Variadic(LessMixinVariadicArgument {
-                                name,
                                 span,
+                                name,
                             }));
                         } else {
                             args.push(LessMixinArgument::Value(match name {
@@ -1242,7 +1230,7 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
                             }));
                         }
                     }
-                };
+                }
 
                 match input.cursor.peek()?.token {
                     Token::RParen(..) => {}
@@ -1298,9 +1286,9 @@ impl<'a> Parse<'a> for LessMixinCall<'a> {
 
         let span = Span {
             start: callee.span.start,
-            end: important.as_ref().map(|important| important.span.end).unwrap_or(end),
+            end: important.as_ref().map_or(end, |important| important.span.end),
         };
-        Ok(LessMixinCall { callee, args, important, span })
+        Ok(LessMixinCall { span, callee, args, important })
     }
 }
 
@@ -1354,7 +1342,7 @@ impl<'a> Parser<'a> {
                             value => {
                                 let span = value.span();
                                 params.push(LessMixinParameter::Unnamed(
-                                    LessMixinUnnamedParameter { value, span },
+                                    LessMixinUnnamedParameter { span, value },
                                 ));
                                 break 'maybe;
                             }
@@ -1374,7 +1362,7 @@ impl<'a> Parser<'a> {
                         let end = value.span().end;
                         let default_value = {
                             let span = Span { start: colon_span.start, end };
-                            LessMixinNamedParameterDefaultValue { colon_span, value, span }
+                            LessMixinNamedParameterDefaultValue { span, colon_span, value }
                         };
                         let span = Span { start: name_span.start, end };
                         params.push(LessMixinParameter::Named(LessMixinNamedParameter {
@@ -1390,7 +1378,7 @@ impl<'a> Parser<'a> {
                         }));
                         if let Some((_, semicolon_span)) = self.cursor.eat_semicolon()? {
                             semicolon_spans.push(semicolon_span);
-                        };
+                        }
                         (_, rparen_span) = self.cursor.expect_r_paren()?;
                         break 'params;
                     } else {
@@ -1474,7 +1462,7 @@ impl<'a> Parser<'a> {
         let params = self.parse_less_mixin_parameters()?;
         let block = self.parse::<SimpleBlock>()?;
         let span = Span { start: head_span.start, end: block.span.end };
-        Ok(LessAnonymousMixin { params, block, span })
+        Ok(LessAnonymousMixin { span, params, block })
     }
 }
 
@@ -1503,11 +1491,10 @@ impl<'a> Parse<'a> for LessMixinCallee<'a> {
                 let span = Span {
                     start: combinator
                         .as_ref()
-                        .map(|combinator| combinator.span.start)
-                        .unwrap_or(name_span.start),
+                        .map_or(name_span.start, |combinator| combinator.span.start),
                     end: name_span.end,
                 };
-                children.push(LessMixinCalleeChild { name, combinator, span });
+                children.push(LessMixinCalleeChild { span, name, combinator });
             } else {
                 break;
             }
@@ -1516,7 +1503,7 @@ impl<'a> Parse<'a> for LessMixinCallee<'a> {
         if let Some(last) = children.last() {
             span.end = last.span.end;
         }
-        Ok(LessMixinCallee { children, span })
+        Ok(LessMixinCallee { span, children })
     }
 }
 
@@ -1539,7 +1526,7 @@ impl<'a> Parse<'a> for LessMixinDefinition<'a> {
 
         let span = Span { start: name.span().start, end: block.span.end };
 
-        Ok(LessMixinDefinition { name, params, guard, block, span })
+        Ok(LessMixinDefinition { span, name, params, guard, block })
     }
 }
 
@@ -1614,7 +1601,7 @@ impl<'a> Parse<'a> for LessNamespaceValue<'a> {
         util::assert_no_ws_or_comment(callee_span, lookups.span)?;
 
         let span = Span { start: callee_span.start, end: lookups.span.end };
-        Ok(LessNamespaceValue { callee, lookups, span })
+        Ok(LessNamespaceValue { span, callee, lookups })
     }
 }
 
@@ -1656,7 +1643,7 @@ impl<'a> Parse<'a> for LessNegativeValue<'a> {
         };
 
         let span = Span { start: minus_span.start, end: value.span().end };
-        Ok(LessNegativeValue { value, span })
+        Ok(LessNegativeValue { span, value })
     }
 }
 
@@ -1690,7 +1677,7 @@ impl<'a> Parse<'a> for LessPlugin<'a> {
         let path_span = path.span();
 
         let span = Span { start: start.unwrap_or(path_span.start), end: path_span.end };
-        Ok(LessPlugin { path, args, span })
+        Ok(LessPlugin { span, path, args })
     }
 }
 
@@ -1772,7 +1759,7 @@ impl<'a> Parse<'a> for LessVariableCall<'a> {
         let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
 
         let span = Span { start: variable.span.start, end };
-        Ok(LessVariableCall { variable, span })
+        Ok(LessVariableCall { span, variable })
     }
 }
 
@@ -1828,7 +1815,7 @@ impl<'a> Parse<'a> for LessVariableDeclaration<'a> {
             value
         };
         let span = Span { start: name.span.start, end: value.span().end };
-        Ok(LessVariableDeclaration { name, colon_span, value, span })
+        Ok(LessVariableDeclaration { span, name, colon_span, value })
     }
 }
 
@@ -1852,7 +1839,7 @@ impl<'a> Parse<'a> for LessVariableVariable<'a> {
         util::assert_no_ws_or_comment(at_span, variable.span)?;
 
         let span = Span { start: at_span.start, end: variable.span.end };
-        Ok(LessVariableVariable { variable, span })
+        Ok(LessVariableVariable { span, variable })
     }
 }
 

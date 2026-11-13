@@ -1,3 +1,5 @@
+#![expect(clippy::print_stdout)]
+
 use oxc_css_parser::{Allocator, Parser, Syntax, ast::Stylesheet};
 use std::{env, fs, path::Path};
 
@@ -16,5 +18,5 @@ fn main() {
     let mut parser = Parser::new(&allocator, &file, syntax);
     let ast = parser.parse::<Stylesheet>().unwrap();
     let json = serde_json::to_string_pretty(&ast).unwrap();
-    println!("{}", json);
+    println!("{json}");
 }

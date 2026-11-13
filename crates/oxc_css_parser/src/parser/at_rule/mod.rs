@@ -69,20 +69,19 @@ impl<'a> Parse<'a> for AtRule<'a> {
             // A nameless `@keyframes {}` is invalid CSS, but Sass parses it
             // (the name may be produced elsewhere, e.g. a keyframes mixin
             // emitting vendor-prefixed blocks around `@content`).
-            let prelude = match &input.cursor.peek()?.token {
-                Token::LBrace(..) => None,
-                _ => {
-                    // A typed name normally ends the prelude; real-world code
-                    // also carries loose preludes (`@keyframes \$a`,
-                    // `@-moz-keyframes name /* c */ line 429`) — keep those as
-                    // raw tokens like an unknown at-rule's prelude.
-                    let typed = input.try_parse_full_prelude(KeyframesName::parse);
-                    match typed {
-                        Ok(name) => Some(AtRulePrelude::Keyframes(name)),
-                        Err(_) => input
-                            .parse_unknown_at_rule_prelude()?
-                            .map(|prelude| AtRulePrelude::Unknown(input.alloc(prelude))),
-                    }
+            let prelude = if let Token::LBrace(..) = &input.cursor.peek()?.token {
+                None
+            } else {
+                // A typed name normally ends the prelude; real-world code
+                // also carries loose preludes (`@keyframes \$a`,
+                // `@-moz-keyframes name /* c */ line 429`) — keep those as
+                // raw tokens like an unknown at-rule's prelude.
+                let typed = input.try_parse_full_prelude(KeyframesName::parse);
+                match typed {
+                    Ok(name) => Some(AtRulePrelude::Keyframes(name)),
+                    Err(_) => input
+                        .parse_unknown_at_rule_prelude()?
+                        .map(|prelude| AtRulePrelude::Unknown(input.alloc(prelude))),
                 }
             };
             let block = input
@@ -432,8 +431,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                     } else {
                         None
                     };
-                    let end =
-                        block.as_ref().map(|block| block.span.end).unwrap_or(prelude.span.end);
+                    let end = block.as_ref().map_or(prelude.span.end, |block| block.span.end);
                     (Some(AtRulePrelude::SassInclude(input.alloc(prelude))), block, end)
                 }
                 "content" => {
@@ -495,7 +493,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                     (Some(AtRulePrelude::SassForward(input.alloc(prelude))), None, end)
                 }
                 "at-root" => {
-                    let prelude = if !matches!(
+                    let prelude = if matches!(
                         input.cursor.peek()?.token,
                         Token::LBrace(..)
                             | Token::Indent(..)
@@ -503,9 +501,9 @@ impl<'a> Parse<'a> for AtRule<'a> {
                             | Token::Dedent(..)
                             | Token::Eof(..)
                     ) {
-                        Some(AtRulePrelude::SassAtRoot(input.parse()?))
-                    } else {
                         None
+                    } else {
+                        Some(AtRulePrelude::SassAtRoot(input.parse()?))
                     };
                     // `@at-root` escapes surrounding contexts, including a
                     // `@keyframes` body — its block holds normal rules.
@@ -674,7 +672,7 @@ impl<'a> Parser<'a> {
             }
             if let Some((first, last)) = tokens.first().zip(tokens.last()) {
                 let span = Span { start: first.span.start, end: last.span.end };
-                Ok(Some(UnknownAtRulePrelude::TokenSeq(TokenSeq { tokens, span })))
+                Ok(Some(UnknownAtRulePrelude::TokenSeq(TokenSeq { span, tokens })))
             } else {
                 Ok(None)
             }

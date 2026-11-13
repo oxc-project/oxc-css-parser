@@ -25,13 +25,10 @@ impl<'a> Parse<'a> for CustomSelector<'a> {
         };
 
         let span = Span {
-            start: prefix_arg
-                .as_ref()
-                .map(|prefix_arg| prefix_arg.span.start)
-                .unwrap_or(name.span.start),
-            end: args.as_ref().map(|args| args.span.end).unwrap_or(name.span.end),
+            start: prefix_arg.as_ref().map_or(name.span.start, |prefix_arg| prefix_arg.span.start),
+            end: args.as_ref().map_or(name.span.end, |args| args.span.end),
         };
-        Ok(CustomSelector { prefix_arg, name, args, span })
+        Ok(CustomSelector { span, prefix_arg, name, args })
     }
 }
 
@@ -77,6 +74,6 @@ impl<'a> Parse<'a> for CustomSelectorPrelude<'a> {
         let custom_selector = input.parse::<CustomSelector>()?;
         let selector = input.parse::<SelectorList>()?;
         let span = Span { start: custom_selector.span.start, end: selector.span.end };
-        Ok(CustomSelectorPrelude { custom_selector, selector, span })
+        Ok(CustomSelectorPrelude { span, custom_selector, selector })
     }
 }

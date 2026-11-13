@@ -40,14 +40,14 @@ impl<'a> Parser<'a> {
             tokens.push(self.cursor.bump()?);
         }
         let span = Span {
-            start: tokens.first().map(|token| token.span.start).unwrap_or(start),
+            start: tokens.first().map_or(start, |token| token.span.start),
             end: if let Some(last) = tokens.last() {
                 last.span.end
             } else {
                 self.cursor.peek()?.span.start
             },
         };
-        Ok(TokenSeq { tokens, span })
+        Ok(TokenSeq { span, tokens })
     }
 
     /// A raw statement prelude:
@@ -85,7 +85,7 @@ impl<'a> Parser<'a> {
             start: tokens.first().map_or(start, |token| token.span.start),
             end: tokens.last().map_or(start, |token| token.span.end),
         };
-        Ok(TokenSeq { tokens, span })
+        Ok(TokenSeq { span, tokens })
     }
 
     /// Consume a whole interpolated string (`"a#{expr}b"`) into `tokens` as

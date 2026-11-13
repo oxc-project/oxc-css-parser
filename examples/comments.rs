@@ -1,3 +1,5 @@
+#![expect(clippy::print_stdout)]
+
 use oxc_css_parser::{Allocator, ParserBuilder, ast::Stylesheet};
 
 fn main() {

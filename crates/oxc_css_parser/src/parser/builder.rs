@@ -1,4 +1,4 @@
-use super::{Parser, ParserCursor};
+use super::{Parser, ParserCursor, state::ParserState};
 use crate::{ParserOptions, Syntax, tokenizer::Tokenizer};
 use oxc_allocator::Allocator;
 
@@ -30,18 +30,21 @@ impl<'a> ParserBuilder<'a> {
     }
 
     /// Specify the syntax for parsing.
+    #[must_use]
     pub fn syntax(mut self, syntax: Syntax) -> Self {
         self.syntax = syntax;
         self
     }
 
     /// Customize parser options.
+    #[must_use]
     pub fn options(mut self, options: ParserOptions) -> Self {
         self.options = Some(options);
         self
     }
 
     /// Collect comments.
+    #[must_use]
     pub fn comments(mut self) -> Self {
         self.collect_comments = true;
         self
@@ -51,6 +54,7 @@ impl<'a> ParserBuilder<'a> {
     ///
     /// Collecting comments is disabled by default,
     /// so you don't need to use this if you never call the [`comments`](ParserBuilder::comments) method.
+    #[must_use]
     pub fn ignore_comments(mut self) -> Self {
         self.collect_comments = false;
         self
@@ -80,7 +84,7 @@ impl<'a> ParserBuilder<'a> {
                 ),
                 self.source,
             ),
-            state: Default::default(),
+            state: ParserState::default(),
             recoverable_errors: vec![],
             sass_pending_indents: 0,
         }

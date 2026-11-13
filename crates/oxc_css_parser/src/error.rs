@@ -127,7 +127,7 @@ impl Display for ErrorKind {
                         .map(|token| format!("`{token}`"))
                         .collect::<Vec<_>>()
                         .join(", ");
-                    write!(f, "expect one of {joined} or `{last}`, but found `{actual}`",)
+                    write!(f, "expect one of {joined} or `{last}`, but found `{actual}`")
                 } else {
                     panic!("the number of expected tokens must be at least 2")
                 }

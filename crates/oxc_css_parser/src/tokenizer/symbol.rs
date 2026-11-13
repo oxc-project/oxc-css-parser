@@ -2,7 +2,16 @@ use super::token::*;
 
 impl Token<'_> {
     pub(crate) fn symbol(&self) -> &'static str {
-        use TokenData::*;
+        use TokenData::{
+            Ampersand, Asterisk, AsteriskEqual, At, AtKeyword, AtLBraceVar, BacktickCode, BadStr,
+            Bar, BarBar, BarEqual, CaretEqual, Cdc, Cdo, Colon, ColonColon, Comma, Dedent,
+            Dimension, DollarEqual, DollarLBraceVar, DollarVar, Dot, DotDotDot, Eof, Equal,
+            EqualEqual, Exclamation, ExclamationEqual, GreaterThan, GreaterThanEqual, Hash,
+            HashLBrace, Ident, Indent, LBrace, LBracket, LParen, LessThan, LessThanEqual,
+            Linebreak, Minus, Number, NumberSign, Percent, Percentage, Placeholder, Plus,
+            PlusUnderscore, Question, RBrace, RBracket, RParen, Semicolon, Solidus, Str,
+            StrTemplate, Tilde, TildeEqual, Unknown, UrlRaw, UrlTemplate,
+        };
         match self {
             Eof(..) => "<eof>",
             Ampersand(..) => "&",

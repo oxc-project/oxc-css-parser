@@ -21,7 +21,7 @@ impl<'a> Parse<'a> for DocumentPrelude<'a> {
         if let Some(last) = matchers.last() {
             span.end = last.span().end;
         }
-        Ok(DocumentPrelude { matchers, comma_spans, span })
+        Ok(DocumentPrelude { span, matchers, comma_spans })
     }
 }
 

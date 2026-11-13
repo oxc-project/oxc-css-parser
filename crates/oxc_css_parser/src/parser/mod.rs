@@ -27,6 +27,11 @@ mod token_seq;
 mod value;
 
 pub trait Parse<'a>: Sized {
+    /// Parse `Self` at the cursor.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input at the cursor is not a valid `Self`.
     fn parse(input: &mut Parser<'a>) -> PResult<Self>;
 }
 
@@ -128,17 +133,17 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_at_keyword(&mut self) -> PResult<(token::AtKeyword<'a>, Span)> {
-        self.expect_token("<at-keyword>", |token, source| token.at_keyword(source))
+        self.expect_token("<at-keyword>", TokenWithSpan::at_keyword)
     }
 
     #[inline]
     fn expect_at_l_brace_var(&mut self) -> PResult<(token::AtLBraceVar<'a>, Span)> {
-        self.expect_token("@{", |token, source| token.at_l_brace_var(source))
+        self.expect_token("@{", TokenWithSpan::at_l_brace_var)
     }
 
     #[inline]
     fn expect_backtick_code(&mut self) -> PResult<(token::BacktickCode<'a>, Span)> {
-        self.expect_token("<backtick code>", |token, source| token.backtick_code(source))
+        self.expect_token("<backtick code>", TokenWithSpan::backtick_code)
     }
 
     #[inline]
@@ -175,17 +180,17 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_dimension(&mut self) -> PResult<(token::Dimension<'a>, Span)> {
-        self.expect_token("<dimension>", |token, source| token.dimension(source))
+        self.expect_token("<dimension>", TokenWithSpan::dimension)
     }
 
     #[inline]
     fn expect_dollar_l_brace_var(&mut self) -> PResult<(token::DollarLBraceVar<'a>, Span)> {
-        self.expect_token("${", |token, source| token.dollar_l_brace_var(source))
+        self.expect_token("${", TokenWithSpan::dollar_l_brace_var)
     }
 
     #[inline]
     fn expect_dollar_var(&mut self) -> PResult<(token::DollarVar<'a>, Span)> {
-        self.expect_token("$var", |token, source| token.dollar_var(source))
+        self.expect_token("$var", TokenWithSpan::dollar_var)
     }
 
     #[inline]
@@ -214,7 +219,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_hash(&mut self) -> PResult<(token::Hash<'a>, Span)> {
-        self.expect_token("<hash>", |token, source| token.hash(source))
+        self.expect_token("<hash>", TokenWithSpan::hash)
     }
 
     #[inline]
@@ -227,7 +232,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_ident(&mut self) -> PResult<(token::Ident<'a>, Span)> {
-        self.expect_token("<ident>", |token, source| token.ident(source))
+        self.expect_token("<ident>", TokenWithSpan::ident)
     }
 
     #[inline]
@@ -272,7 +277,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_number(&mut self) -> PResult<(token::Number<'a>, Span)> {
-        self.expect_token("<number>", |token, source| token.number(source))
+        self.expect_token("<number>", TokenWithSpan::number)
     }
 
     #[inline]
@@ -285,12 +290,12 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_percentage(&mut self) -> PResult<(token::Percentage<'a>, Span)> {
-        self.expect_token("<percentage>", |token, source| token.percentage(source))
+        self.expect_token("<percentage>", TokenWithSpan::percentage)
     }
 
     #[inline]
     fn expect_placeholder(&mut self) -> PResult<(token::Placeholder<'a>, Span)> {
-        self.expect_token("<placeholder>", |token, source| token.placeholder(source))
+        self.expect_token("<placeholder>", TokenWithSpan::placeholder)
     }
 
     #[inline]
@@ -335,12 +340,12 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn expect_str(&mut self) -> PResult<(token::Str<'a>, Span)> {
-        self.expect_token("<string>", |token, source| token.str(source))
+        self.expect_token("<string>", TokenWithSpan::str)
     }
 
     #[inline]
     fn expect_str_template(&mut self) -> PResult<(token::StrTemplate<'a>, Span)> {
-        self.expect_token("<string template>", |token, source| token.str_template(source))
+        self.expect_token("<string template>", TokenWithSpan::str_template)
     }
 
     #[inline]
@@ -463,7 +468,7 @@ impl<'a> ParserCursor<'a> {
 
     #[inline]
     fn eat_ident(&mut self) -> PResult<Option<(token::Ident<'a>, Span)>> {
-        self.eat_token(|token, source| token.ident(source))
+        self.eat_token(TokenWithSpan::ident)
     }
 
     #[inline]
@@ -541,18 +546,22 @@ impl<'a> Parser<'a> {
             allocator,
             source,
             syntax,
-            options: Default::default(),
+            options: ParserOptions::default(),
             cursor: ParserCursor::new(
                 Tokenizer::new(allocator, source, syntax, None, false),
                 source,
             ),
-            state: Default::default(),
+            state: ParserState::default(),
             recoverable_errors: vec![],
             sass_pending_indents: 0,
         }
     }
 
     /// Start to parse.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the source is not a valid `T`.
     pub fn parse<T>(&mut self) -> PResult<T>
     where
         T: Parse<'a>,
@@ -618,7 +627,7 @@ impl<'a> Parser<'a> {
         let value = (token.value, value_span).try_into()?;
         let unit = self.ident(token.unit, unit_span);
         let kind = convert::dimension_kind(unit.name);
-        Ok(Dimension { value, unit, kind, span })
+        Ok(Dimension { span, value, unit, kind })
     }
 
     #[inline]
@@ -632,6 +641,7 @@ impl<'a> Parser<'a> {
 
     #[inline]
     pub(crate) fn str(&self, token: token::Str<'a>, span: crate::Span) -> Str<'a> {
+        // SAFETY: a `Str` token's raw starts and ends with an ASCII quote.
         let raw_without_quotes = unsafe { token.raw.get_unchecked(1..token.raw.len() - 1) };
         let value = if token.escaped {
             util::handle_escape_in(raw_without_quotes, self.allocator)
@@ -648,8 +658,10 @@ impl<'a> Parser<'a> {
         span: crate::Span,
     ) -> InterpolableStrStaticPart<'a> {
         let raw_without_quotes = if token.tail {
+            // SAFETY: a tail `StrTemplate` token's raw ends with an ASCII quote.
             unsafe { token.raw.get_unchecked(0..token.raw.len() - 1) }
         } else if token.head {
+            // SAFETY: a head `StrTemplate` token's raw starts with an ASCII quote.
             unsafe { token.raw.get_unchecked(1..token.raw.len()) }
         } else {
             token.raw

@@ -394,7 +394,7 @@ impl<'a> Parse<'a> for ImportantAnnotation<'a> {
         let ident: Ident = input.parse::<Ident>()?;
         let span = Span { start: span.start, end: ident.span.end };
         if ident.name.eq_ignore_ascii_case("important") {
-            Ok(ImportantAnnotation { ident, span })
+            Ok(ImportantAnnotation { span, ident })
         } else {
             Err(Error { kind: ErrorKind::ExpectImportantAnnotation, span })
         }
@@ -434,13 +434,13 @@ impl<'a> Parse<'a> for QualifiedRule<'a> {
 // and Prettier prints the prelude verbatim.
 impl<'a> Parse<'a> for UnknownQualifiedRule<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        debug_assert!(input.syntax == Syntax::Css);
+        debug_assert_eq!(input.syntax, Syntax::Css);
         let prelude = input.parse_raw_prelude_tokens()?;
         // The scan also stops at `;` / statement boundaries;
         // `SimpleBlock`'s `expect_l_brace` rejects those, so only a block opener makes this shape.
         let block = input.parse::<SimpleBlock>()?;
         let span = Span { start: prelude.span.start, end: block.span.end };
-        Ok(UnknownQualifiedRule { prelude, block, span })
+        Ok(UnknownQualifiedRule { span, prelude, block })
     }
 }
 
@@ -1111,10 +1111,6 @@ impl<'a> Parser<'a> {
                 Token::DollarLBraceVar(..) if self.syntax == Syntax::Less => {
                     statements.push(self.parse().map(Statement::Declaration)?);
                 }
-                Token::Cdo(..) | Token::Cdc(..) => {
-                    self.cursor.bump()?;
-                    continue;
-                }
                 Token::At(..) if matches!(self.syntax, Syntax::Scss | Syntax::Sass) => {
                     let unknown_sass_at_rule = self.parse::<UnknownSassAtRule>()?;
                     is_block_element = unknown_sass_at_rule.block.is_some();
@@ -1134,7 +1130,7 @@ impl<'a> Parser<'a> {
                     is_block_element = true;
                 }
                 Token::RBrace(..) | Token::Eof(..) | Token::Dedent(..) => break,
-                Token::Semicolon(..) | Token::Linebreak(..) => {
+                Token::Semicolon(..) | Token::Linebreak(..) | Token::Cdo(..) | Token::Cdc(..) => {
                     self.cursor.bump()?;
                     continue;
                 }
@@ -1150,9 +1146,9 @@ impl<'a> Parser<'a> {
                     };
                     let span = Span { start, end: block.span.end };
                     statements.push(Statement::QualifiedRule(QualifiedRule {
+                        span,
                         selector,
                         block,
-                        span,
                     }));
                     is_block_element = true;
                 }
@@ -1175,7 +1171,7 @@ impl<'a> Parser<'a> {
                         span: *span,
                     });
                 }
-            };
+            }
             // Drain continuation indents that never became a block (e.g.
             // `$a\n  : b` — the deeper line belonged to the statement's own
             // clause, so its matching `Dedent` has no block to close). A
