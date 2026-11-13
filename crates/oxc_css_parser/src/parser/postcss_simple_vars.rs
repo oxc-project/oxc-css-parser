@@ -8,10 +8,10 @@ use crate::{Parse, ast::*, config::Syntax, error::PResult, pos::Span};
 // https://github.com/postcss/postcss-simple-vars
 impl<'a> Parse<'a> for PostcssSimpleVar<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        debug_assert!(input.syntax == Syntax::Css);
+        debug_assert_eq!(input.syntax, Syntax::Css);
 
         let (name, span) = input.parse_dollar_var_ident()?;
-        Ok(PostcssSimpleVar { name, span })
+        Ok(PostcssSimpleVar { span, name })
     }
 }
 
@@ -19,7 +19,7 @@ impl<'a> Parse<'a> for PostcssSimpleVar<'a> {
 // (textual substitution; a trailing `!important` stays part of the value)
 impl<'a> Parse<'a> for PostcssSimpleVarDeclaration<'a> {
     fn parse(input: &mut Parser<'a>) -> PResult<Self> {
-        debug_assert!(input.syntax == Syntax::Css);
+        debug_assert_eq!(input.syntax, Syntax::Css);
 
         let name = input.parse::<PostcssSimpleVar>()?;
         let (_, colon_span) = input.cursor.expect_colon()?;
@@ -42,9 +42,9 @@ impl<'a> Parse<'a> for PostcssSimpleVarDeclaration<'a> {
             value.push(ComponentValue::ImportantAnnotation(important));
         }
 
-        let end = value.last().map(|v| v.span().end).unwrap_or(colon_span.end);
+        let end = value.last().map_or(colon_span.end, |v| v.span().end);
         let span = Span { start: name.span.start, end };
 
-        Ok(PostcssSimpleVarDeclaration { name, colon_span, value, value_is_raw, span })
+        Ok(PostcssSimpleVarDeclaration { span, name, colon_span, value, value_is_raw })
     }
 }

@@ -133,7 +133,7 @@ impl<'a> Parser<'a> {
                     let op = split_op(number.raw, number_span.start);
                     let right = {
                         let span = Span { start: number_span.start + 1, end: number_span.end };
-                        let raw = unsafe { number.raw.get_unchecked(1..number.raw.len()) };
+                        let raw = &number.raw[1..];
                         Number::try_from((crate::token::Number { raw }, span))
                             .map(ComponentValue::Number)?
                     };
@@ -157,14 +157,7 @@ impl<'a> Parser<'a> {
                     let right = self
                         .dimension(
                             crate::token::Dimension {
-                                value: crate::token::Number {
-                                    raw: unsafe {
-                                        dimension
-                                            .value
-                                            .raw
-                                            .get_unchecked(1..dimension.value.raw.len())
-                                    },
-                                },
+                                value: crate::token::Number { raw: &dimension.value.raw[1..] },
                                 unit: dimension.unit,
                             },
                             Span { start: dimension_span.start + 1, end: dimension_span.end },
@@ -372,7 +365,7 @@ impl<'a> Parser<'a> {
                             TokenWithSpan { token: Token::Plus(..), span }
                                 if span.start == ident_end =>
                             {
-                                self.parse_unicode_range(ident).map(ComponentValue::UnicodeRange)
+                                self.parse_unicode_range(&ident).map(ComponentValue::UnicodeRange)
                             }
                             token @ TokenWithSpan { token: Token::Number(..), span }
                                 if token
@@ -380,7 +373,7 @@ impl<'a> Parser<'a> {
                                     .is_some_and(|raw| raw.starts_with('+'))
                                     && span.start == ident_end =>
                             {
-                                self.parse_unicode_range(ident).map(ComponentValue::UnicodeRange)
+                                self.parse_unicode_range(&ident).map(ComponentValue::UnicodeRange)
                             }
                             token @ TokenWithSpan { token: Token::Dimension(..), span }
                                 if token
@@ -388,7 +381,7 @@ impl<'a> Parser<'a> {
                                     .is_some_and(|raw| raw.starts_with('+'))
                                     && span.start == ident_end =>
                             {
-                                self.parse_unicode_range(ident).map(ComponentValue::UnicodeRange)
+                                self.parse_unicode_range(&ident).map(ComponentValue::UnicodeRange)
                             }
                             _ => Ok(ComponentValue::InterpolableIdent(InterpolableIdent::Literal(
                                 ident,
@@ -572,9 +565,7 @@ impl<'a> Parser<'a> {
                     // SassScript call — but only there, so invalid calc stays
                     // invalid. Other syntaxes have no fallback, so they skip
                     // the rollback snapshot entirely.
-                    if !matches!(self.syntax, Syntax::Scss | Syntax::Sass) {
-                        self.parse_calc_args(allow_modulo)?
-                    } else {
+                    if matches!(self.syntax, Syntax::Scss | Syntax::Sass) {
                         let typed = self.try_parse(|p| {
                             let values = p.parse_calc_args(allow_modulo)?;
                             let TokenWithSpan { token, span } = p.cursor.peek()?;
@@ -619,6 +610,8 @@ impl<'a> Parser<'a> {
                                 values
                             }
                         }
+                    } else {
+                        self.parse_calc_args(allow_modulo)?
                     }
                 }
                 InterpolableIdent::Literal(ident) if ident.name.eq_ignore_ascii_case("element") => {
@@ -684,6 +677,7 @@ impl<'a> Parser<'a> {
     /// (dart-sass special functions carry raw text: `element(/**/ c)`,
     /// `-c-calc(@#$)`, `url(fn("s"))`), re-parse the contents as raw tokens.
     pub(super) fn parse_function_typed_or_raw(&mut self, name: Ident<'a>) -> PResult<Function<'a>> {
+        #[expect(clippy::unnecessary_struct_initialization, reason = "`Ident` is not `Copy`")]
         let name_copy = Ident { name: name.name, raw: name.raw, span: name.span };
         match self.try_parse(|p| p.parse_function(InterpolableIdent::Literal(name))) {
             Ok(function) => Ok(function),
@@ -811,9 +805,7 @@ impl<'a> Parser<'a> {
                     return Err(Error { kind: ErrorKind::UnknownToken, span });
                 }
                 _ => {
-                    let value = if let Ok(value) = self.try_parse(ComponentValue::parse) {
-                        value
-                    } else {
+                    let Ok(value) = self.try_parse(ComponentValue::parse) else {
                         values.push(ComponentValue::TokenWithSpan(self.cursor.bump()?));
                         continue;
                     };
@@ -862,7 +854,7 @@ impl<'a> Parser<'a> {
         }
 
         let span = Span { start: numerator.span.start, end: denominator.span.end };
-        Ok(Ratio { numerator, solidus_span, denominator, span })
+        Ok(Ratio { span, numerator, solidus_span, denominator })
     }
 
     // The `src()` value function: src( [ <string> ]? <url-modifier>* )
@@ -897,12 +889,12 @@ impl<'a> Parser<'a> {
         let modifiers = self.parse_url_modifiers()?;
         let end = self.cursor.expect_r_paren()?.1.end;
         let span = Span { start: name.span.start, end };
-        Ok(Url { name, value, modifiers, span })
+        Ok(Url { span, name, value, modifiers })
     }
 
     // <urange> = u '+' <ident-token> '?'* | u <dimension-token> '?'* | u <number-token> …
     // Written `U+0-10FFFF`, `U+4??`, etc. https://drafts.csswg.org/css-syntax-3/#urange-syntax
-    fn parse_unicode_range(&mut self, prefix_ident: Ident<'a>) -> PResult<UnicodeRange<'a>> {
+    fn parse_unicode_range(&mut self, prefix_ident: &Ident<'a>) -> PResult<UnicodeRange<'a>> {
         let prefix = prefix_ident.raw.chars().next().unwrap();
         let (span_start, span_end) = match self.cursor.bump()? {
             TokenWithSpan { token: Token::Plus(..), span: plus_token_span } => {
@@ -1068,7 +1060,7 @@ impl<'a> Parse<'a> for ComponentValues<'a> {
         if let Some(value) = values.last() {
             span.end = value.span().end;
         }
-        Ok(ComponentValues { values, span })
+        Ok(ComponentValues { span, values })
     }
 }
 
@@ -1115,7 +1107,7 @@ impl<'a> Parse<'a> for Function<'a> {
                         let args = input.parse_function_args()?;
                         let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
                         let span = Span { start: name.span().start, end };
-                        Ok(Function { name, args, span })
+                        Ok(Function { span, name, args })
                     }
                 }
             }
@@ -1167,7 +1159,7 @@ impl<'a> Parse<'a> for HexColor<'a> {
         let (token, span) = input.cursor.expect_hash()?;
         let raw = token.raw;
         let value = if token.escaped { util::handle_escape_in(raw, input.allocator) } else { raw };
-        Ok(HexColor { value, raw, span })
+        Ok(HexColor { span, value, raw })
     }
 }
 

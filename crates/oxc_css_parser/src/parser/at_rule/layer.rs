@@ -27,7 +27,7 @@ impl<'a> Parse<'a> for LayerNames<'a> {
         if let Some(last) = names.last() {
             span.end = last.span.end;
         }
-        Ok(LayerNames { names, comma_spans, span })
+        Ok(LayerNames { span, names, comma_spans })
     }
 }
 
@@ -65,6 +65,6 @@ impl<'a> Parse<'a> for LayerName<'a> {
         }
 
         let span = Span { start, end };
-        Ok(LayerName { idents, span })
+        Ok(LayerName { span, idents })
     }
 }

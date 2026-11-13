@@ -22,7 +22,7 @@ impl<'a> Parse<'a> for FontFamilyName<'a> {
                 if let Some(last) = idents.last() {
                     span.end = last.span().end;
                 }
-                Ok(FontFamilyName::Unquoted(UnquotedFontFamilyName { idents, span }))
+                Ok(FontFamilyName::Unquoted(UnquotedFontFamilyName { span, idents }))
             }
         }
     }

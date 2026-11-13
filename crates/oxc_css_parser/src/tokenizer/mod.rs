@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unused_peekable,
+    reason = "lookahead clones of `chars` must keep its peeked byte"
+)]
+
 use crate::{
     config::{Syntax, TemplatePlaceholder},
     error::{Error, ErrorKind, PResult},
@@ -44,7 +49,7 @@ impl Iterator for ByteIndices<'_> {
 }
 
 #[derive(Clone)]
-pub(crate) struct TokenizerState<'a> {
+pub struct TokenizerState<'a> {
     chars: Peekable<ByteIndices<'a>>,
     current_indent: u16,
     indents: Vec<u16>,
@@ -188,7 +193,7 @@ impl<'a> Tokenizer<'a> {
         match self.state.chars.peek() {
             Some((_, c)) if is_start_of_ident(*c) && c != &b'-' => return self.scan_ident(),
             Some((_, c)) if c.is_ascii_digit() => {
-                let (number, span) = self.scan_number()?;
+                let (number, span) = self.scan_number();
                 return self.scan_dimension_or_percentage(number, span);
             }
             Some((start, b'{')) => {
@@ -232,19 +237,19 @@ impl<'a> Tokenizer<'a> {
             }
             (Some((start, b'-')), Some((_, b'-'))) => {
                 if matches!(chars.peek(), Some((_, b'>'))) {
-                    self.scan_cdc(start)
+                    Ok(self.scan_cdc(start))
                 } else {
                     self.scan_ident()
                 }
             }
             (Some((_, b'-')), Some((_, c))) if is_start_of_ident(c) => self.scan_ident(),
             (Some((_, b'.' | b'+' | b'-')), Some((_, c))) if c.is_ascii_digit() => {
-                let (number, span) = self.scan_number()?;
+                let (number, span) = self.scan_number();
                 self.scan_dimension_or_percentage(number, span)
             }
             (Some((_, b'-' | b'+')), Some((_, b'.'))) if matches!(chars.peek(), Some((_, c)) if c.is_ascii_digit()) =>
             {
-                let (number, span) = self.scan_number()?;
+                let (number, span) = self.scan_number();
                 self.scan_dimension_or_percentage(number, span)
             }
             (Some((_, b'$')), Some((_, c))) if self.starts_var_name(c, &mut chars) => {
@@ -353,7 +358,7 @@ impl<'a> Tokenizer<'a> {
             } else {
                 return start.map(|start| {
                     let end = *i;
-                    let len = (end - start) as u16;
+                    let len = u16::try_from(end - start).unwrap_or(u16::MAX);
                     let span = Span { start, end };
                     self.state.current_indent = len;
                     match len.cmp(&self.state.indents.last().copied().unwrap_or_default()) {
@@ -406,6 +411,8 @@ impl<'a> Tokenizer<'a> {
         }
 
         if let Some(comments) = &mut self.comments {
+            // SAFETY: `start + 2` skips the ASCII `/*`,
+            // and `content_end` (the closing `*` or the end of input) is a `ByteIndices` offset.
             let content =
                 unsafe { self.source.get_unchecked(start as usize + 2..content_end as usize) };
             comments.push(Comment { content, kind: CommentKind::Block, span: Span { start, end } });
@@ -468,6 +475,7 @@ impl<'a> Tokenizer<'a> {
         };
 
         if let Some(comments) = &mut self.comments {
+            // SAFETY: `start + 2` skips the ASCII `//`, and `end` is a `ByteIndices` offset.
             let content = unsafe { self.source.get_unchecked(start as usize + 2..end as usize) };
             comments.push(Comment { content, kind: CommentKind::Line, span: Span { start, end } });
         }
@@ -584,8 +592,9 @@ impl<'a> Tokenizer<'a> {
         }
 
         debug_assert!(start < end);
+        // SAFETY: `start` and `end` are `ByteIndices` offsets: within `source`, never mid-char.
         let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
-        Ok((Ident { raw, escaped }, Span { start, end }))
+        Ok((Ident { escaped, raw }, Span { start, end }))
     }
 
     // An escaped code point: '\' followed by a hex digits run or any character.
@@ -628,7 +637,7 @@ impl<'a> Tokenizer<'a> {
 
     // <number-token> = [ '+' | '-' ]? <digits> [ '.' <digits> ]? [ e [ '+' | '-' ]? <digits> ]?
     // https://drafts.csswg.org/css-syntax-3/#consume-number
-    fn scan_number(&mut self) -> PResult<(Number<'a>, Span)> {
+    fn scan_number(&mut self) -> (Number<'a>, Span) {
         let mut end;
 
         let (start, is_start_with_dot) = match self.state.chars.next() {
@@ -711,8 +720,9 @@ impl<'a> Tokenizer<'a> {
         }
 
         debug_assert!(start < end);
+        // SAFETY: `start` and `end` are `ByteIndices` offsets: within `source`, never mid-char.
         let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
-        Ok((Number { raw }, Span { start, end }))
+        (Number { raw }, Span { start, end })
     }
 
     // A number followed by a unit or '%': <dimension-token> | <percentage-token>.
@@ -729,7 +739,7 @@ impl<'a> Tokenizer<'a> {
             (Some((_, c)), ..) if c != b'-' && is_start_of_ident(c) => {
                 self.scan_dimension(number, span)
             }
-            (Some((_, b'%')), ..) => self.scan_percentage(number, span),
+            (Some((_, b'%')), ..) => Ok(self.scan_percentage(number, span)),
             _ => Ok(TokenWithSpan { token: Token::Number(NumberMeta {}), span }),
         }
     }
@@ -751,19 +761,19 @@ impl<'a> Tokenizer<'a> {
     }
 
     // <percentage-token> = <number-token> '%'
-    fn scan_percentage(&mut self, _value: Number<'a>, span: Span) -> PResult<TokenWithSpan<'a>> {
+    fn scan_percentage(&mut self, _value: Number<'a>, span: Span) -> TokenWithSpan<'a> {
         self.state.chars.next();
-        Ok(TokenWithSpan {
+        TokenWithSpan {
             token: Token::Percentage(PercentageMeta {}),
             span: Span { start: span.start, end: span.end + 1 },
-        })
+        }
     }
 
     // <string-token> = '"' ... '"' | '\'' ... '\''
     // https://drafts.csswg.org/css-syntax-3/#consume-string-token
     pub(crate) fn scan_string_only(&mut self) -> PResult<(Str<'a>, Span)> {
         let (start, quote) = match self.state.chars.next() {
-            Some((index, c @ b'\'' | c @ b'"')) => (index, c),
+            Some((index, c @ (b'\'' | b'"'))) => (index, c),
             Some((index, _)) => {
                 return Err(Error {
                     kind: ErrorKind::ExpectString,
@@ -802,6 +812,7 @@ impl<'a> Tokenizer<'a> {
         }
 
         debug_assert!(start + 1 < end);
+        // SAFETY: `start` and `end` are `ByteIndices` offsets: within `source`, never mid-char.
         let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
         Ok((Str { raw, escaped }, Span { start, end }))
     }
@@ -824,7 +835,7 @@ impl<'a> Tokenizer<'a> {
                     end = i + 1;
                     break;
                 }
-                Some((end, c @ b'#' | c @ b'@' | c @ b'$'))
+                Some((end, c @ (b'#' | b'@' | b'$')))
                     if self.is_start_of_interpolation_in_str_template(c) =>
                 {
                     let span = Span { start, end };
@@ -895,13 +906,15 @@ impl<'a> Tokenizer<'a> {
                     end = i + 1;
                     debug_assert!(start < end);
 
+                    // SAFETY: `start` and `end` are `ByteIndices` offsets: within `source`, never mid-char.
                     let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
                     let span = Span { start, end };
                     return Ok((StrTemplate { raw, escaped, head: false, tail: true }, span));
                 }
-                Some((end, c @ b'#' | c @ b'@' | c @ b'$'))
+                Some((end, c @ (b'#' | b'@' | b'$')))
                     if self.is_start_of_interpolation_in_str_template(c) =>
                 {
+                    // SAFETY: `start` and `end` are `ByteIndices` offsets: within `source`, never mid-char.
                     let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
                     let span = Span { start, end };
                     return Ok((StrTemplate { raw, escaped, head: false, tail: false }, span));
@@ -984,6 +997,7 @@ impl<'a> Tokenizer<'a> {
             }
         }
         if end > start {
+            // SAFETY: `start` and `end` are `ByteIndices` offsets: within `source`, never mid-char.
             let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
             Ok(Some((Ident { escaped, raw }, Span { start, end })))
         } else {
@@ -1087,11 +1101,13 @@ impl<'a> Tokenizer<'a> {
                     debug_assert!(start <= end);
 
                     self.state.paren_depth = self.state.paren_depth.saturating_sub(1);
+                    // SAFETY: `start` and `end` are `ByteIndices` offsets: within `source`, never mid-char.
                     let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
                     let span = Span { start, end };
                     return Ok((UrlTemplate { raw, escaped, tail: true }, span));
                 }
                 Some((end, b'#')) if self.is_start_of_interpolation_in_url_template() => {
+                    // SAFETY: `start` and `end` are `ByteIndices` offsets: within `source`, never mid-char.
                     let raw = unsafe { self.source.get_unchecked(start as usize..end as usize) };
                     let span = Span { start, end };
                     return Ok((UrlTemplate { raw, escaped, tail: false }, span));
@@ -1100,6 +1116,7 @@ impl<'a> Tokenizer<'a> {
                     if self.url_body_ws_run_ends()? {
                         return Ok((
                             UrlTemplate {
+                                // SAFETY: `start` and `end` are `ByteIndices` offsets: within `source`, never mid-char.
                                 raw: unsafe {
                                     self.source.get_unchecked(start as usize..end as usize)
                                 },
@@ -1314,7 +1331,7 @@ impl<'a> Tokenizer<'a> {
 
     // A Less inline-JavaScript token: '`' ... '`' (deprecated).
     fn scan_backtick_code(&mut self) -> PResult<TokenWithSpan<'a>> {
-        debug_assert!(self.syntax == Syntax::Less);
+        debug_assert_eq!(self.syntax, Syntax::Less);
 
         // '`' is checked (but not consumed) before
         let (start, _) = self.state.chars.next().expect("expect char ```");
@@ -1654,11 +1671,11 @@ impl<'a> Tokenizer<'a> {
     }
 
     #[cold]
-    fn scan_cdc(&mut self, start: u32) -> PResult<TokenWithSpan<'a>> {
+    fn scan_cdc(&mut self, start: u32) -> TokenWithSpan<'a> {
         self.state.chars.next();
         self.state.chars.next();
         self.state.chars.next();
-        Ok(TokenWithSpan { token: Token::Cdc(Cdc {}), span: Span { start, end: start + 3 } })
+        TokenWithSpan { token: Token::Cdc(Cdc {}), span: Span { start, end: start + 3 } }
     }
 
     #[inline]
@@ -1705,7 +1722,7 @@ fn is_start_of_ident(c: u8) -> bool {
 /// so any offset into a tokenized one does.
 #[inline]
 #[expect(clippy::cast_possible_truncation)]
-pub(crate) fn compact_offset(offset: usize) -> u32 {
+pub fn compact_offset(offset: usize) -> u32 {
     debug_assert!(u32::try_from(offset).is_ok());
     offset as u32
 }
@@ -1713,7 +1730,7 @@ pub(crate) fn compact_offset(offset: usize) -> u32 {
 /// Whether an identifier starts at byte offset `at` of `source`, using the
 /// same dash lookahead as the tokenizer's dispatch (`-x` starts one, a lone
 /// `-` doesn't).
-pub(crate) fn ident_starts_at(source: &str, at: u32) -> bool {
+pub fn ident_starts_at(source: &str, at: u32) -> bool {
     let bytes = source.as_bytes();
     let at = at as usize;
     match bytes.get(at) {

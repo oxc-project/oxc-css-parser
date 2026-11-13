@@ -48,7 +48,7 @@ impl<'a> Parse<'a> for AnPlusB {
                     match &input.cursor.peek()?.token {
                         // syntax: <n-dimension> ['+' | '-'] <signless-integer>
                         // examples: '1n + 1', '1n - 1', '1n+ 1'
-                        sign @ Token::Plus(..) | sign @ Token::Minus(..) => {
+                        sign @ (Token::Plus(..) | Token::Minus(..)) => {
                             let sign = if let Token::Plus(..) = sign { 1 } else { -1 };
                             input.cursor.bump()?;
                             let (number, number_span) = expect_unsigned_int(input)?;
@@ -124,7 +124,7 @@ impl<'a> Parse<'a> for AnPlusB {
                     match &input.cursor.peek()?.token {
                         // syntax: +n ['+' | '-'] <signless-integer>
                         // examples: '+n + 1', '+n - 1', '+n+ 1'
-                        sign @ Token::Plus(..) | sign @ Token::Minus(..) => {
+                        sign @ (Token::Plus(..) | Token::Minus(..)) => {
                             let sign = if let Token::Plus(..) = sign { 1 } else { -1 };
                             input.cursor.bump()?;
                             let (number, number_span) = expect_unsigned_int(input)?;
@@ -197,7 +197,7 @@ impl<'a> Parse<'a> for AnPlusB {
                     match &input.cursor.peek()?.token {
                         // syntax: n ['+' | '-'] <signless-integer>
                         // examples: 'n + 1', 'n - 1', 'n+ 1'
-                        sign @ Token::Plus(..) | sign @ Token::Minus(..) => {
+                        sign @ (Token::Plus(..) | Token::Minus(..)) => {
                             let sign = if let Token::Plus(..) = sign { 1 } else { -1 };
                             input.cursor.bump()?;
                             let (number, number_span) = expect_unsigned_int(input)?;
@@ -251,7 +251,7 @@ impl<'a> Parse<'a> for AnPlusB {
                     match &input.cursor.peek()?.token {
                         // syntax: -n ['+' | '-'] <signless-integer>
                         // examples: '-n + 1', '-n - 1', '-n+ 1'
-                        sign @ Token::Plus(..) | sign @ Token::Minus(..) => {
+                        sign @ (Token::Plus(..) | Token::Minus(..)) => {
                             let sign = if let Token::Plus(..) = sign { 1 } else { -1 };
                             input.cursor.bump()?;
                             let (number, number_span) = expect_unsigned_int(input)?;
@@ -489,7 +489,7 @@ impl<'a> Parse<'a> for AttributeSelector<'a> {
                 Token::Ident(..) | Token::HashLBrace(..) => {
                     let ident = input.parse::<InterpolableIdent>()?;
                     let span = ident.span();
-                    Some(AttributeSelectorModifier { ident, span })
+                    Some(AttributeSelectorModifier { span, ident })
                 }
                 _ => None,
             }
@@ -697,7 +697,7 @@ impl<'a> Parse<'a> for CompoundSelectorList<'a> {
             let index = selectors.len() - 1;
             selectors.get_unchecked(index).span().end
         };
-        Ok(CompoundSelectorList { selectors, comma_spans, span })
+        Ok(CompoundSelectorList { span, selectors, comma_spans })
     }
 }
 
@@ -744,12 +744,12 @@ impl<'a> Parse<'a> for IdSelector<'a> {
                     _ => InterpolableIdent::Literal(first),
                 };
                 let span = Span { start: span.start, end: name.span().end };
-                Ok(IdSelector { name, span })
+                Ok(IdSelector { span, name })
             }
             TokenWithSpan { token: Token::NumberSign(..), span } => {
                 let name = input.parse::<InterpolableIdent>()?;
                 let span = Span { start: span.start, end: name.span().end };
-                Ok(IdSelector { name, span })
+                Ok(IdSelector { span, name })
             }
             TokenWithSpan { span, .. } => Err(Error { kind: ErrorKind::ExpectIdSelector, span }),
         }
@@ -783,7 +783,7 @@ impl<'a> Parse<'a> for LanguageRangeList<'a> {
         if let Some(end) = ranges.last() {
             span.end = end.span().end;
         }
-        Ok(LanguageRangeList { ranges, comma_spans, span })
+        Ok(LanguageRangeList { span, ranges, comma_spans })
     }
 }
 
@@ -828,7 +828,7 @@ impl<'a> Parse<'a> for NestingSelector<'a> {
                 }
             }
         };
-        Ok(NestingSelector { suffix, span })
+        Ok(NestingSelector { span, suffix })
     }
 }
 
@@ -848,7 +848,7 @@ impl<'a> Parse<'a> for Nth<'a> {
             None
         };
 
-        Ok(Nth { index, matcher, span })
+        Ok(Nth { span, index, matcher })
     }
 }
 
@@ -893,7 +893,7 @@ impl<'a> Parse<'a> for NthMatcher<'a> {
             Some(selector)
         };
 
-        Ok(NthMatcher { selector, span })
+        Ok(NthMatcher { span, selector })
     }
 }
 
@@ -1021,13 +1021,13 @@ impl<'a> Parse<'a> for PseudoClassSelector<'a> {
                 let r_paren = input.cursor.expect_r_paren()?.1;
                 end = r_paren.end;
                 let span = Span { start: l_paren.start, end: r_paren.end };
-                Some(PseudoClassSelectorArg { kind, l_paren, r_paren, span })
+                Some(PseudoClassSelectorArg { span, kind, l_paren, r_paren })
             }
             _ => None,
         };
 
         let span = Span { start: colon_span.start, end };
-        Ok(PseudoClassSelector { name, arg, span })
+        Ok(PseudoClassSelector { span, name, arg })
     }
 }
 
@@ -1078,7 +1078,7 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
                                 span.end = ident.span().end;
                                 idents.push(ident);
                             }
-                            PseudoElementSelectorArgKind::IdentList(IdentList { idents, span })
+                            PseudoElementSelectorArgKind::IdentList(IdentList { span, idents })
                         } else {
                             PseudoElementSelectorArgKind::Ident(first)
                         }
@@ -1104,13 +1104,13 @@ impl<'a> Parse<'a> for PseudoElementSelector<'a> {
                 let r_paren = input.cursor.expect_r_paren()?.1;
                 end = r_paren.end;
                 let span = Span { start: l_paren.start, end: r_paren.end };
-                Some(PseudoElementSelectorArg { kind, l_paren, r_paren, span })
+                Some(PseudoElementSelectorArg { span, kind, l_paren, r_paren })
             }
             _ => None,
         };
 
         let span = Span { start: colon_colon_span.start, end };
-        Ok(PseudoElementSelector { name, arg, span })
+        Ok(PseudoElementSelector { span, name, arg })
     }
 }
 
@@ -1127,7 +1127,7 @@ impl<'a> Parse<'a> for RelativeSelector<'a> {
         if let Some(combinator) = &combinator {
             span.start = combinator.span.start;
         }
-        Ok(RelativeSelector { combinator, complex_selector, span })
+        Ok(RelativeSelector { span, combinator, complex_selector })
     }
 }
 
@@ -1149,7 +1149,7 @@ impl<'a> Parse<'a> for RelativeSelectorList<'a> {
             let index = selectors.len() - 1;
             selectors.get_unchecked(index).span().end
         };
-        Ok(RelativeSelectorList { selectors, comma_spans, span })
+        Ok(RelativeSelectorList { span, selectors, comma_spans })
     }
 }
 
@@ -1206,7 +1206,7 @@ impl<'a> Parse<'a> for SelectorList<'a> {
             selectors.len() <= comma_spans.len() + 1
         });
 
-        Ok(SelectorList { selectors, comma_spans, span })
+        Ok(SelectorList { span, selectors, comma_spans })
     }
 }
 
@@ -1297,17 +1297,14 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
 
         match input.cursor.peek()? {
             TokenWithSpan { token: Token::Bar(..), span }
-                if ident_or_asterisk
-                    .as_ref()
-                    .map(|t| match t {
-                        IdentOrAsterisk::Ident(ident) => {
-                            !util::has_ws(input.source, ident.span().end, span.start)
-                        }
-                        IdentOrAsterisk::Asterisk(asterisk_span) => {
-                            !util::has_ws(input.source, asterisk_span.end, span.start)
-                        }
-                    })
-                    .unwrap_or(true) =>
+                if ident_or_asterisk.as_ref().is_none_or(|t| match t {
+                    IdentOrAsterisk::Ident(ident) => {
+                        !util::has_ws(input.source, ident.span().end, span.start)
+                    }
+                    IdentOrAsterisk::Asterisk(asterisk_span) => {
+                        !util::has_ws(input.source, asterisk_span.end, span.start)
+                    }
+                }) =>
             {
                 let bar_token_span = input.cursor.bump()?.span;
 
@@ -1373,7 +1370,7 @@ impl<'a> Parse<'a> for TypeSelector<'a> {
     }
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     // <combinator> = '>' | '+' | '~' | [ '|' '|' ]
     // An absent combinator between two compounds is the descendant combinator
     // (whitespace), which this returns as `CombinatorKind::Descendant`.
@@ -1475,7 +1472,7 @@ impl<'a> Parser<'a> {
                     }
                 });
                 match deep {
-                    Ok((span, kind)) => Ok(Some(Combinator { kind, span })),
+                    Ok((span, kind)) => Ok(Some(Combinator { span, kind })),
                     Err(_) => Ok(None),
                 }
             }

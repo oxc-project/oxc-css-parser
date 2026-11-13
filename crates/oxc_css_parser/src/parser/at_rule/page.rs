@@ -28,7 +28,7 @@ impl<'a> Parse<'a> for PageSelector<'a> {
             let ident_span = ident.span();
             start = ident_span.start;
             end = ident_span.end;
-            name = Some(ident)
+            name = Some(ident);
         }
 
         loop {
@@ -64,7 +64,7 @@ impl<'a> Parse<'a> for PageSelectorList<'a> {
         if let Some(last) = selectors.last() {
             span.end = last.span.end;
         }
-        Ok(PageSelectorList { selectors, comma_spans, span })
+        Ok(PageSelectorList { span, selectors, comma_spans })
     }
 }
 
@@ -95,6 +95,6 @@ impl<'a> Parse<'a> for PseudoPage<'a> {
         };
 
         let span = Span { start: colon_span.start, end };
-        Ok(PseudoPage { name, arg, span })
+        Ok(PseudoPage { span, name, arg })
     }
 }

@@ -48,6 +48,7 @@ fn bench_parser(c: &mut Criterion) {
     group.finish();
 }
 
+#[expect(clippy::filetype_is_file, reason = "only regular files are bench inputs")]
 fn collect_bench_inputs(dir: &Path) -> Vec<BenchInput> {
     let Ok(entries) = fs::read_dir(dir) else {
         return Vec::new();

@@ -14,7 +14,7 @@ impl<'a> Parse<'a> for MediaAnd<'a> {
         if keyword.name.eq_ignore_ascii_case("and") {
             let media_in_parens = input.parse_media_in_parens_after_logic()?;
             let span = Span { start: keyword.span.start, end: media_in_parens.span.end };
-            Ok(MediaAnd { keyword, media_in_parens, span })
+            Ok(MediaAnd { span, keyword, media_in_parens })
         } else {
             Err(Error { kind: ErrorKind::ExpectMediaAnd, span: keyword.span })
         }
@@ -39,7 +39,7 @@ impl<'a> Parse<'a> for MediaConditionAfterMediaType<'a> {
         )?;
 
         let span = Span { start: and.span.start, end: condition.span.end };
-        Ok(MediaConditionAfterMediaType { and, condition, span })
+        Ok(MediaConditionAfterMediaType { span, and, condition })
     }
 }
 
@@ -185,7 +185,7 @@ impl<'a> Parse<'a> for MediaNot<'a> {
         if keyword.name.eq_ignore_ascii_case("not") {
             let media_in_parens = input.parse::<MediaInParens>()?;
             let span = Span { start: keyword.span.start, end: media_in_parens.span.end };
-            Ok(MediaNot { keyword, media_in_parens, span })
+            Ok(MediaNot { span, keyword, media_in_parens })
         } else {
             Err(Error { kind: ErrorKind::ExpectMediaNot, span: keyword.span })
         }
@@ -199,7 +199,7 @@ impl<'a> Parse<'a> for MediaOr<'a> {
         if keyword.name.eq_ignore_ascii_case("or") {
             let media_in_parens = input.parse_media_in_parens_after_logic()?;
             let span = Span { start: keyword.span.start, end: media_in_parens.span.end };
-            Ok(MediaOr { keyword, media_in_parens, span })
+            Ok(MediaOr { span, keyword, media_in_parens })
         } else {
             Err(Error { kind: ErrorKind::ExpectMediaOr, span: keyword.span })
         }
@@ -264,7 +264,7 @@ impl<'a> Parse<'a> for MediaQueryList<'a> {
             let index = queries.len() - 1;
             queries.get_unchecked(index).span().end
         };
-        Ok(MediaQueryList { queries, comma_spans, span })
+        Ok(MediaQueryList { span, queries, comma_spans })
     }
 }
 
@@ -309,7 +309,7 @@ impl<'a> Parse<'a> for MediaQueryWithType<'a> {
         if let Some(condition) = &condition {
             span.end = condition.span.end;
         }
-        Ok(MediaQueryWithType { modifier, media_type, condition, span })
+        Ok(MediaQueryWithType { span, modifier, media_type, condition })
     }
 }
 
@@ -390,7 +390,7 @@ impl<'a> Parser<'a> {
             if let Some(last) = conditions.last() {
                 span.end = last.span().end;
             }
-            Ok(MediaCondition { conditions, span })
+            Ok(MediaCondition { span, conditions })
         }
     }
 

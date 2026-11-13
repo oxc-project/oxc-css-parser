@@ -1,5 +1,10 @@
 //! All supported tokens, and with comments.
 
+#![expect(
+    clippy::empty_structs_with_brackets,
+    reason = "serde: unit structs serialize as `null` and reject `tag`"
+)]
+
 use crate::pos::Span;
 #[cfg(feature = "serialize")]
 use serde::Serialize;
@@ -725,10 +730,11 @@ pub struct Tilde {}
 #[cfg_attr(feature = "serialize", serde(tag = "kind", rename_all = "camelCase"))]
 pub struct TildeEqual {}
 
-/// Any single code point that no other token matches (a stray `^`, a control
-/// character, ...). CSS Syntax calls this a `<delim-token>`: it is not an
-/// error at the tokenizer level, and raw component-value contexts (custom
-/// property values, unparsable declaration values) preserve it verbatim.
+/// Any single code point that no other token matches (a stray `^`, a control character, ...).
+///
+/// CSS Syntax calls this a `<delim-token>`: it is not an error at the tokenizer level,
+/// and raw component-value contexts (custom property values, unparsable declaration values)
+/// preserve it verbatim.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(Serialize))]
 #[cfg_attr(feature = "serialize", serde(tag = "kind", rename_all = "camelCase"))]

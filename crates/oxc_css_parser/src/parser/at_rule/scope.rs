@@ -29,7 +29,7 @@ impl<'a> Parse<'a> for ScopeEnd<'a> {
         let (_, Span { end, .. }) = input.cursor.expect_r_paren()?;
 
         let span = Span { start: to_span.start, end };
-        Ok(ScopeEnd { to_span, lparen_span, selector, span })
+        Ok(ScopeEnd { span, to_span, lparen_span, selector })
     }
 }
 
@@ -54,7 +54,7 @@ impl<'a> Parse<'a> for ScopePrelude<'a> {
         match (start, end) {
             (Some(start), Some(end)) => {
                 let span = Span { start: start.span.start, end: end.span.end };
-                Ok(ScopePrelude::Both(ScopeStartWithEnd { start, end, span }))
+                Ok(ScopePrelude::Both(ScopeStartWithEnd { span, start, end }))
             }
             (Some(start), None) => Ok(ScopePrelude::StartOnly(start)),
             (None, Some(end)) => Ok(ScopePrelude::EndOnly(end)),

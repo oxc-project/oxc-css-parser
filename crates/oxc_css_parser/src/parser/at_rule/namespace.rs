@@ -31,6 +31,6 @@ impl<'a> Parse<'a> for NamespacePrelude<'a> {
         if let Some(prefix) = &prefix {
             span.start = prefix.span().start;
         }
-        Ok(NamespacePrelude { prefix, uri, span })
+        Ok(NamespacePrelude { span, prefix, uri })
     }
 }

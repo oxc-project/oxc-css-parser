@@ -20,9 +20,9 @@ impl<'a> Parse<'a> for SupportsCondition<'a> {
             let span = Span { start: keyword.span.start, end: condition.span().end };
             Ok(SupportsCondition {
                 conditions: input.vec1(SupportsConditionKind::Not(SupportsNot {
+                    span,
                     keyword,
                     condition,
-                    span,
                 })),
                 span,
             })
@@ -60,7 +60,7 @@ impl<'a> Parse<'a> for SupportsCondition<'a> {
             if let Some(last) = conditions.last() {
                 span.end = last.span().end;
             }
-            Ok(SupportsCondition { conditions, span })
+            Ok(SupportsCondition { span, conditions })
         }
     }
 }

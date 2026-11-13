@@ -5,6 +5,8 @@ edition = "2024"
 rust-version = "1.98.0"
 authors = []
 description = "Parser for CSS, SCSS, Sass, and Less."
+keywords = ["css", "scss", "less", "parser", "oxc"]
+categories = ["compilers", "development-tools", "parser-implementations", "parsing", "web-programming"]
 repository = "https://github.com/oxc-project/oxc-css-parser"
 license = "MIT"
 readme = "../../README.md"
@@ -43,5 +45,5 @@ path = "../../examples/json.rs"
 name = "print_ast"
 path = "../../examples/print_ast.rs"
 
-# Opt out of `[workspace.lints]` until its warnings are fixed.
 [lints]
+workspace = true

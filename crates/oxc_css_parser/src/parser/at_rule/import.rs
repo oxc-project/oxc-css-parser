@@ -34,8 +34,8 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
                 {
                     end = input.cursor.bump()?.span.end;
                 }
-                let raw = unsafe { input.source.get_unchecked(start as usize..end as usize) };
                 let span = Span { start, end };
+                let raw = span.slice(input.source);
                 ImportPreludeHref::Str(InterpolableStr::Literal(Str { value: raw, raw, span }))
             }
             _ => match input.try_parse(Url::parse) {
@@ -69,29 +69,28 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
         let mut span = href.span();
 
         let structured = input.try_parse(Self::parse_structured_tail);
-        let (layer, supports, media, modifiers) = match structured {
-            Ok((layer, supports, media)) => (layer, supports, media, None),
+        let (layer, supports, media, modifiers) = if let Ok((layer, supports, media)) = structured {
+            (layer, supports, media, None)
+        } else {
             // Reference compilers accept arbitrary import modifiers (idents,
             // unknown functions, media-ish parens, further comma-chained
             // imports); keep the whole tail as raw component values.
             // NOTE: Scss/Sass multi-path imports (`@import 'a', 'b';`) never
             // get here — the at-rule dispatch claims them as
             // `SassImportPrelude` before trying `ImportPrelude`.
-            Err(_) => {
-                let start = input.cursor.peek()?.span.start;
-                let values = input.parse_declaration_value_tokens(true)?;
-                // A trailing comma has no import after it — reference
-                // compilers reject that, so don't paper over it.
-                if let Some(ComponentValue::TokenWithSpan(TokenWithSpan {
-                    token: Token::Comma(..),
-                    span,
-                })) = values.last()
-                {
-                    return Err(Error { kind: ErrorKind::ExpectRule, span: *span });
-                }
-                let end = values.last().map_or(start, |value| value.span().end);
-                (None, None, None, Some(ComponentValues { values, span: Span { start, end } }))
+            let start = input.cursor.peek()?.span.start;
+            let values = input.parse_declaration_value_tokens(true)?;
+            // A trailing comma has no import after it — reference
+            // compilers reject that, so don't paper over it.
+            if let Some(ComponentValue::TokenWithSpan(TokenWithSpan {
+                token: Token::Comma(..),
+                span,
+            })) = values.last()
+            {
+                return Err(Error { kind: ErrorKind::ExpectRule, span: *span });
             }
+            let end = values.last().map_or(start, |value| value.span().end);
+            (None, None, None, Some(ComponentValues { values, span: Span { start, end } }))
         };
         if let Some(layer) = &layer {
             span.end = layer.span().end;
@@ -108,7 +107,7 @@ impl<'a> Parse<'a> for ImportPrelude<'a> {
             span.end = modifiers.span.end;
         }
 
-        Ok(ImportPrelude { href, layer, supports, media, modifiers, span })
+        Ok(ImportPrelude { span, href, layer, supports, media, modifiers })
     }
 }
 
@@ -116,7 +115,6 @@ impl<'a> ImportPrelude<'a> {
     /// The standard post-URL grammar: optional `layer`/`layer(...)`, optional
     /// `supports(...)`, optional media query list — valid only if it accounts
     /// for everything up to the end of the statement.
-    #[allow(clippy::type_complexity)]
     fn parse_structured_tail(
         input: &mut Parser<'a>,
     ) -> PResult<(

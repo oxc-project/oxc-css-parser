@@ -1,3 +1,5 @@
+#![expect(clippy::literal_string_with_formatting_args, reason = "CSS sources contain `{...}`")]
+
 use oxc_css_parser::{
     Allocator, ParserBuilder, ParserOptions, Syntax, TemplatePlaceholder, ast::*,
 };

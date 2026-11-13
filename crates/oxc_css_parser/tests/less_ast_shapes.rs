@@ -29,7 +29,7 @@ fn first_declaration_value<'a>(ss: &'a Stylesheet<'static>) -> &'a [ComponentVal
     &decl.value
 }
 
-fn text<'a>(code: &'a str, span: &oxc_css_parser::pos::Span) -> &'a str {
+fn text(code: &str, span: oxc_css_parser::pos::Span) -> &str {
     span.slice(code)
 }
 
@@ -47,11 +47,11 @@ fn calc_parens_are_kept() {
     let ComponentValue::CalcParenthesized(outer) = &*calc.right else {
         panic!("expected parenthesized operand, got {:?}", calc.right);
     };
-    assert_eq!(text(code, &outer.span), "((@var - 20px))");
+    assert_eq!(text(code, outer.span), "((@var - 20px))");
     let ComponentValue::CalcParenthesized(inner) = &*outer.expr else {
         panic!("expected the inner parens, got {:?}", outer.expr);
     };
-    assert_eq!(text(code, &inner.span), "(@var - 20px)");
+    assert_eq!(text(code, inner.span), "(@var - 20px)");
     assert!(matches!(&*inner.expr, ComponentValue::Calc(..)));
 }
 
@@ -64,7 +64,7 @@ fn dot_division_is_its_own_operator() {
         panic!("expected a binary operation, got {:?}", first_declaration_value(&ss));
     };
     assert!(matches!(op.op.kind, LessOperationOperatorKind::DotDivision));
-    assert_eq!(text(code, &op.op.span), "./");
+    assert_eq!(text(code, op.op.span), "./");
 }
 
 // An escaped string can have whitespace, including a newline, and comments after the `~`.
@@ -75,7 +75,7 @@ fn escaped_string_allows_whitespace_after_tilde() {
         let [ComponentValue::LessEscapedStr(escaped)] = first_declaration_value(&ss) else {
             panic!("expected an escaped string, got {:?}", first_declaration_value(&ss));
         };
-        text(code, &escaped.span)
+        text(code, escaped.span)
     };
     assert_eq!(escaped("a { w: ~ \"x\"; }"), "~ \"x\"");
     assert_eq!(escaped("a { w: ~ /* c */ \"x\"; }"), "~ /* c */ \"x\"");
@@ -89,7 +89,7 @@ fn escaped_string_allows_whitespace_after_tilde() {
     let ComponentValue::LessEscapedStr(escaped) = &decl.value else {
         panic!("expected an escaped string, got {:?}", decl.value);
     };
-    assert_eq!(text(code, &escaped.span), "~\n  'y'");
+    assert_eq!(text(code, escaped.span), "~\n  'y'");
 }
 
 // `/deep/` keeps its own kind; any other less.js `/name/` is `Slashed`, its name in the span.
@@ -101,7 +101,7 @@ fn slashed_combinators_keep_their_name() {
         let ComplexSelectorChild::Combinator(combinator) = &children[1] else {
             panic!("expected combinator, got {children:?}");
         };
-        (format!("{:?}", combinator.kind), text(code, &combinator.span))
+        (format!("{:?}", combinator.kind), text(code, combinator.span))
     };
     assert_eq!(combinator(".a /deep/ .b {}"), ("Deep".to_owned(), "/deep/"));
     assert_eq!(combinator(".a /shadow/ .b {}"), ("Slashed".to_owned(), "/shadow/"));
@@ -139,7 +139,7 @@ fn percentage_is_a_selector_outside_keyframes() {
         let [Statement::QualifiedRule(rule)] = &ruleset.block.statements[..] else {
             panic!("expected one rule, got {:?}", ruleset.block.statements);
         };
-        text(code, &rule.selector.span)
+        text(code, rule.selector.span)
     };
     // `@keyframes:` is a variable, not the at-rule.
     let Statement::LessVariableDeclaration(decl) = &ss.statements[0] else {
@@ -169,7 +169,7 @@ fn percentage_is_a_selector_outside_keyframes() {
     let [SimpleSelector::LessPercentage(percentage)] = &compound.children[..] else {
         panic!("expected a percentage selector, got {:?}", compound.children);
     };
-    assert_eq!(text(code, &percentage.span), "50%");
+    assert_eq!(text(code, percentage.span), "50%");
 
     // Inside `@keyframes` it stays a keyframe block, ident-led or not;
     // only `from` / `to` (any case) leads one there, any other ident-led rule stays a rule.

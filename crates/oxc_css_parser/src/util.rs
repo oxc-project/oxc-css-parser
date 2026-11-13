@@ -14,7 +14,7 @@ pub fn is_css_wide_keyword(s: &str) -> bool {
 }
 
 /// `PairedToken` is used for tracking when parsing with raw tokens.
-pub(crate) enum PairedToken {
+pub enum PairedToken {
     Paren,
     Bracket,
     Brace,
@@ -23,10 +23,7 @@ pub(crate) enum PairedToken {
 /// Track `()`/`[]`/`{}` nesting for raw-token scans (`#{` counts as a brace
 /// opener). Returns `false` for an unmatched closer — the caller's scan
 /// should stop before consuming it. Non-pairing tokens return `true`.
-pub(crate) fn track_paired_token(
-    token: &crate::tokenizer::Token,
-    pairs: &mut Vec<PairedToken>,
-) -> bool {
+pub fn track_paired_token(token: &crate::tokenizer::Token, pairs: &mut Vec<PairedToken>) -> bool {
     use crate::tokenizer::Token;
     match token {
         Token::LParen(..) => pairs.push(PairedToken::Paren),
@@ -51,7 +48,7 @@ pub(crate) fn track_paired_token(
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum ListSeparatorKind {
+pub enum ListSeparatorKind {
     Unknown,
     Comma,
     Space,
@@ -118,7 +115,7 @@ pub fn handle_escape_in<'a>(s: &'a str, allocator: &'a Allocator) -> &'a str {
     }
 }
 
-pub(crate) fn assert_no_ws_or_comment(left: Span, right: Span) -> PResult<()> {
+pub fn assert_no_ws_or_comment(left: Span, right: Span) -> PResult<()> {
     debug_assert!(left.end <= right.start);
     if left.end == right.start {
         Ok(())
@@ -130,7 +127,7 @@ pub(crate) fn assert_no_ws_or_comment(left: Span, right: Span) -> PResult<()> {
     }
 }
 
-pub(crate) fn assert_no_ws(source: &str, start: Span, end: Span) -> PResult<()> {
+pub fn assert_no_ws(source: &str, start: Span, end: Span) -> PResult<()> {
     if has_ws(source, start.end, end.start) {
         Err(Error {
             kind: ErrorKind::UnexpectedWhitespace,
@@ -141,7 +138,7 @@ pub(crate) fn assert_no_ws(source: &str, start: Span, end: Span) -> PResult<()> 
     }
 }
 
-pub(crate) fn has_ws(source: &str, start: u32, end: u32) -> bool {
+pub fn has_ws(source: &str, start: u32, end: u32) -> bool {
     debug_assert!(start <= end);
     if end == start {
         false

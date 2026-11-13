@@ -631,10 +631,11 @@ impl InterpolableIdent<'_> {
     }
 }
 
-/// An atomic backtick-delimited template placeholder node (see
-/// [`ParserOptions::template_placeholder`](crate::config::ParserOptions)),
-/// carrying the parsed decimal index. Appears in value, selector, and
-/// statement positions where a downstream formatter substitutes interpolations.
+/// An atomic backtick-delimited template placeholder node carrying the parsed decimal index.
+///
+/// See [`ParserOptions::template_placeholder`](crate::config::ParserOptions).
+/// Appears in value, selector, and statement positions
+/// where a downstream formatter substitutes interpolations.
 #[derive(Debug)]
 #[cfg_attr(feature = "serialize", derive(Serialize))]
 #[cfg_attr(feature = "serialize", serde(tag = "type", rename_all = "camelCase"))]
@@ -2633,8 +2634,9 @@ pub enum UnknownAtRulePrelude<'a> {
     TokenSeq(TokenSeq<'a>),
 }
 
-/// A qualified rule whose prelude matches no selector grammar and is kept as raw tokens:
-/// declaration-shaped (`sans: "Sans" { ... }`) or numeric-led (`50% { ... }` outside `@keyframes`).
+/// A qualified rule whose prelude matches no selector grammar and is kept as raw tokens.
+///
+/// Either declaration-shaped (`sans: "Sans" { ... }`) or numeric-led (`50% { ... }` outside `@keyframes`).
 /// See the `Parse` impl for the CSS Syntax algorithms; postcss keeps both shapes.
 #[derive(Debug)]
 #[cfg_attr(feature = "serialize", derive(Serialize))]
