@@ -1280,7 +1280,7 @@ impl<'a> Tokenizer<'a> {
         // Past the closing backtick (`+ 1`).
         let close_end = at + 1 + ph.prefix.len() + digits_len + 1;
         // A directly-glued ident-continuation run is the placeholder's literal
-        // suffix (`` `PLACEHOLDER-0`px `` -> index 0, suffix "px"), mirroring
+        // suffix (`` `oxfmt_css_0`px `` -> index 0, suffix "px"), mirroring
         // `#{$x}px` being a single identifier. A whitespace or delimiter ends it.
         // Bytes >= 0x80 are non-ASCII ident chars (whole UTF-8 sequences), so the
         // run always ends on a char boundary.

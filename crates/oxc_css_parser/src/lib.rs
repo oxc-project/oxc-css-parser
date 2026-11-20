@@ -70,11 +70,11 @@
 //! let allocator = Allocator::default();
 //! let options = ParserOptions {
 //!     template_placeholder: Some(TemplatePlaceholder {
-//!         prefix: "PLACEHOLDER-",
+//!         prefix: "oxfmt_css_",
 //!     }),
 //!     ..Default::default()
 //! };
-//! let builder = ParserBuilder::new(&allocator, "a { width: `PLACEHOLDER-0`; }")
+//! let builder = ParserBuilder::new(&allocator, "a { width: `oxfmt_css_0`; }")
 //!     .syntax(Syntax::Scss)
 //!     .options(options);
 //! let mut parser = builder.build();

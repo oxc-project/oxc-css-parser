@@ -642,7 +642,7 @@ pub struct Placeholder<'a> {
     pub span: Span,
     pub index: u32,
     /// An ident-continuation run glued directly after the placeholder
-    /// (`` `PLACEHOLDER-0`px `` -> index 0, suffix `"px"`), empty when none.
+    /// (`` `oxfmt_css_0`px `` -> index 0, suffix `"px"`), empty when none.
     /// Mirrors `#{$x}px` being a single identifier rather than two tokens.
     pub suffix: &'a str,
 }
