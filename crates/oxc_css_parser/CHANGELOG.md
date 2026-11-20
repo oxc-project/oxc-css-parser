@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.23](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.22...oxc-css-parser-v0.0.23) - 2026-11-20
+
+### Other
+
+- *(parser)* use oxfmt's css-in-js placeholder name in examples and tests ([#215](https://github.com/oxc-project/oxc-css-parser/pull/215))
+- inherit workspace lints in `crates/oxc_css_parser` ([#213](https://github.com/oxc-project/oxc-css-parser/pull/213))
+- *(rust)* bump toolchain to 1.100.0 and MSRV to 1.98.0 ([#211](https://github.com/oxc-project/oxc-css-parser/pull/211))
+
 ## [0.0.22](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.21...oxc-css-parser-v0.0.22) - 2026-11-12
 
 ### Fixed
