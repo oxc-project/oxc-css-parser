@@ -17,7 +17,7 @@ pub enum Syntax {
 /// Configuration for a backtick-delimited template placeholder.
 ///
 /// A placeholder has the shape `` `<prefix><decimal index>` `` (e.g. with
-/// `prefix = "PLACEHOLDER-"`: `` `PLACEHOLDER-0` ``). The opening and closing
+/// `prefix = "oxfmt_css_"`: `` `oxfmt_css_0` ``). The opening and closing
 /// backticks are fixed; only `prefix` is supplied by the downstream consumer, so
 /// oxc-css-parser stays agnostic to its content and only uses it to recognize and index
 /// the token.
@@ -28,7 +28,7 @@ pub enum Syntax {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TemplatePlaceholder {
     /// Text after the opening backtick that marks the start of a placeholder,
-    /// before its decimal index (e.g. `"PLACEHOLDER-"`).
+    /// before its decimal index (e.g. `"oxfmt_css_"`).
     pub prefix: &'static str,
 }
 
@@ -41,7 +41,7 @@ pub struct ParserOptions {
     /// (see [`TemplatePlaceholder`]) is tokenized as an atomic
     /// [`Token::Placeholder`](crate::token::Token) carrying the parsed index.
     /// The token terminates at the closing backtick, so an immediately following
-    /// identifier (e.g. `` `PLACEHOLDER-0`px ``) is lexed as a separate suffix.
+    /// identifier (e.g. `` `oxfmt_css_0`px ``) is lexed as a separate suffix.
     ///
     /// This is designed for downstream formatters that substitute template
     /// interpolations (e.g. CSS-in-JS `${expr}`) with such placeholders

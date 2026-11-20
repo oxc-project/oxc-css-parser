@@ -983,7 +983,7 @@ impl<'a> Parser<'a> {
                 Token::Placeholder(..) => {
                     // A placeholder may start a qualified rule (a substituted
                     // selector, e.g. CSS-in-JS `${Component} { ... }`) or stand
-                    // alone as a statement (e.g. `` `PLACEHOLDER-0`; ``).
+                    // alone as a statement (e.g. `` `oxfmt_css_0`; ``).
                     //
                     // A placeholder-led selector must not absorb across a newline:
                     // prettier keeps `${mixin}` on its own line and the following
