@@ -89,7 +89,11 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 .parse::<SimpleBlock>()?;
             let end = block.span.end;
             (prelude, Some(block), end)
-        } else if at_rule_name.eq_ignore_ascii_case("import") {
+        } else if at_rule_name.eq_ignore_ascii_case("import")
+            // dart-sass matches at-rule names case-sensitively:
+            // `@IMPORT Keep;` is an unknown at-rule there, not an import
+            && (at_rule_name == "import" || !matches!(input.syntax, Syntax::Scss | Syntax::Sass))
+        {
             let (end, prelude) = match input.syntax {
                 Syntax::Css => {
                     let prelude = input.parse::<ImportPrelude>()?;
