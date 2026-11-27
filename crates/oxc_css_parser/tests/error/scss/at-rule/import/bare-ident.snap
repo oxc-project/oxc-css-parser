@@ -1,0 +1,8 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: expect token `<string>`, but found `<ident>`
+  ┌─ bare-ident.scss:1:9
+  │
+1 │ @import Keep;
+  │         ^^^^
