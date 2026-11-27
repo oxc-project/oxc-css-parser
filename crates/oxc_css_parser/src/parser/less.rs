@@ -8,7 +8,7 @@ use crate::{
     config::Syntax,
     error::{Error, ErrorKind, PResult},
     pos::Span,
-    tokenizer::{Token, TokenWithSpan},
+    tokenizer::{Token, TokenWithSpan, compact_offset},
     util,
 };
 use std::mem;
@@ -371,6 +371,64 @@ impl<'a> Parser<'a> {
         self.parse_less_operation_recursively(allow_mixin_call, 0)
     }
 
+    /// less.js's `dimension` takes only `[a-z_]+` as the unit (`/^([+-]?\d*\.?\d+)(%|[a-z_]+)?/i`),
+    /// so a `-` ends it: `2-round(1.5)` is `2 - round(1.5)` and `1px-2px` is `1px - 2px`,
+    /// not a dimension with unit `-round` / `px-2px` as css-syntax-3 lexes it.
+    /// Such a token, the one last lexed, is split before the `-`, which is left as the next token.
+    ///
+    /// NOTE: O(n²) in the length of a glued chain (`1px-2px-3px-...`): each split re-lexes the rest of the token.
+    /// Make it linear by ending the unit at `-` in the tokenizer, for Less values only.
+    fn less_dimension_operand(
+        &mut self,
+        dimension: crate::token::Dimension<'a>,
+        span: Span,
+    ) -> PResult<ComponentValue<'a>> {
+        let unit = dimension.unit.raw;
+        // Split only where `[a-z_]+` ends at a `-` (in `1px2-3px` it ends at the `2`: kept as is),
+        // and not in a custom property value, where lessc does no math
+        let split = unit
+            .find(|c: char| !c.is_ascii_alphabetic() && c != '_')
+            .filter(|&unit_len| unit.as_bytes()[unit_len] == b'-')
+            .filter(|_| self.state.less_ctx & LESS_CTX_CUSTOM_PROPERTY == 0);
+        let Some(unit_len) = split else {
+            return self.dimension(dimension, span).map(ComponentValue::Dimension);
+        };
+        let minus = span.start + compact_offset(dimension.value.raw.len() + unit_len);
+        // With no operand after the `-` (`1px-;`, `1px--`, `1px- * 2`), kept as is: lessc drops the `-`.
+        // Look past trivia only after a space, as the operator loop does (`1px-/**/2px` is no subtraction)
+        let operand_follows = if is_followed_by_whitespace(self.source, minus + 1) {
+            let state = self.cursor.tokenizer.state.clone();
+            let comments = self.cursor.tokenizer.comments_count();
+            let next = self.cursor.peek()?.span.start;
+            let follows = starts_less_operand(self.source, next);
+            if follows {
+                // The peeked token is lexed again after the rewind below
+                self.cursor.tokenizer.state = state;
+                self.cursor.tokenizer.truncate_comments(comments);
+            }
+            follows
+        } else {
+            starts_less_operand(self.source, minus + 1)
+        };
+        if !operand_follows {
+            return self.dimension(dimension, span).map(ComponentValue::Dimension);
+        }
+        let span = Span { start: span.start, end: minus };
+        let value = if unit_len == 0 {
+            Number::try_from((dimension.value, span)).map(ComponentValue::Number)?
+        } else {
+            let unit = crate::token::Ident { raw: &unit[..unit_len], escaped: false };
+            let dimension = crate::token::Dimension { value: dimension.value, unit };
+            self.dimension(dimension, span).map(ComponentValue::Dimension)?
+        };
+        self.cursor.tokenizer.rewind_to(minus + 1);
+        self.cursor.cached_token = Some(TokenWithSpan {
+            token: Token::Minus(crate::token::Minus {}),
+            span: Span { start: minus, end: minus + 1 },
+        });
+        Ok(value)
+    }
+
     // Precedence-climbing worker for `parse_less_operation`.
     fn parse_less_operation_recursively(
         &mut self,
@@ -399,7 +457,13 @@ impl<'a> Parser<'a> {
                     }
                 }
                 _ => {
-                    let value = self.parse_component_value_atom()?;
+                    let value = if let Some((dimension, span)) =
+                        self.cursor.eat_token(TokenWithSpan::dimension)?
+                    {
+                        self.less_dimension_operand(dimension, span)?
+                    } else {
+                        self.parse_component_value_atom()?
+                    };
                     if let ComponentValue::LessMixinCall(mixin_call) = &value
                         && !allow_mixin_call
                     {
@@ -538,16 +602,13 @@ impl<'a> Parser<'a> {
                         },
                         span: Span { start: dimension_span.start, end: dimension_span.start + 1 },
                     };
-                    let mut right = {
-                        self.dimension(
-                            crate::token::Dimension {
-                                value: crate::token::Number { raw: &dimension.value.raw[1..] },
-                                unit: dimension.unit,
-                            },
-                            Span { start: dimension_span.start + 1, end: dimension_span.end },
-                        )
-                        .map(ComponentValue::Dimension)?
-                    };
+                    let mut right = self.less_dimension_operand(
+                        crate::token::Dimension {
+                            value: crate::token::Number { raw: &dimension.value.raw[1..] },
+                            unit: dimension.unit,
+                        },
+                        Span { start: dimension_span.start + 1, end: dimension_span.end },
+                    )?;
                     // multiplication binds tighter than the split-off sign:
                     // `(6px-1px*2)` is `6px - (1px * 2)`
                     while matches!(

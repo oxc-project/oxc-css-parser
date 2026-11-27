@@ -1,2 +1,5 @@
 .n(@a) when not @a { c: d; }
 .g when (8+(5-1) < 13) { c: d; }
+// A dimension ending in `-` with no operand after it stays one dimension, before a comparison too
+.m() when (1px- > 0) { a: b }
+.m() when (1px- = 0) { a: b }
