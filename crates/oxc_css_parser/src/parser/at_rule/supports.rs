@@ -112,20 +112,20 @@ impl<'a> Parse<'a> for SupportsInParens<'a> {
                 ..
             } => {
                 let name = input.parse::<InterpolableIdent>()?;
-                let name_end = name.span().end;
+                let Span { start: name_start, end: name_end } = name.span();
                 if matches!(&name, InterpolableIdent::Literal(function_ident)
                     if function_ident.name.eq_ignore_ascii_case("selector"))
-                    && let Ok(selector_list) = input.try_parse(|parser| {
+                    && let Ok((selector_list, end)) = input.try_parse(|parser| {
                         parser.cursor.expect_l_paren()?;
                         let selector_list = parser.parse::<SelectorList>()?;
-                        parser.cursor.expect_r_paren()?;
-                        Ok(selector_list)
+                        let (_, Span { end, .. }) = parser.cursor.expect_r_paren()?;
+                        Ok((selector_list, end))
                     })
                 {
-                    let span = selector_list.span;
+                    // The term spans `selector(...)`, as a `Function` does, not just its list
                     return Ok(SupportsInParens {
                         kind: SupportsInParensKind::Selector(selector_list),
-                        span,
+                        span: Span { start: name_start, end },
                     });
                 }
                 // Otherwise `selector(A < B)` is `<general-enclosed>` as any unknown function (css-conditional-4),
