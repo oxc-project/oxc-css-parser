@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.24](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.23...oxc-css-parser-v0.0.24) - 2026-11-27
+
+### Fixed
+
+- *(parser/scss)* parse an uppercase at-rule as an unknown one, as dart-sass does ([#226](https://github.com/oxc-project/oxc-css-parser/pull/226))
+
 ## [0.0.23](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.22...oxc-css-parser-v0.0.23) - 2026-11-27
 
 ### Fixed
