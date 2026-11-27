@@ -35,7 +35,34 @@ impl<'a> Parse<'a> for AtRule<'a> {
         let (at_keyword, at_keyword_span) = input.cursor.expect_at_keyword()?;
 
         let at_rule_name = at_keyword.ident.name();
-        let (prelude, block, end) = if at_rule_name.eq_ignore_ascii_case("media") {
+        let unknown_at_rule = |input: &mut Parser<'a>| {
+            let (prelude, block, end) = input.parse_unknown_at_rule()?;
+            PResult::Ok((
+                prelude.map(|prelude| AtRulePrelude::Unknown(input.alloc(prelude))),
+                block,
+                end.unwrap_or(at_keyword_span.end),
+            ))
+        };
+        let (prelude, block, end) = if at_rule_name.eq_ignore_ascii_case("function")
+            && input.cursor.peek()?.is_ident_raw_starts_with(input.source, "--")
+        {
+            // A CSS custom function (css-mixins spec): `@function --name(params)
+            // returns <type> { declarations }`. dart-sass parses this as plain
+            // CSS in every syntax (the `--` name marks it), any case included (`@FUNCTION --a()`),
+            // so the prelude is kept as raw tokens and the body takes declarations with raw values.
+            let prelude = input.parse_raw_at_rule_prelude()?;
+            let block = input
+                .with_state(ParserState { in_css_function_body: true, ..input.state.clone() })
+                .parse::<SimpleBlock>()?;
+            let end = block.span.end;
+            (Some(AtRulePrelude::Unknown(input.alloc(prelude))), Some(block), end)
+        } else if matches!(input.syntax, Syntax::Scss | Syntax::Sass)
+            && at_rule_name.bytes().any(|b| b.is_ascii_uppercase())
+        {
+            // dart-sass matches at-rule names case-sensitively:
+            // `@MEDIA (MIN-WIDTH: 1PX)` and `@IMPORT Keep;` are unknown at-rules there, kept as written
+            unknown_at_rule(input)?
+        } else if at_rule_name.eq_ignore_ascii_case("media") {
             // The typed grammar must account for the whole prelude; queries it
             // can't express (`@media all #{$m}`) are kept as raw tokens.
             let prelude = match input
@@ -89,11 +116,7 @@ impl<'a> Parse<'a> for AtRule<'a> {
                 .parse::<SimpleBlock>()?;
             let end = block.span.end;
             (prelude, Some(block), end)
-        } else if at_rule_name.eq_ignore_ascii_case("import")
-            // dart-sass matches at-rule names case-sensitively:
-            // `@IMPORT Keep;` is an unknown at-rule there, not an import
-            && (at_rule_name == "import" || !matches!(input.syntax, Syntax::Scss | Syntax::Sass))
-        {
+        } else if at_rule_name.eq_ignore_ascii_case("import") {
             let (end, prelude) = match input.syntax {
                 Syntax::Css => {
                     let prelude = input.parse::<ImportPrelude>()?;
@@ -369,20 +392,6 @@ impl<'a> Parse<'a> for AtRule<'a> {
             let prelude = input.parse::<LessPlugin>()?;
             let end = prelude.span.end;
             (Some(AtRulePrelude::LessPlugin(input.alloc(prelude))), None, end)
-        } else if at_rule_name.eq_ignore_ascii_case("function")
-            && input.cursor.peek()?.is_ident_raw_starts_with(input.source, "--")
-        {
-            // A CSS custom function (css-mixins spec): `@function --name(params)
-            // returns <type> { declarations }`. dart-sass parses this as plain
-            // CSS in every syntax (the `--` name marks it), so the prelude is
-            // kept as raw tokens and the body takes declarations with raw
-            // values.
-            let prelude = input.parse_raw_at_rule_prelude()?;
-            let block = input
-                .with_state(ParserState { in_css_function_body: true, ..input.state.clone() })
-                .parse::<SimpleBlock>()?;
-            let end = block.span.end;
-            (Some(AtRulePrelude::Unknown(input.alloc(prelude))), Some(block), end)
         } else if matches!(input.syntax, Syntax::Scss | Syntax::Sass) {
             use super::state::{
                 SASS_CTX_ALLOW_DIV, SASS_CTX_ALLOW_KEYFRAME_BLOCK, SASS_CTX_IN_FUNCTION,
@@ -520,22 +529,10 @@ impl<'a> Parse<'a> for AtRule<'a> {
                     let end = block.span.end;
                     (prelude, Some(block), end)
                 }
-                _ => {
-                    let (prelude, block, end) = input.parse_unknown_at_rule()?;
-                    (
-                        prelude.map(|prelude| AtRulePrelude::Unknown(input.alloc(prelude))),
-                        block,
-                        end.unwrap_or(at_keyword_span.end),
-                    )
-                }
+                _ => unknown_at_rule(input)?,
             }
         } else {
-            let (prelude, block, end) = input.parse_unknown_at_rule()?;
-            (
-                prelude.map(|prelude| AtRulePrelude::Unknown(input.alloc(prelude))),
-                block,
-                end.unwrap_or(at_keyword_span.end),
-            )
+            unknown_at_rule(input)?
         };
 
         let span = Span { start: at_keyword_span.start, end };

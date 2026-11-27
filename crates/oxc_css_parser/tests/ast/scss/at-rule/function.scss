@@ -23,3 +23,7 @@
 }
 
 @function no-params() {}
+// An uppercase name is still a CSS custom function, which dart-sass matches case-insensitively
+@FUNCTION --a() {
+  result: {}#&%^*;
+}
