@@ -211,3 +211,54 @@ fn less_custom_property_glued_sign_is_no_operator() {
         );
     }
 }
+
+// less.js's `dimension` unit is `[a-z_]+`, so a `-` ends it and starts a subtraction:
+// `2-round(1.5)` is `2 - round(1.5)`, not the dimension `2` with unit `-round`.
+#[test]
+fn less_minus_in_dimension_unit_is_subtraction() {
+    for (code, left, right) in [
+        ("a { p: 2-round(1.5); }", "2", "round(1.5)"),
+        ("a { p: 1px-2px; }", "1px", "2px"),
+        ("a { p: 1px--2px; }", "1px", "-2px"),
+        ("a { p: 10px-2; }", "10px", "2"),
+        ("a { p: 1px-@a; }", "1px", "@a"),
+        ("a { p: 1px-(1); }", "1px", "(1)"),
+        ("a { p: 1px- @a; }", "1px", "@a"),
+        ("a { p: 1px-\\61; }", "1px", "\\61"),
+        ("a { p: 1px-2px-3px; }", "1px-2px", "3px"),
+        // The right operand of a sign folded into the dimension token
+        ("a { p: 1px+2px-3px; }", "1px+2px", "3px"),
+        ("a { p: 1+2-round(1.5); }", "1+2", "round(1.5)"),
+    ] {
+        assert_eq!(less_binary(code), (left, "-", right), "{code:?}");
+    }
+
+    // No operand after the `-`, or a unit lessc ends before it (`1px` `2-3px`): left as css-syntax-3 lexes it
+    for code in [
+        "a { p: 1px-; }",
+        "a { p: 1px- ; }",
+        "a { p: 1px- /* c */; }",
+        "a { p: 1px--; }",
+        "a { p: 1px2-3px; }",
+        "a { --x: 1px-2px; }",
+    ] {
+        let ss = parse(code, Syntax::Less);
+        let [ComponentValue::Dimension(_)] = first_declaration_value(&ss) else {
+            panic!("expected a dimension for {code:?}, got {:?}", first_declaration_value(&ss));
+        };
+    }
+    assert_eq!(less_binary("a { p: 1px- * 2; }"), ("1px-", "*", "2"));
+    // A comment right after the `-` makes no subtraction either, as for a `-` delimiter
+    for code in ["a { p: 1px-/**/2px; }", "a { p: 1px- -; }"] {
+        let ss = parse(code, Syntax::Less);
+        let [ComponentValue::Dimension(_), _] = first_declaration_value(&ss) else {
+            panic!("expected dimension/value for {code:?}, got {:?}", first_declaration_value(&ss));
+        };
+    }
+    let ss = parse("a { p: 1px- \"t\"; }", Syntax::Less);
+    let [ComponentValue::Dimension(_), ComponentValue::InterpolableStr(_)] =
+        first_declaration_value(&ss)
+    else {
+        panic!("expected dimension/string, got {:?}", first_declaration_value(&ss));
+    };
+}

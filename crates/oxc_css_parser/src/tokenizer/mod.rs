@@ -165,6 +165,13 @@ impl<'a> Tokenizer<'a> {
         self.next()
     }
 
+    /// Resume lexing at `offset`, an ASCII position inside the token last lexed.
+    pub(crate) fn rewind_to(&mut self, offset: u32) {
+        self.state.chars =
+            ByteIndices { iter: self.source.as_bytes()[offset as usize..].iter(), offset }
+                .peekable();
+    }
+
     pub fn current_offset(&mut self) -> u32 {
         if let Some((offset, _)) = self.state.chars.peek() {
             *offset
