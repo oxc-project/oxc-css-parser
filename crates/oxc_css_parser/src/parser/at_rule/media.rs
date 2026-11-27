@@ -319,10 +319,15 @@ impl<'a> Parser<'a> {
     /// parse the rule — the query merely evaluates to "not all" — so preserve
     /// it like `<general-enclosed>` raw tokens. Only this position is safe to
     /// relax: elsewhere an ident is a media type (`@media print`).
+    /// less.js keeps it as written too; dart-sass rejects it
+    /// ("expected media condition in parentheses").
+    ///
+    /// NOTE: Kept raw, so the formatter prints it verbatim (`@media SCREEN AND TV` prints `screen and TV`).
+    /// Give it a typed node once the formatter needs to format it.
     fn parse_media_in_parens_after_logic(&mut self) -> PResult<MediaInParens<'a>> {
         let relax_bare_ident = {
             let peek = self.cursor.peek()?;
-            self.syntax == Syntax::Css
+            matches!(self.syntax, Syntax::Css | Syntax::Less)
                 && peek.ident(self.source).is_some()
                 && !peek.is_ident_name_eq_ignore_ascii_case(self.source, "not")
                 && self.source.as_bytes().get(peek.span.end as usize) != Some(&b'(')
