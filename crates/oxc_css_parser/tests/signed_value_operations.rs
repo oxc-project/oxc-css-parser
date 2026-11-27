@@ -22,6 +22,15 @@ fn first_declaration_value<'a>(ss: &'a Stylesheet<'static>) -> &'a [ComponentVal
     &decl.value
 }
 
+/// The left operand, operator and right operand of the only value, a binary operation.
+fn less_binary(code: &'static str) -> (&'static str, &'static str, &'static str) {
+    let ss = parse(code, Syntax::Less);
+    let [ComponentValue::LessBinaryOperation(op)] = first_declaration_value(&ss) else {
+        panic!("expected a binary operation for {code:?}, got {:?}", first_declaration_value(&ss));
+    };
+    (op.left.span().slice(code), op.op.span.slice(code), op.right.span().slice(code))
+}
+
 fn first_function_args<'a>(ss: &'a Stylesheet<'static>) -> &'a [ComponentValue<'static>] {
     let [ComponentValue::Function(function)] = first_declaration_value(ss) else {
         panic!("expected a single function value");
@@ -132,4 +141,73 @@ fn scss_calc_word_glued_run_stays_values() {
     else {
         panic!("expected pct/dim/comma/dim, got {:?}", first_function_args(&ss));
     };
+}
+
+// less.js `addition` takes a `+`/`-` glued to its left operand as a binary operator
+// (`!isSpaced && ($char('+') || $char('-'))`), when an operand follows it.
+#[test]
+fn less_glued_sign_delimiter_is_binary_operator() {
+    for (code, expected) in [
+        ("a { p: 1+-1; }", ("1", "+", "-1")),
+        ("a { p: 1+-(1); }", ("1", "+", "-(1)")),
+        ("a { p: (-1)+-1; }", ("(-1)", "+", "-1")),
+        ("a { p: 1+(1); }", ("1", "+", "(1)")),
+        ("a { p: 1-(1); }", ("1", "-", "(1)")),
+        ("a { p: 2+round(1.5); }", ("2", "+", "round(1.5)")),
+        ("a { p: @a+@b; }", ("@a", "+", "@b")),
+        ("a { p: 1px+@a; }", ("1px", "+", "@a")),
+    ] {
+        assert_eq!(less_binary(code), expected, "{code:?}");
+    }
+}
+
+// Spaced before but not after, a `-` is no operator, and less.js negates only a glued `@var`, `$prop` or `(`:
+// its keyword regex (`[\w-]+`) reads the `-` alone.
+#[test]
+fn less_lone_minus_before_non_negatable_is_keyword() {
+    for (code, rest) in [("a { p: 1 -\"t\"; }", "\"t\""), ("a { p: 1 -#fff; }", "#fff")] {
+        let ss = parse(code, Syntax::Less);
+        let [ComponentValue::Number(_), ComponentValue::InterpolableIdent(minus), value] =
+            first_declaration_value(&ss)
+        else {
+            panic!(
+                "expected number/`-`/value for {code:?}, got {:?}",
+                first_declaration_value(&ss)
+            );
+        };
+        assert_eq!(minus.span().slice(code), "-");
+        assert_eq!(value.span().slice(code), rest);
+    }
+
+    // No operand after a glued `-` either: still the keyword, as before
+    for code in ["a { p: 1-; }", "a { p: (1)-; }"] {
+        let ss = parse(code, Syntax::Less);
+        let [_, ComponentValue::InterpolableIdent(minus)] = first_declaration_value(&ss) else {
+            panic!("expected value/`-` for {code:?}, got {:?}", first_declaration_value(&ss));
+        };
+        assert_eq!(minus.span().slice(code), "-");
+    }
+
+    let code = "a { p: 1 -(1); }";
+    let ss = parse(code, Syntax::Less);
+    let [ComponentValue::Number(_), ComponentValue::LessNegativeValue(_)] =
+        first_declaration_value(&ss)
+    else {
+        panic!("expected number/negation, got {:?}", first_declaration_value(&ss));
+    };
+}
+
+// lessc does no math in a custom property value, so a glued sign stays as written there
+#[test]
+fn less_custom_property_glued_sign_is_no_operator() {
+    for code in ["a { --x: a+b; }", "a { --x: 1+(1); }"] {
+        let ss = parse(code, Syntax::Less);
+        assert!(
+            !first_declaration_value(&ss)
+                .iter()
+                .any(|value| matches!(value, ComponentValue::LessBinaryOperation(_))),
+            "expected no binary operation for {code:?}, got {:?}",
+            first_declaration_value(&ss)
+        );
+    }
 }

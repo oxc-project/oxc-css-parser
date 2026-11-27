@@ -1,6 +1,6 @@
 use super::{
     Parser,
-    state::{ParserState, QualifiedRuleContext},
+    state::{LESS_CTX_CUSTOM_PROPERTY, ParserState, QualifiedRuleContext},
 };
 use crate::{
     Parse, Syntax,
@@ -107,9 +107,16 @@ impl<'a> Parse<'a> for Declaration<'a> {
                 // The typed parse may stop earlier (Scss ends a value at a nesting block),
                 // which would turn `--x: { a: b } --y: c;` into two declarations.
                 // So take the typed value only when it reaches the terminator.
-                if let Ok((values, important)) =
-                    parser.try_parse(Parser::parse_whole_declaration_value)
-                {
+                if let Ok((values, important)) = parser.try_parse(|parser| {
+                    let less_ctx = if is_custom_property {
+                        parser.state.less_ctx | LESS_CTX_CUSTOM_PROPERTY
+                    } else {
+                        parser.state.less_ctx
+                    };
+                    parser
+                        .with_state(ParserState { less_ctx, ..parser.state.clone() })
+                        .parse_whole_declaration_value()
+                }) {
                     (values, important, false)
                 } else {
                     (parser.parse_declaration_value_tokens(false)?, None, true)

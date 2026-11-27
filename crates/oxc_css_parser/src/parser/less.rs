@@ -1,6 +1,6 @@
 use super::{
     Parser,
-    state::{LESS_CTX_ALLOW_DIV, ParserState, QualifiedRuleContext},
+    state::{LESS_CTX_ALLOW_DIV, LESS_CTX_CUSTOM_PROPERTY, ParserState, QualifiedRuleContext},
 };
 use crate::{
     Parse,
@@ -383,19 +383,19 @@ impl<'a> Parser<'a> {
                     .parse_less_parenthesized_operation(allow_mixin_call)
                     .map(ComponentValue::LessParenthesizedOperation)?,
                 Token::Minus(..) => {
-                    // less.js's keyword regex also matches a bare `-`
-                    // (`a:hover when (2 = true) {5:-}`); only treat it as one
-                    // when a terminator follows immediately
+                    // less.js negates only a glued `@var`, `$prop` or `(`;
+                    // otherwise its keyword regex (`[\w-]+`) reads the `-` alone,
+                    // as in `a:hover when (2 = true) {5:-}` or `1 -"t"`
                     let end = self.cursor.peek()?.span.end as usize;
-                    if matches!(self.source.as_bytes().get(end), None | Some(b';' | b'}')) {
+                    if matches!(self.source.as_bytes().get(end), Some(b'@' | b'$' | b'(')) {
+                        self.parse::<LessNegativeValue>().map(ComponentValue::LessNegativeValue)?
+                    } else {
                         let span = self.cursor.bump()?.span;
                         ComponentValue::InterpolableIdent(InterpolableIdent::Literal(Ident {
                             name: "-",
                             raw: "-",
                             span,
                         }))
-                    } else {
-                        self.parse::<LessNegativeValue>().map(ComponentValue::LessNegativeValue)?
                     }
                 }
                 _ => {
@@ -417,8 +417,16 @@ impl<'a> Parser<'a> {
 
         // delimiter can't be calculated (same guard as the SassScript path):
         // `func(20px, +20px)` / `func(20px,-20px)` are two args in lessc,
-        // never a `,`-left operation
-        if matches!(left, ComponentValue::Delimiter(..)) {
+        // never a `,`-left operation.
+        // Nor can the keyword `-`: `1-*2` is an error in lessc
+        if matches!(
+            left,
+            ComponentValue::Delimiter(..)
+                | ComponentValue::InterpolableIdent(InterpolableIdent::Literal(Ident {
+                    name: "-",
+                    ..
+                }))
+        ) {
             return Ok(left);
         }
 
@@ -454,27 +462,28 @@ impl<'a> Parser<'a> {
                         span: Span { start, end },
                     }
                 }
-                // A `+`/`-` is a binary operator only when followed by
-                // whitespace. lessc is whitespace-sensitive here: `@a - @b`
-                // is subtraction, but `@a -@b` is two values (`-@b` is a
-                // signed value, not an operator) — see the `margin` shorthand.
-                TokenWithSpan { token: Token::Plus(..), span }
+                // A `+`/`-` is a binary operator when followed by whitespace
+                // or glued to the left operand, as less.js `addition` reads it
+                // (`/^[-+]\s+/ || !isSpaced && ...`): `@a - @b` and `1-(1)`
+                // are subtractions, but `@a -@b` is two values (`-@b` is a
+                // signed value, not an operator), see the `margin` shorthand.
+                // NOTE: Neither side is checked to be a less.js `operand`, spaced or glued alike:
+                // lessc rejects `foo + 1` / `foo+(1)` and reads `1 + "t"` / `1+foo` as two values (the sign dropped).
+                // Matching it needs one operand check for every operator path here, named colors included.
+                TokenWithSpan { token: token @ (Token::Plus(..) | Token::Minus(..)), span }
                     if precedence == PRECEDENCE_PLUS
                         && (is_followed_by_whitespace(self.source, span.end)
+                            || (span.start == left.span().end
+                                && self.state.less_ctx & LESS_CTX_CUSTOM_PROPERTY == 0
+                                && starts_less_operand(self.source, span.end))
                             || self.state.less_ctx & LESS_CTX_ALLOW_DIV != 0) =>
                 {
                     LessOperationOperator {
-                        kind: LessOperationOperatorKind::Plus,
-                        span: self.cursor.bump()?.span,
-                    }
-                }
-                TokenWithSpan { token: Token::Minus(..), span }
-                    if precedence == PRECEDENCE_PLUS
-                        && (is_followed_by_whitespace(self.source, span.end)
-                            || self.state.less_ctx & LESS_CTX_ALLOW_DIV != 0) =>
-                {
-                    LessOperationOperator {
-                        kind: LessOperationOperatorKind::Minus,
+                        kind: if matches!(token, Token::Plus(..)) {
+                            LessOperationOperatorKind::Plus
+                        } else {
+                            LessOperationOperatorKind::Minus
+                        },
                         span: self.cursor.bump()?.span,
                     }
                 }
@@ -1976,4 +1985,21 @@ fn can_be_division_operand(left: &ComponentValue) -> bool {
 /// `+`/`-` binary operator (followed by whitespace) from a value sign.
 fn is_followed_by_whitespace(source: &str, pos: u32) -> bool {
     source.as_bytes().get(pos as usize).is_some_and(u8::is_ascii_whitespace)
+}
+
+/// Whether a less.js `operand` can start at `pos` (a number, a name, a call, `@var`, `$prop`, `(`, a color, `~"..."`).
+/// After a glued sign, lessc otherwise reads no subtraction: `1-;` is `1` `-`, and the sign of `1+"t"` is dropped.
+fn starts_less_operand(source: &str, pos: u32) -> bool {
+    let bytes = source.as_bytes();
+    bytes.get(pos as usize).is_some_and(|&b| match b {
+        // Only as a signed number or a negation (`1+-1`, `1+-@a`), not a lone `-` (`1+-;`)
+        b'+' | b'-' => bytes
+            .get(pos as usize + 1)
+            .is_some_and(|b| matches!(b, b'0'..=b'9' | b'.' | b'@' | b'$' | b'(')),
+        _ => {
+            b.is_ascii_alphanumeric()
+                || !b.is_ascii()
+                || matches!(b, b'_' | b'\\' | b'.' | b'@' | b'$' | b'(' | b'#' | b'~')
+        }
+    })
 }
