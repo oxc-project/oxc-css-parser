@@ -2,3 +2,7 @@
 @media (max-width: @bpMedium) {}
 @media screen and (min-width: (@some-var + 1)) {}
 @media all and (device-aspect-ratio: ~'@{ratio_large} / @{ratio_small}') {}
+// less.js keeps a bare ident after `and` / `or` as written, as browsers parse it
+@media screen and tv {}
+@media (orientation: portrait) and tv {}
+@media (a: b) or tv {}

@@ -1,0 +1,8 @@
+---
+source: crates/oxc_css_parser/tests/error.rs
+---
+error: expect one of `<ident>` or `#{`, but found `(`
+  ┌─ and-bare-ident.scss:1:8
+  │
+1 │ @media (orientation: portrait) and tv {}
+  │        ^
