@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.23](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.22...oxc-css-parser-v0.0.23) - 2026-11-27
+
+### Fixed
+
+- *(parser)* end a Less dimension unit at `-`, as less.js does ([#224](https://github.com/oxc-project/oxc-css-parser/pull/224))
+- *(parser)* read a Less `+`/`-` glued to its left operand as a binary operator ([#223](https://github.com/oxc-project/oxc-css-parser/pull/223))
+- *(parser)* keep a bare ident after Less `@media ... and`, as less.js does ([#222](https://github.com/oxc-project/oxc-css-parser/pull/222))
+- *(parser)* parse SCSS `@IMPORT` as an unknown at-rule, as dart-sass does ([#221](https://github.com/oxc-project/oxc-css-parser/pull/221))
+- *(parser)* span a `@supports` `selector()` term from its name to its `)` ([#220](https://github.com/oxc-project/oxc-css-parser/pull/220))
+
+### Other
+
+- *(parser)* use oxfmt's css-in-js placeholder name in examples and tests ([#215](https://github.com/oxc-project/oxc-css-parser/pull/215))
+- inherit workspace lints in `crates/oxc_css_parser` ([#213](https://github.com/oxc-project/oxc-css-parser/pull/213))
+- *(rust)* bump toolchain to 1.100.0 and MSRV to 1.98.0 ([#211](https://github.com/oxc-project/oxc-css-parser/pull/211))
+
 ## [0.0.22](https://github.com/oxc-project/oxc-css-parser/compare/oxc-css-parser-v0.0.21...oxc-css-parser-v0.0.22) - 2026-11-12
 
 ### Fixed
