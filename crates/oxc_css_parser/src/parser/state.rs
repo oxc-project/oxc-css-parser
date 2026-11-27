@@ -35,6 +35,8 @@ pub(super) const SASS_CTX_ALLOW_KEYFRAME_BLOCK: u8 = 4;
 pub(super) const SASS_CTX_IN_PARENS: u8 = 8;
 
 pub(super) const LESS_CTX_ALLOW_DIV: u8 = 1;
+/// lessc does no math in a custom property value: `--x: 1px-2px` is not a subtraction.
+pub(super) const LESS_CTX_CUSTOM_PROPERTY: u8 = 2;
 
 impl<'a> Parser<'a> {
     pub(super) fn with_state(&mut self, state: ParserState) -> WithState<'a, '_> {
