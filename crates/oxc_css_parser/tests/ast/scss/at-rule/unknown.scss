@@ -18,6 +18,8 @@ a {
 b {
     @insert-tokens '#{$t}'
 }
-// dart-sass matches at-rule names case-sensitively: not an `@import`
+// dart-sass matches at-rule names case-sensitively: unknown at-rules, not an `@import` or a `@supports`
 @IMPORT Keep;
 @IMPORT "Keep";
+@SUPPORTS Keep { a { b: c } }
+@CHARSET 1;
